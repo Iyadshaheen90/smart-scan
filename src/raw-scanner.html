@@ -143,6 +143,8 @@
     const scanPhotoBtn = document.getElementById('scanPhotoBtn');
     const fileScanner = new Html5Qrcode('file-reader');
 
+    scanPhotoBtn.addEventListener('click', () => fileInput.click());
+
     // html5-qrcode's file scanner struggles with full-res phone photos (12MP+ noted as
     // "troublesome" in its own source) and doesn't retry at other rotations. So we downscale
     // and try a few rotations ourselves before giving up.
