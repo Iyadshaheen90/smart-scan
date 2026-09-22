@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Smart Scan — Raw Scanner Test</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, system-ui, sans-serif;
+    margin: 0;
+    padding: 16px;
+    max-width: 480px;
+    margin-inline: auto;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { color: #666; font-size: 13px; margin: 0 0 16px; }
+  #reader {
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #111;
+  }
+  #status {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #f2f2f2;
+    font-size: 14px;
+  }
+  #log {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .entry {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .entry .raw {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 15px;
+    font-weight: 600;
+    word-break: break-all;
+  }
+  .entry .meta {
+    color: #666;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .entry .len {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 12px;
+    background: #eef;
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  button {
+    margin-top: 12px;
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    #status { background: #222; }
+    .entry { border-color: #333; }
+    .entry .meta { color: #999; }
+    .entry .len { background: #223; }
+    button { background: #1c1c1c; color: #eee; border-color: #444; }
+    p.sub { color: #999; }
+  }
+</style>
+</head>
+<body>
+  <h1>Smart Scan — Raw Scanner Test</h1>
+  <p class="sub">Scans every ticket's barcode and shows exactly what was decoded — no parsing, no interpretation. Point the camera at a ticket's barcode (not the hidden prize-validation code). Scan several tickets, ideally from the same pack, including one near the start and one near the end.</p>
+
+  <div id="reader"></div>
+  <div id="status">Starting camera…</div>
+
+  <button id="clearBtn">Clear log</button>
+
+  <div id="log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let scanCount = 0;
+    let lastRaw = null;
+    let lastAt = 0;
+
+    function addEntry(decodedText, decodedResult) {
+      // Ignore an identical re-scan within 2s (camera keeps re-reading the same ticket).
+      const now = Date.now();
+      if (decodedText === lastRaw && now - lastAt < 2000) return;
+      lastRaw = decodedText;
+      lastAt = now;
+
+      scanCount += 1;
+      const format = decodedResult?.result?.format?.formatName || 'unknown format';
+      const time = new Date().toLocaleTimeString();
+
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.innerHTML = `
+        <div class="raw">${escapeHtml(decodedText)}</div>
+        <div class="meta">#${scanCount} · ${escapeHtml(format)} · ${time}</div>
+        <div class="len">length: ${decodedText.length} chars</div>
+      `;
+      logEl.prepend(entry);
+      statusEl.textContent = `Scanned ${scanCount} ticket${scanCount === 1 ? '' : 's'} this session.`;
+
+      if (navigator.vibrate) navigator.vibrate(80);
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    clearBtn.addEventListener('click', () => {
+      logEl.innerHTML = '';
+      scanCount = 0;
+      lastRaw = null;
+      statusEl.textContent = 'Log cleared. Ready to scan.';
+    });
+
+    const scanner = new Html5Qrcode('reader');
+    const config = { fps: 10, qrbox: { width: 280, height: 140 } };
+
+    // Prefer the rear camera on a phone.
+    Html5Qrcode.getCameras()
+      .then((cameras) => {
+        if (!cameras || cameras.length === 0) {
+          statusEl.textContent = 'No camera found.';
+          return;
+        }
+        const rear = cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[cameras.length - 1];
+        return scanner.start(
+          rear.id,
+          config,
+          addEntry,
+          () => { /* per-frame decode failure, ignore */ }
+        ).then(() => {
+          statusEl.textContent = 'Ready — point at a ticket barcode.';
+        });
+      })
+      .catch((err) => {
+        statusEl.textContent = 'Camera error: ' + err;
+      });
+  </script>
+</body>
+</html>
