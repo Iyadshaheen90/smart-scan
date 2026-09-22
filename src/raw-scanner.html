@@ -85,9 +85,12 @@
   <div id="reader"></div>
   <div id="status">Starting camera…</div>
 
+  <button id="scanPhotoBtn">Scan from photo</button>
+  <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none;">
   <button id="clearBtn">Clear log</button>
 
   <div id="log"></div>
+  <div id="file-reader" style="position:absolute; visibility:hidden; width:1px; height:1px; overflow:hidden;"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script>
@@ -134,6 +137,28 @@
       scanCount = 0;
       lastRaw = null;
       statusEl.textContent = 'Log cleared. Ready to scan.';
+    });
+
+    const fileInput = document.getElementById('fileInput');
+    const scanPhotoBtn = document.getElementById('scanPhotoBtn');
+    const fileScanner = new Html5Qrcode('file-reader');
+
+    scanPhotoBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const prevStatus = statusEl.textContent;
+      statusEl.textContent = 'Decoding photo…';
+      try {
+        const result = await fileScanner.scanFileV2(file, false);
+        lastRaw = null; // a photo decode should never be treated as a camera-preview repeat
+        addEntry(result.decodedText, result);
+      } catch (err) {
+        statusEl.textContent = 'Could not decode a barcode from that photo — try a closer, sharper shot. (' + err + ')';
+      }
+      fileInput.value = '';
+      if (statusEl.textContent === 'Decoding photo…') statusEl.textContent = prevStatus;
     });
 
     const scanner = new Html5Qrcode('reader');
