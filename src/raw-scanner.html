@@ -15,12 +15,32 @@
   }
   h1 { font-size: 18px; margin: 0 0 4px; }
   p.sub { color: #666; font-size: 13px; margin: 0 0 16px; }
-  #reader {
+  #viewport {
+    position: relative;
     width: 100%;
     border-radius: 8px;
     overflow: hidden;
     background: #111;
+    aspect-ratio: 4 / 3;
   }
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  #guide {
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    top: 35%;
+    bottom: 35%;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+  #viewport.hit #guide { border-color: #3c3; }
   #status {
     margin: 12px 0;
     padding: 10px 12px;
@@ -45,6 +65,11 @@
     font-size: 15px;
     font-weight: 600;
     word-break: break-all;
+  }
+  .entry .parsed {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    margin-top: 4px;
   }
   .entry .meta {
     color: #666;
@@ -80,49 +105,74 @@
 </head>
 <body>
   <h1>Smart Scan — Raw Scanner Test</h1>
-  <p class="sub">Scans every ticket's barcode and shows exactly what was decoded — no parsing, no interpretation. Point the camera at a ticket's barcode (not the hidden prize-validation code). Scan several tickets, ideally from the same pack, including one near the start and one near the end.</p>
+  <p class="sub">Point the camera at the barcode on the back of the ticket (under "SCAN FRONT BARCODE FOR VALIDATION"), fill the box with it, and hold steady. Shows exactly what was decoded, plus a tentative game / pack / ticket split.</p>
 
-  <div id="reader"></div>
-  <div id="status">Starting camera…</div>
+  <div id="viewport">
+    <video id="video" playsinline muted autoplay></video>
+    <div id="guide"></div>
+  </div>
+  <div id="status">Loading scanner…</div>
 
   <button id="scanPhotoBtn">Scan from photo</button>
-  <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none;">
+  <input type="file" id="fileInput" accept="image/*" style="display:none;">
   <button id="clearBtn">Clear log</button>
 
   <div id="log"></div>
-  <div id="file-reader" style="position:absolute; visibility:hidden; width:1px; height:1px; overflow:hidden;"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script>
+  <script type="module">
+    // zxing-wasm is the ZXing C++ engine compiled to WebAssembly. It decodes these tickets'
+    // ITF barcodes reliably; html5-qrcode (ZXing-js) never managed to, even on sharp photos.
+    import { readBarcodes, prepareZXingModule } from 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/es/reader/index.js';
+
     const statusEl = document.getElementById('status');
     const logEl = document.getElementById('log');
-    const clearBtn = document.getElementById('clearBtn');
+    const video = document.getElementById('video');
+    const viewport = document.getElementById('viewport');
+
+    // CA scratcher back-panel barcode: 26-digit ITF.
+    // GGGG PPPPPPP TTT 000000000 XXX — the printed check digit (the "C" in GGGG-PPPPPPP-C-TTT)
+    // is not encoded; the trailing 3 digits are not yet understood.
+    const CAMERA_READER_OPTIONS = { formats: ['ITF'], tryHarder: true, tryRotate: true, maxNumberOfSymbols: 1 };
+    const PHOTO_READER_OPTIONS = { formats: ['AllLinear'], tryHarder: true, tryRotate: true, tryDownscale: true, maxNumberOfSymbols: 4 };
 
     let scanCount = 0;
     let lastRaw = null;
     let lastAt = 0;
 
-    function addEntry(decodedText, decodedResult) {
+    function tentativeParse(text) {
+      if (!/^\d{26}$/.test(text)) return null;
+      return {
+        game: text.slice(0, 4),
+        pack: text.slice(4, 11),
+        ticket: text.slice(11, 14),
+        rest: text.slice(14),
+      };
+    }
+
+    function addEntry(text, format, source) {
       // Ignore an identical re-scan within 2s (camera keeps re-reading the same ticket).
       const now = Date.now();
-      if (decodedText === lastRaw && now - lastAt < 2000) return;
-      lastRaw = decodedText;
+      if (source === 'camera' && text === lastRaw && now - lastAt < 2000) return;
+      lastRaw = text;
       lastAt = now;
 
       scanCount += 1;
-      const format = decodedResult?.result?.format?.formatName || 'unknown format';
       const time = new Date().toLocaleTimeString();
+      const p = tentativeParse(text);
 
       const entry = document.createElement('div');
       entry.className = 'entry';
       entry.innerHTML = `
-        <div class="raw">${escapeHtml(decodedText)}</div>
-        <div class="meta">#${scanCount} · ${escapeHtml(format)} · ${time}</div>
-        <div class="len">length: ${decodedText.length} chars</div>
+        <div class="raw">${escapeHtml(text)}</div>
+        ${p ? `<div class="parsed">game ${p.game} · pack ${p.pack} · ticket ${p.ticket} · rest ${p.rest}</div>` : ''}
+        <div class="meta">#${scanCount} · ${escapeHtml(format)} · ${source} · ${time}</div>
+        <div class="len">length: ${text.length} chars</div>
       `;
       logEl.prepend(entry);
       statusEl.textContent = `Scanned ${scanCount} ticket${scanCount === 1 ? '' : 's'} this session.`;
 
+      viewport.classList.add('hit');
+      setTimeout(() => viewport.classList.remove('hit'), 400);
       if (navigator.vibrate) navigator.vibrate(80);
     }
 
@@ -132,103 +182,99 @@
       return div.innerHTML;
     }
 
-    clearBtn.addEventListener('click', () => {
+    document.getElementById('clearBtn').addEventListener('click', () => {
       logEl.innerHTML = '';
       scanCount = 0;
       lastRaw = null;
       statusEl.textContent = 'Log cleared. Ready to scan.';
     });
 
+    // --- Scan from photo ---
     const fileInput = document.getElementById('fileInput');
-    const scanPhotoBtn = document.getElementById('scanPhotoBtn');
-    const fileScanner = new Html5Qrcode('file-reader');
-
-    scanPhotoBtn.addEventListener('click', () => fileInput.click());
-
-    // html5-qrcode's file scanner struggles with full-res phone photos (12MP+ noted as
-    // "troublesome" in its own source) and doesn't retry at other rotations. So we downscale
-    // and try a few rotations ourselves before giving up.
-    const MAX_DECODE_DIM = 1600;
-    const ROTATIONS_TO_TRY = [0, 180, 90, 270];
-
-    function loadImage(file) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
-      });
-    }
-
-    function renderRotated(img, degrees, maxDim) {
-      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement('canvas');
-      const swapped = degrees === 90 || degrees === 270;
-      canvas.width = swapped ? h : w;
-      canvas.height = swapped ? w : h;
-      const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((degrees * Math.PI) / 180);
-      ctx.drawImage(img, -w / 2, -h / 2, w, h);
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => resolve(new File([blob], 'rotated.jpg', { type: 'image/jpeg' })), 'image/jpeg', 0.92);
-      });
-    }
+    document.getElementById('scanPhotoBtn').addEventListener('click', () => fileInput.click());
 
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
-      const prevStatus = statusEl.textContent;
-
-      const img = await loadImage(file);
-      let decoded = null;
-      let lastErr = null;
-      for (const degrees of ROTATIONS_TO_TRY) {
-        statusEl.textContent = `Decoding photo… (trying ${degrees}°)`;
-        const rotatedFile = await renderRotated(img, degrees, MAX_DECODE_DIM);
-        try {
-          decoded = await fileScanner.scanFileV2(rotatedFile, false);
-          break;
-        } catch (err) {
-          lastErr = err;
-        }
-      }
-
-      if (decoded) {
-        lastRaw = null; // a photo decode should never be treated as a camera-preview repeat
-        addEntry(decoded.decodedText, decoded);
-      } else {
-        statusEl.textContent = 'Could not decode a barcode from that photo (tried 4 rotations, downscaled) — try a closer, sharper, less-angled shot. (' + lastErr + ')';
-      }
       fileInput.value = '';
-      if (decoded && statusEl.textContent.startsWith('Decoding photo')) statusEl.textContent = prevStatus;
-    });
-
-    const scanner = new Html5Qrcode('reader');
-    const config = { fps: 10, qrbox: { width: 280, height: 140 } };
-
-    // Prefer the rear camera on a phone.
-    Html5Qrcode.getCameras()
-      .then((cameras) => {
-        if (!cameras || cameras.length === 0) {
-          statusEl.textContent = 'No camera found.';
+      if (!file) return;
+      statusEl.textContent = 'Decoding photo…';
+      try {
+        // Draw through a canvas so iOS HEIC photos arrive as plain pixels.
+        const bitmap = await createImageBitmap(file);
+        const results = await readBarcodes(frameToImageData(bitmap, 0, 0, bitmap.width, bitmap.height, 2000), PHOTO_READER_OPTIONS);
+        if (results.length === 0) {
+          statusEl.textContent = 'No barcode found in that photo — try a closer, sharper shot of the barcode.';
           return;
         }
-        const rear = cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[cameras.length - 1];
-        return scanner.start(
-          rear.id,
-          config,
-          addEntry,
-          () => { /* per-frame decode failure, ignore */ }
-        ).then(() => {
-          statusEl.textContent = 'Ready — point at a ticket barcode.';
+        for (const r of results) addEntry(r.text, r.format, 'photo');
+      } catch (err) {
+        statusEl.textContent = 'Photo decode error: ' + err;
+      }
+    });
+
+    // --- Live camera ---
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    // Draws a region of the source to the canvas, scaled so its longest side is at most maxDim.
+    function frameToImageData(source, sx, sy, sw, sh, maxDim) {
+      const scale = Math.min(1, maxDim / Math.max(sw, sh));
+      canvas.width = Math.round(sw * scale);
+      canvas.height = Math.round(sh * scale);
+      ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+
+    async function scanLoop() {
+      if (video.readyState >= 2 && video.videoWidth > 0) {
+        // Decode only the middle band of the frame (roughly the on-screen guide box, with margin),
+        // which keeps each decode fast without losing the barcode.
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        const sy = Math.round(vh * 0.2);
+        const sh = Math.round(vh * 0.6);
+        try {
+          const results = await readBarcodes(frameToImageData(video, 0, sy, vw, sh, 1600), CAMERA_READER_OPTIONS);
+          if (results.length > 0) addEntry(results[0].text, results[0].format, 'camera');
+        } catch (err) {
+          statusEl.textContent = 'Decode error: ' + err;
+        }
+      }
+      requestAnimationFrame(scanLoop);
+    }
+
+    async function start() {
+      try {
+        await prepareZXingModule({ fireImmediately: true });
+      } catch (err) {
+        statusEl.textContent = 'Could not load barcode engine: ' + err;
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         });
-      })
-      .catch((err) => {
-        statusEl.textContent = 'Camera error: ' + err;
-      });
+        video.srcObject = stream;
+        await video.play();
+        // Continuous autofocus helps a lot with small 1D barcodes, where supported.
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.focusMode && caps.focusMode.includes('continuous')) {
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+        }
+        statusEl.textContent = 'Ready — fill the box with the ticket barcode.';
+        scanLoop();
+      } catch (err) {
+        statusEl.textContent = 'Camera error: ' + err + ' — you can still use "Scan from photo".';
+      }
+    }
+
+    start();
   </script>
 </body>
 </html>
