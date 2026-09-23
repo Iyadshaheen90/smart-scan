@@ -105,7 +105,7 @@
 </head>
 <body>
   <h1>Smart Scan — Raw Scanner Test</h1>
-  <p class="sub">Point the camera at the barcode on the back of the ticket (under "SCAN FRONT BARCODE FOR VALIDATION"), fill the box with it, and hold steady. Shows exactly what was decoded, plus a tentative game / pack / ticket split.</p>
+  <p class="sub">Point the camera at the barcode on the back of the ticket (under "SCAN FRONT BARCODE FOR VALIDATION"), fill the box with it, and hold steady. Shows exactly what was decoded, plus the parsed game / pack / ticket.</p>
 
   <div id="viewport">
     <video id="video" playsinline muted autoplay></video>
@@ -119,6 +119,7 @@
 
   <div id="log"></div>
 
+  <script src="barcode.js"></script>
   <script type="module">
     // zxing-wasm is the ZXing C++ engine compiled to WebAssembly. It decodes these tickets'
     // ITF barcodes reliably; html5-qrcode (ZXing-js) never managed to, even on sharp photos.
@@ -129,25 +130,13 @@
     const video = document.getElementById('video');
     const viewport = document.getElementById('viewport');
 
-    // CA scratcher back-panel barcode: 26-digit ITF.
-    // GGGG PPPPPPP TTT 000000000 XXX — the printed check digit (the "C" in GGGG-PPPPPPP-C-TTT)
-    // is not encoded; the trailing 3 digits are not yet understood.
+    // Ticket barcodes are 26-digit ITF; see barcode.js for the layout.
     const CAMERA_READER_OPTIONS = { formats: ['ITF'], tryHarder: true, tryRotate: true, maxNumberOfSymbols: 1 };
     const PHOTO_READER_OPTIONS = { formats: ['AllLinear'], tryHarder: true, tryRotate: true, tryDownscale: true, maxNumberOfSymbols: 4 };
 
     let scanCount = 0;
     let lastRaw = null;
     let lastAt = 0;
-
-    function tentativeParse(text) {
-      if (!/^\d{26}$/.test(text)) return null;
-      return {
-        game: text.slice(0, 4),
-        pack: text.slice(4, 11),
-        ticket: text.slice(11, 14),
-        rest: text.slice(14),
-      };
-    }
 
     function addEntry(text, format, source) {
       // Ignore an identical re-scan within 2s (camera keeps re-reading the same ticket).
@@ -158,13 +147,19 @@
 
       scanCount += 1;
       const time = new Date().toLocaleTimeString();
-      const p = tentativeParse(text);
+      let parsedHtml;
+      try {
+        const t = parseTicketBarcode(text, format);
+        parsedHtml = `game ${t.gameNumber} · pack ${t.packNumber} · ticket ${String(t.ticketNumber).padStart(3, '0')}`;
+      } catch (err) {
+        parsedHtml = `⚠ ${escapeHtml(err.message)}`;
+      }
 
       const entry = document.createElement('div');
       entry.className = 'entry';
       entry.innerHTML = `
         <div class="raw">${escapeHtml(text)}</div>
-        ${p ? `<div class="parsed">game ${p.game} · pack ${p.pack} · ticket ${p.ticket} · rest ${p.rest}</div>` : ''}
+        <div class="parsed">${parsedHtml}</div>
         <div class="meta">#${scanCount} · ${escapeHtml(format)} · ${source} · ${time}</div>
         <div class="len">length: ${text.length} chars</div>
       `;
