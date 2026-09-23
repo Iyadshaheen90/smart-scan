@@ -52,7 +52,7 @@ function ensureFirstMonth(control, template, folder) {
   const month = SpreadsheetApp.openById(file.getId());
   seedSlots(month);
 
-  monthsSheet.appendRow([label, file.getId(), new Date(), 'active']);
+  appendMonthRow(monthsSheet, label, file.getId(), 'active');
   return { label, spreadsheetId: file.getId() };
 }
 

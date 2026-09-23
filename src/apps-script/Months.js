@@ -18,7 +18,7 @@ function getCurrentMonth() {
   if (active.length !== 1) {
     throw new Error(`Expected exactly one active month in Months, found ${active.length}.`);
   }
-  const month = { label: active[0].month_label, spreadsheetId: active[0].spreadsheet_id };
+  const month = { label: normalizeMonthLabel(active[0].month_label), spreadsheetId: active[0].spreadsheet_id };
   cache.put(CURRENT_MONTH_CACHE_KEY, JSON.stringify(month), CURRENT_MONTH_CACHE_SECONDS);
   return month;
 }
@@ -33,6 +33,21 @@ function invalidateCurrentMonthCache() {
 
 function monthLabelFor(date) {
   return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM');
+}
+
+// Sheets turns a typed "2026-09" into a date, so a label may come back as a Date. Format it
+// in the spreadsheet's own time zone, where it was parsed as midnight on the 1st.
+function normalizeMonthLabel(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, getControlSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM');
+  }
+  return String(value);
+}
+
+// Appends a Months row, storing the label as plain text so Sheets doesn't turn it into a date.
+function appendMonthRow(monthsSheet, label, spreadsheetId, status) {
+  monthsSheet.appendRow([label, spreadsheetId, new Date(), status]);
+  monthsSheet.getRange(monthsSheet.getLastRow(), 1).setNumberFormat('@').setValue(label);
 }
 
 // Reads a tab into an array of objects keyed by its header row.

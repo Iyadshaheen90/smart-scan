@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan — Backend Test</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, system-ui, sans-serif;
+    margin: 0;
+    padding: 16px;
+    max-width: 480px;
+    margin-inline: auto;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { color: #666; font-size: 13px; margin: 0 0 16px; }
+  #result {
+    padding: 14px;
+    border-radius: 8px;
+    background: #f2f2f2;
+    font-size: 15px;
+  }
+  #result.ok { background: #e3f6e8; }
+  #result.fail { background: #fde8e8; }
+  pre {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  button {
+    margin-top: 12px;
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    p.sub { color: #999; }
+    #result { background: #222; }
+    #result.ok { background: #12301b; }
+    #result.fail { background: #3a1515; }
+    button { background: #1c1c1c; color: #eee; border-color: #444; }
+  }
+</style>
+</head>
+<body>
+  <h1>Smart Scan — Backend Test</h1>
+  <p class="sub">Checks that this page (hosted on GitHub) can read data from the Google Sheets backend.</p>
+  <div id="result">Checking…</div>
+  <button id="again">Check again</button>
+
+  <script src="config.js"></script>
+  <script>
+    const resultEl = document.getElementById('result');
+
+    async function check() {
+      resultEl.className = '';
+      resultEl.textContent = 'Checking…';
+      const started = performance.now();
+      try {
+        const res = await fetch(SMART_SCAN_API_URL);
+        const body = await res.json();
+        const ms = Math.round(performance.now() - started);
+        resultEl.className = body.ok ? 'ok' : 'fail';
+        resultEl.innerHTML = body.ok
+          ? `✅ Connected — month ${body.month}, ${body.slots} slots (${ms} ms)`
+          : `❌ Backend answered with an error (${ms} ms)`;
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(body, null, 2);
+        resultEl.appendChild(pre);
+      } catch (err) {
+        resultEl.className = 'fail';
+        resultEl.textContent = '❌ Could not reach the backend: ' + err;
+      }
+    }
+
+    document.getElementById('again').addEventListener('click', check);
+    check();
+  </script>
+</body>
+</html>
