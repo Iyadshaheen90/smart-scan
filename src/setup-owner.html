@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan — Owner Setup</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Create the owner account</h1>
+  <p class="sub">One time only. Get a setup code by running <b>createOwnerSetupCode</b> in the Apps Script editor; it's shown in the execution log and works for 60 minutes.</p>
+
+  <form id="form">
+    <label for="setupCode">Setup code</label>
+    <input id="setupCode" autocapitalize="characters" autocorrect="off" spellcheck="false" required>
+    <label for="username">Choose a username</label>
+    <input id="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label for="password">Choose a password</label>
+    <input id="password" type="password" autocomplete="new-password" minlength="6" required>
+    <label for="confirm">Type the password again</label>
+    <input id="confirm" type="password" autocomplete="new-password" minlength="6" required>
+    <button class="primary" type="submit">Create owner account</button>
+  </form>
+  <div id="message" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const form = document.getElementById('form');
+    const messageEl = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (form.password.value !== form.confirm.value) {
+        showMessage(messageEl, "The two passwords don't match.");
+        return;
+      }
+      try {
+        const session = await whileBusy(form.querySelector('button'), 'Creating…', () => api('claimOwner', {
+          setupCode: form.setupCode.value,
+          username: form.username.value,
+          password: form.password.value,
+        }));
+        saveSession(session);
+        location.replace('index.html');
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+  </script>
+</body>
+</html>

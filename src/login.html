@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan — Sign In</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Smart Scan</h1>
+  <p class="sub">Sign in to continue.</p>
+
+  <form id="form">
+    <label for="username">Username</label>
+    <input id="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <button class="primary" type="submit">Sign in</button>
+  </form>
+  <div id="message" class="message"></div>
+
+  <p class="sub" style="margin-top: 32px;">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    if (getSession()) location.replace('index.html');
+
+    const form = document.getElementById('form');
+    const messageEl = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      messageEl.className = 'message';
+      messageEl.textContent = '';
+      try {
+        const session = await whileBusy(form.querySelector('button'), 'Signing in…', () =>
+          api('login', { username: form.username.value, password: form.password.value }));
+        saveSession(session);
+        location.replace('index.html');
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+  </script>
+</body>
+</html>

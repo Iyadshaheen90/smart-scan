@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan — Employees</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
+  <h1>Employees</h1>
+  <p class="sub">Employees can scan and close the day. They can't see dollar totals, manage back stock, or change the slot layout.</p>
+
+  <div id="list">Loading…</div>
+  <div id="listMessage" class="message"></div>
+
+  <h2>Add an employee</h2>
+  <form id="addForm">
+    <label for="username">Username</label>
+    <input id="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label for="password">Starting password</label>
+    <input id="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" minlength="6" required>
+    <button class="primary" type="submit">Add employee</button>
+  </form>
+  <div id="addMessage" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const session = requireLogin('owner');
+    if (session) document.getElementById('who').textContent = session.username;
+
+    const listEl = document.getElementById('list');
+    const listMessage = document.getElementById('listMessage');
+    const addForm = document.getElementById('addForm');
+    const addMessage = document.getElementById('addMessage');
+
+    function render(users) {
+      listEl.innerHTML = '';
+      for (const user of users) {
+        const card = document.createElement('div');
+        card.className = 'card' + (user.active ? '' : ' inactive');
+
+        const top = document.createElement('div');
+        top.className = 'row';
+        const name = document.createElement('strong');
+        name.textContent = user.username;
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = user.active ? user.role : `${user.role} · inactive`;
+        top.append(name, tag);
+        card.append(top);
+
+        if (user.username !== session.username) {
+          const actions = document.createElement('div');
+          actions.className = 'row';
+          actions.style.marginTop = '10px';
+          actions.style.justifyContent = 'flex-start';
+          actions.append(
+            actionButton(user.active ? 'Deactivate' : 'Reactivate', () => {
+              if (user.active && !confirm(`Deactivate ${user.username}? They'll be signed out and can't sign in until reactivated.`)) return null;
+              return api('setUserActive', { username: user.username, active: !user.active });
+            }),
+            actionButton('Reset password', () => {
+              const newPassword = prompt(`New password for ${user.username} (at least 6 characters):`);
+              if (!newPassword) return null;
+              return api('resetPassword', { username: user.username, newPassword })
+                .then((users) => { showMessage(listMessage, `Password for ${user.username} changed. Tell them the new one.`, 'ok'); return users; });
+            }),
+          );
+          card.append(actions);
+        }
+        listEl.append(card);
+      }
+    }
+
+    function actionButton(label, run) {
+      const button = document.createElement('button');
+      button.className = 'small';
+      button.type = 'button';
+      button.textContent = label;
+      button.addEventListener('click', async () => {
+        listMessage.className = 'message';
+        listMessage.textContent = '';
+        try {
+          const users = await whileBusy(button, '…', run);
+          if (users) render(users);
+        } catch (err) {
+          showMessage(listMessage, err.message);
+        }
+      });
+      return button;
+    }
+
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const username = addForm.username.value;
+        const users = await whileBusy(addForm.querySelector('button'), 'Adding…', () =>
+          api('createUser', { username, password: addForm.password.value, role: 'employee' }));
+        render(users);
+        addForm.reset();
+        showMessage(addMessage, `Added ${username.trim().toLowerCase()}.`, 'ok');
+      } catch (err) {
+        showMessage(addMessage, err.message);
+      }
+    });
+
+    if (session) {
+      api('listUsers').then(render).catch((err) => { listEl.textContent = ''; showMessage(listMessage, err.message); });
+    }
+  </script>
+</body>
+</html>

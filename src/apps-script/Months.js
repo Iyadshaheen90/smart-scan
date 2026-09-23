@@ -50,12 +50,3 @@ function appendMonthRow(monthsSheet, label, spreadsheetId, status) {
   monthsSheet.appendRow([label, spreadsheetId, new Date(), status]);
   monthsSheet.getRange(monthsSheet.getLastRow(), 1).setNumberFormat('@').setValue(label);
 }
-
-// Reads a tab into an array of objects keyed by its header row.
-function readTable(sheet) {
-  const values = sheet.getDataRange().getValues();
-  const [headers, ...rows] = values;
-  return rows
-    .filter((row) => row.some((cell) => cell !== ''))
-    .map((row) => Object.fromEntries(headers.map((h, i) => [h, row[i]])));
-}

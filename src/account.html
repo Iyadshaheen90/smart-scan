@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan — My Password</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
+  <h1>Change my password</h1>
+
+  <form id="form">
+    <label for="current">Current password</label>
+    <input id="current" type="password" autocomplete="current-password" required>
+    <label for="next">New password</label>
+    <input id="next" type="password" autocomplete="new-password" minlength="6" required>
+    <label for="confirm">Type the new password again</label>
+    <input id="confirm" type="password" autocomplete="new-password" minlength="6" required>
+    <button class="primary" type="submit">Change password</button>
+  </form>
+  <div id="message" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const session = requireLogin();
+    if (session) document.getElementById('who').textContent = session.username;
+    const form = document.getElementById('form');
+    const messageEl = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (form.next.value !== form.confirm.value) {
+        showMessage(messageEl, "The two new passwords don't match.");
+        return;
+      }
+      try {
+        await whileBusy(form.querySelector('button'), 'Saving…', () =>
+          api('changePassword', { currentPassword: form.current.value, newPassword: form.next.value }));
+        form.reset();
+        showMessage(messageEl, 'Password changed.', 'ok');
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+  </script>
+</body>
+</html>

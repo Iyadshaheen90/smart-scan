@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar">
+    <span id="who"></span>
+    <a href="#" id="signOut">Sign out</a>
+  </div>
+  <h1>Smart Scan</h1>
+  <p class="sub">Route 66 Liquor — scratcher tracking</p>
+
+  <a class="button primary" href="raw-scanner.html">Scanner test</a>
+  <a class="button owner-only hidden" href="users.html">Manage employees</a>
+  <a class="button" href="account.html">Change my password</a>
+
+  <p class="sub" style="margin-top: 24px;">Close Day, slots and back stock will show up here as they're built.</p>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const session = requireLogin();
+    if (session) {
+      document.getElementById('who').textContent = `${session.username} · ${session.role}`;
+      if (session.role === 'owner') {
+        document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
+      }
+    }
+    document.getElementById('signOut').addEventListener('click', (e) => {
+      e.preventDefault();
+      signOut();
+    });
+  </script>
+</body>
+</html>
