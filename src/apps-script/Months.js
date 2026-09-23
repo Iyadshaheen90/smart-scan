@@ -1,7 +1,7 @@
 // Finds the month's spreadsheet that all reads and writes should go to.
 // The Control spreadsheet (the one this script is bound to) lists every month in its Months tab.
 
-const CURRENT_MONTH_CACHE_KEY = 'currentMonth';
+const CURRENT_MONTH_CACHE_KEY = 'currentMonth:v2';
 const CURRENT_MONTH_CACHE_SECONDS = 300;
 
 function getControlSpreadsheet() {
@@ -35,11 +35,12 @@ function monthLabelFor(date) {
   return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM');
 }
 
-// Sheets turns a typed "2026-09" into a date, so a label may come back as a Date. Format it
-// in the spreadsheet's own time zone, where it was parsed as midnight on the 1st.
+// Sheets turns a typed "2026-09" into a date (midnight on the 1st, in some time zone), so a
+// label may come back as a Date. Midnight anywhere from UTC-12 to UTC+12 falls within 12 hours
+// of midnight UTC, so shifting by 12 hours and reading in UTC always lands on the 1st.
 function normalizeMonthLabel(value) {
   if (value instanceof Date) {
-    return Utilities.formatDate(value, getControlSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM');
+    return Utilities.formatDate(new Date(value.getTime() + 12 * 3600 * 1000), 'UTC', 'yyyy-MM');
   }
   return String(value);
 }
