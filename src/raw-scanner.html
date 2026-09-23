@@ -139,15 +139,15 @@
   <p class="sub">Point the camera at the barcode on the back of the ticket (under "SCAN FRONT BARCODE FOR VALIDATION"), fill the box with it, and hold steady. Shows exactly what was decoded, plus the parsed game / pack / ticket.</p>
 
   <div id="modeSwitch">
+    <button data-mode="hold">Press to scan</button>
     <button data-mode="auto">Auto (pause after scan)</button>
-    <button data-mode="hold">Hold to scan</button>
   </div>
 
   <div id="viewport">
     <video id="video" playsinline muted autoplay></video>
     <div id="guide"></div>
   </div>
-  <button id="holdBtn">Hold to scan</button>
+  <button id="holdBtn">Press to scan</button>
   <div id="status">Loading scanner…</div>
 
   <button id="scanPhotoBtn">Scan from photo</button>
@@ -173,12 +173,12 @@
 
     // Auto mode: after a scan, ignore everything for COOLDOWN_MS, and don't re-count the same
     // ticket until it has been out of view for SAME_TICKET_GONE_MS (so holding it still never repeats).
-    // Hold mode: only decode while the button is held, and take at most one scan per press.
+    // Press-to-scan (hold) mode, the default: only decode while the button is held, and take at most one scan per press.
     const COOLDOWN_MS = 1500;
     const SAME_TICKET_GONE_MS = 1000;
 
     let scanCount = 0;
-    let mode = 'auto';
+    let mode = 'hold';
     let pausedUntil = 0;
     let lastAccepted = null;
     let lastAcceptedSeenAt = 0;
@@ -335,15 +335,15 @@
     function release() {
       holding = false;
       holdBtn.classList.remove('holding');
-      holdBtn.textContent = 'Hold to scan';
+      holdBtn.textContent = 'Press to scan';
     }
     holdBtn.addEventListener('pointerup', release);
     holdBtn.addEventListener('pointercancel', release);
     holdBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    let savedMode = 'auto';
-    try { savedMode = localStorage.getItem('smartScanMode') || 'auto'; } catch (e) {}
-    setMode(savedMode === 'hold' ? 'hold' : 'auto');
+    let savedMode = 'hold';
+    try { savedMode = localStorage.getItem('smartScanMode') || 'hold'; } catch (e) {}
+    setMode(savedMode === 'auto' ? 'auto' : 'hold');
 
     async function start() {
       try {
@@ -369,7 +369,7 @@
         if (caps.focusMode && caps.focusMode.includes('continuous')) {
           track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
         }
-        statusEl.textContent = 'Ready — fill the box with the ticket barcode.';
+        statusEl.textContent = 'Ready — aim at the ticket barcode' + (mode === 'hold' ? ' and hold the button.' : '.');
         scanLoop();
       } catch (err) {
         statusEl.textContent = 'Camera error: ' + err + ' — you can still use "Scan from photo".';
