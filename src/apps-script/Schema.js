@@ -1,0 +1,42 @@
+// Tab names and column headers for every spreadsheet the app uses.
+// The Template spreadsheet is built from MONTHLY_TABS; each month's spreadsheet is a copy of it.
+
+const CONTROL_TABS = {
+  Months: ['month_label', 'spreadsheet_id', 'created_date', 'status'],
+};
+
+const MONTHLY_TABS = {
+  Users: ['username', 'password_hash', 'salt', 'role', 'active', 'created_date'],
+  Sessions: ['token', 'username', 'issued_at', 'expires_at'],
+  SlotConfig: ['box', 'slot_number', 'price_per_ticket'],
+  SlotState: [
+    'box', 'slot_number', 'pack_key', 'game_number', 'pack_number', 'price_per_ticket',
+    'current_exposed_ticket_number', 'remaining_count', 'activation_date', 'last_close_date',
+  ],
+  ReserveInventory: ['game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_in_reserve', 'tickets_in_reserve'],
+  Shipments: [
+    'shipment_date', 'game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_received',
+    'tickets_received', 'source', 'notes', 'performed_by',
+  ],
+  ReserveAdjustments: ['adjustment_date', 'game_number', 'packs_removed', 'tickets_removed', 'reason', 'notes', 'performed_by'],
+  DailyCloseLog: [
+    'close_date', 'box', 'slot_number', 'pack_key', 'previous_exposed_ticket_number',
+    'current_exposed_ticket_number', 'tickets_sold', 'price_per_ticket', 'dollars_sold',
+    'remaining_after_close', 'close_type', 'late_activation', 'performed_by',
+  ],
+  DailySummary: ['close_date', 'total_tickets_sold', 'total_dollars_sold', 'occupied_slot_count', 'total_inventory_value'],
+  PackHistory: [
+    'game_number', 'pack_number', 'box', 'slot_number', 'price_per_ticket', 'activation_date',
+    'end_date', 'end_reason', 'final_tickets_sold_total', 'remaining_at_return', 'total_dollars_sold', 'performed_by',
+  ],
+};
+
+// Copied into the next month by Start New Month; every other tab starts empty.
+const CARRIED_FORWARD_TABS = ['Users', 'SlotConfig', 'SlotState', 'ReserveInventory'];
+
+// Price tier of each slot, slots 1-24 in order, taken from the SEP LOTTO 2026 workbook
+// (layout as of 2026-09-22). Only used to seed the very first month; edit in-app afterwards.
+const INITIAL_SLOT_PRICES = {
+  1: [40, 20, 20, 20, 20, 20, 20, 20, 10, 10, 10, 10, 5, 5, 5, 5, 3, 3, 3, 2, 2, 2, 2, 1],
+  2: [40, 30, 30, 30, 20, 20, 20, 20, 10, 10, 10, 10, 5, 5, 5, 5, 5, 5, 5, 3, 2, 2, 2, 2],
+};
