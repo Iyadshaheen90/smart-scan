@@ -41,6 +41,35 @@
     pointer-events: none;
   }
   #viewport.hit #guide { border-color: #3c3; }
+  #viewport.paused #guide { border-style: dashed; border-color: rgba(255, 255, 255, 0.35); }
+  #modeSwitch {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 3px;
+    border-radius: 8px;
+    background: #eee;
+  }
+  #modeSwitch button {
+    margin: 0;
+    padding: 8px;
+    font-size: 14px;
+    border: none;
+    background: transparent;
+  }
+  #modeSwitch button.active { background: #fff; font-weight: 600; }
+  #holdBtn {
+    display: none;
+    padding: 22px;
+    font-size: 18px;
+    font-weight: 600;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+  }
+  body.hold-mode #holdBtn { display: block; }
+  #holdBtn.holding { background: #2a7; color: #fff; border-color: #2a7; }
   #status {
     margin: 12px 0;
     padding: 10px 12px;
@@ -99,6 +128,8 @@
     .entry .meta { color: #999; }
     .entry .len { background: #223; }
     button { background: #1c1c1c; color: #eee; border-color: #444; }
+    #modeSwitch { background: #222; }
+    #modeSwitch button.active { background: #3a3a3a; }
     p.sub { color: #999; }
   }
 </style>
@@ -107,10 +138,16 @@
   <h1>Smart Scan — Raw Scanner Test</h1>
   <p class="sub">Point the camera at the barcode on the back of the ticket (under "SCAN FRONT BARCODE FOR VALIDATION"), fill the box with it, and hold steady. Shows exactly what was decoded, plus the parsed game / pack / ticket.</p>
 
+  <div id="modeSwitch">
+    <button data-mode="auto">Auto (pause after scan)</button>
+    <button data-mode="hold">Hold to scan</button>
+  </div>
+
   <div id="viewport">
     <video id="video" playsinline muted autoplay></video>
     <div id="guide"></div>
   </div>
+  <button id="holdBtn">Hold to scan</button>
   <div id="status">Loading scanner…</div>
 
   <button id="scanPhotoBtn">Scan from photo</button>
@@ -134,17 +171,21 @@
     const CAMERA_READER_OPTIONS = { formats: ['ITF'], tryHarder: true, tryRotate: true, maxNumberOfSymbols: 1 };
     const PHOTO_READER_OPTIONS = { formats: ['AllLinear'], tryHarder: true, tryRotate: true, tryDownscale: true, maxNumberOfSymbols: 4 };
 
+    // Auto mode: after a scan, ignore everything for COOLDOWN_MS, and don't re-count the same
+    // ticket until it has been out of view for SAME_TICKET_GONE_MS (so holding it still never repeats).
+    // Hold mode: only decode while the button is held, and take at most one scan per press.
+    const COOLDOWN_MS = 1500;
+    const SAME_TICKET_GONE_MS = 1000;
+
     let scanCount = 0;
-    let lastRaw = null;
-    let lastAt = 0;
+    let mode = 'auto';
+    let pausedUntil = 0;
+    let lastAccepted = null;
+    let lastAcceptedSeenAt = 0;
+    let holding = false;
+    let heldScanDone = false;
 
     function addEntry(text, format, source) {
-      // Ignore an identical re-scan within 2s (camera keeps re-reading the same ticket).
-      const now = Date.now();
-      if (source === 'camera' && text === lastRaw && now - lastAt < 2000) return;
-      lastRaw = text;
-      lastAt = now;
-
       scanCount += 1;
       const time = new Date().toLocaleTimeString();
       let parsedHtml;
@@ -180,7 +221,7 @@
     document.getElementById('clearBtn').addEventListener('click', () => {
       logEl.innerHTML = '';
       scanCount = 0;
-      lastRaw = null;
+      lastAccepted = null;
       statusEl.textContent = 'Log cleared. Ready to scan.';
     });
 
@@ -220,8 +261,38 @@
       return ctx.getImageData(0, 0, canvas.width, canvas.height);
     }
 
+    // Decides whether a camera decode counts as a new scan.
+    function handleCameraResult(text, format) {
+      const now = Date.now();
+      if (mode === 'hold') {
+        // A decode that started before release (or before a mode switch) can finish late.
+        if (!holding || heldScanDone) return;
+        heldScanDone = true;
+        holdBtn.textContent = 'Got it — release';
+      } else {
+        const sameTicket = text === lastAccepted;
+        const stillInView = sameTicket && now - lastAcceptedSeenAt < SAME_TICKET_GONE_MS;
+        if (sameTicket) lastAcceptedSeenAt = now;
+        if (now < pausedUntil || stillInView) return;
+        pausedUntil = now + COOLDOWN_MS;
+      }
+      lastAccepted = text;
+      lastAcceptedSeenAt = now;
+      addEntry(text, format, 'camera');
+    }
+
+    function cameraShouldDecode() {
+      return mode === 'hold' ? holding && !heldScanDone : true;
+    }
+
+    function updatePausedLook() {
+      const paused = mode === 'hold' ? !holding || heldScanDone : Date.now() < pausedUntil;
+      viewport.classList.toggle('paused', paused);
+    }
+
     async function scanLoop() {
-      if (video.readyState >= 2 && video.videoWidth > 0) {
+      updatePausedLook();
+      if (cameraShouldDecode() && video.readyState >= 2 && video.videoWidth > 0) {
         // Decode only the middle band of the frame (roughly the on-screen guide box, with margin),
         // which keeps each decode fast without losing the barcode.
         const vw = video.videoWidth;
@@ -230,13 +301,49 @@
         const sh = Math.round(vh * 0.6);
         try {
           const results = await readBarcodes(frameToImageData(video, 0, sy, vw, sh, 1600), CAMERA_READER_OPTIONS);
-          if (results.length > 0) addEntry(results[0].text, results[0].format, 'camera');
+          if (results.length > 0) handleCameraResult(results[0].text, results[0].format);
         } catch (err) {
           statusEl.textContent = 'Decode error: ' + err;
         }
       }
       requestAnimationFrame(scanLoop);
     }
+
+    // --- Scan mode ---
+    const holdBtn = document.getElementById('holdBtn');
+    const modeButtons = document.querySelectorAll('#modeSwitch button');
+
+    function setMode(next) {
+      mode = next;
+      holding = false;
+      heldScanDone = false;
+      pausedUntil = 0;
+      document.body.classList.toggle('hold-mode', mode === 'hold');
+      modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+      try { localStorage.setItem('smartScanMode', mode); } catch (e) {}
+    }
+
+    modeButtons.forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+    holdBtn.addEventListener('pointerdown', (e) => {
+      holdBtn.setPointerCapture(e.pointerId);
+      holding = true;
+      heldScanDone = false;
+      holdBtn.classList.add('holding');
+      holdBtn.textContent = 'Scanning…';
+    });
+    function release() {
+      holding = false;
+      holdBtn.classList.remove('holding');
+      holdBtn.textContent = 'Hold to scan';
+    }
+    holdBtn.addEventListener('pointerup', release);
+    holdBtn.addEventListener('pointercancel', release);
+    holdBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    let savedMode = 'auto';
+    try { savedMode = localStorage.getItem('smartScanMode') || 'auto'; } catch (e) {}
+    setMode(savedMode === 'hold' ? 'hold' : 'auto');
 
     async function start() {
       try {
