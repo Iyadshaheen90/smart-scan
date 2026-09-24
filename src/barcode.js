@@ -11,6 +11,9 @@
 
 const TICKET_BARCODE_LENGTH = 26;
 
+// Tickets in a pack by ticket price (same table as STANDARD_PACK_SIZES in apps-script/Schema.js).
+const STANDARD_PACK_SIZES = { 40: 30, 30: 30, 20: 30, 10: 50, 5: 80, 3: 100, 2: 100, 1: 240 };
+
 const FIELDS = {
   gameNumber: [0, 4],
   packNumber: [4, 11],

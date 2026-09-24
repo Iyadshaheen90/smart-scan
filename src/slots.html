@@ -66,6 +66,22 @@
           detail.firstChild.textContent = `${s.pack.gameNumber}-${s.pack.packNumber}`;
           detail.append(`top ticket ${String(s.pack.exposedTicket).padStart(3, '0')} · ${s.pack.packsInBack} in back`);
           card.append(detail);
+          if (session.role === 'owner') {
+            const size = document.createElement('div');
+            size.className = 'slot-detail';
+            const odd = s.pack.ticketsPerPack !== s.pack.standardPackSize;
+            size.textContent = s.pack.ticketsPerPack
+              ? `${s.pack.ticketsPerPack} tickets per pack (${s.pack.ticketsPerPack - 1} to 0)`
+              : 'Pack size unknown';
+            if (odd) {
+              const warn = document.createElement('span');
+              warn.className = 'tag warn';
+              warn.style.marginLeft = '6px';
+              warn.textContent = s.pack.standardPackSize ? `$${s.pack.price} is usually ${s.pack.standardPackSize}` : 'check';
+              size.append(warn);
+            }
+            card.append(size);
+          }
         } else if (s.endedToday) {
           const detail = document.createElement('div');
           detail.className = 'slot-detail';

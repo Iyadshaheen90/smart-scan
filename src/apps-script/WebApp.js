@@ -26,6 +26,7 @@ const SIGNED_IN_ACTIONS = {
   closeStatus: { run: (req, user) => closeStatus(user) },
   submitClose: { run: (req, user) => submitClose(user, req.entries) },
   reopenClose: { owner: true, run: () => reopenClose() },
+  setPackSize: { owner: true, run: (req) => setPackSize(req) },
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
 };
 

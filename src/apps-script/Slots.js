@@ -71,6 +71,8 @@ function listSlots() {
         activationDate: dateLabel(s.activation_date),
         lastCloseDate: dateLabel(s.last_close_date),
         packsInBack: packsInBack(inBack),
+        ticketsPerPack: inBack ? Number(inBack.tickets_per_pack) : null,
+        standardPackSize: STANDARD_PACK_SIZES[Number(s.price_per_ticket)] || null,
       } : null,
       endedToday: ended ? { packKey: `${ended.game_number}-${ended.pack_number}`, reason: ended.end_reason } : null,
     };
@@ -170,11 +172,11 @@ function validateTicket(gameNumber, packNumber, ticketNumber) {
   return { gameNumber, packNumber, ticketNumber };
 }
 
-// A game seen for the first time: the owner gives its price and pack size. It starts with
-// nothing in back stock (shipments aren't tracked yet).
+// A game seen for the first time: the owner gives its price, and its pack size unless it's the
+// standard one for that price. It starts with nothing in back stock (shipments aren't tracked yet).
 function addGameToReserve(user, gameNumber, gamePrice, ticketsPerPack) {
   gamePrice = Number(gamePrice);
-  ticketsPerPack = Number(ticketsPerPack);
+  ticketsPerPack = ticketsPerPack === '' || ticketsPerPack == null ? STANDARD_PACK_SIZES[gamePrice] : Number(ticketsPerPack);
   if (user.role !== 'owner') {
     throw new ApiError('unknown_game', `Game ${gameNumber} isn't in back stock yet. Ask the owner to activate this pack.`);
   }
@@ -392,5 +394,27 @@ function swapSlots(req) {
       from: { box: Number(req.box), slot: Number(req.slot), packKey: fieldsB.pack_key || null },
       to: { box: Number(req.toBox), slot: Number(req.toSlot), packKey: fieldsA.pack_key || null },
     };
+  });
+}
+
+// Owner only: corrects a game's pack size (tickets per pack) if it was entered wrong. Every live
+// pack of that game must still fit (their top ticket numbers are below the new size).
+function setPackSize(req) {
+  const gameNumber = String(req.gameNumber || '');
+  const size = Number(req.ticketsPerPack);
+  if (!Number.isInteger(size) || size <= 0 || size > 1000) throw new ApiError('bad_size', 'Enter the number of tickets in a pack.');
+  return withLock(() => {
+    const reserve = findReserve(gameNumber);
+    if (!reserve) throw new ApiError('unknown_game', `Game ${gameNumber} isn't set up yet.`);
+    const tooHigh = readTable(slotStateSheet())
+      .find((s) => String(s.game_number) === gameNumber && s.pack_key && Number(s.current_exposed_ticket_number) >= size);
+    if (tooHigh) {
+      throw new ApiError('bad_size', `Pack ${tooHigh.pack_key} is on ticket ${tooHigh.current_exposed_ticket_number}, so game ${gameNumber} packs have more than ${size} tickets.`);
+    }
+    updateRowsWhere(monthSheet('ReserveInventory'), (r) => String(r.game_number) === gameNumber, {
+      tickets_per_pack: size,
+      tickets_in_reserve: packsInBack(reserve) * size,
+    });
+    return { gameNumber, ticketsPerPack: size };
   });
 }

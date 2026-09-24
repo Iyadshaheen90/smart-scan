@@ -78,6 +78,16 @@
   <div id="message" class="message"></div>
   <a class="button hidden" id="doneBtn" href="slots.html">Back to slots</a>
 
+  <!-- Owner only: the pack size of the game in this slot, to fix a mistake made at setup. -->
+  <form id="sizeForm" class="hidden">
+    <h2>Pack size</h2>
+    <p class="sub" id="sizeInfo"></p>
+    <label for="packSize" id="sizeLabel">Tickets per pack</label>
+    <input id="packSize" type="number" inputmode="numeric" min="1" step="1" required>
+    <button type="submit">Save pack size</button>
+    <div id="sizeMessage" class="message"></div>
+  </form>
+
   <!-- Owner only: move this slot's pack, or swap it with another slot's. -->
   <form id="swapForm" class="hidden">
     <h2>Move or swap</h2>
@@ -141,6 +151,15 @@
       const pack = slot.pack;
       $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock');
       if (isOwner) {
+        show('sizeForm', Boolean(pack));
+        if (pack) {
+          const standard = pack.standardPackSize;
+          $('sizeLabel').textContent = `Tickets per pack for game ${pack.gameNumber}`;
+          $('sizeInfo').textContent = (pack.ticketsPerPack ? `Set to ${pack.ticketsPerPack} (numbered ${pack.ticketsPerPack - 1} to 0). ` : 'Not set. ')
+            + (standard ? `$${pack.price} packs usually have ${standard}.` : '')
+            + (pack.ticketsPerPack && standard && pack.ticketsPerPack !== standard ? ' This one is different — check it.' : '');
+          if (document.activeElement !== $('packSize')) $('packSize').value = pack.ticketsPerPack || standard || '';
+        }
         show('swapForm', true);
         renderSwapPreview();
         show('priceForm', true);
@@ -355,6 +374,25 @@
       }
     });
 
+    $('sizeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('sizeMessage').className = 'message';
+      try {
+        const result = await whileBusy($('sizeForm').querySelector('button'), 'Saving…', () =>
+          api('setPackSize', { gameNumber: slot.pack.gameNumber, ticketsPerPack: $('packSize').value }));
+        await loadSlots();
+        showMessage($('sizeMessage'), `Game ${result.gameNumber} packs now have ${result.ticketsPerPack} tickets.`, 'ok');
+      } catch (err) {
+        showMessage($('sizeMessage'), err.message);
+      }
+    });
+
+    // A new game's pack size starts at the standard size for its price.
+    $('gamePrice').addEventListener('input', () => {
+      const standard = STANDARD_PACK_SIZES[Number($('gamePrice').value)];
+      if (standard) $('ticketsPerPack').value = standard;
+    });
+
     $('priceForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const priceMessage = $('priceMessage');
@@ -388,6 +426,9 @@
       if (!$('newGame').classList.contains('hidden')) {
         req.gamePrice = $('gamePrice').value;
         req.ticketsPerPack = $('ticketsPerPack').value;
+        const standard = STANDARD_PACK_SIZES[Number(req.gamePrice)];
+        if (standard && Number(req.ticketsPerPack) !== standard
+          && !confirm(`$${req.gamePrice} packs usually have ${standard} tickets, not ${req.ticketsPerPack}. Use ${req.ticketsPerPack} anyway?`)) return;
       }
       try {
         const result = await whileBusy($('activateBtn'), 'Activating…', () => api('activatePack', req));

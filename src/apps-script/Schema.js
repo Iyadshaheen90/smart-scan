@@ -36,6 +36,10 @@ const MONTHLY_TABS = {
 // Copied into the next month by Start New Month; every other tab starts empty.
 const CARRIED_FORWARD_TABS = ['Users', 'SlotConfig', 'SlotState', 'ReserveInventory'];
 
+// Tickets in a pack by ticket price (owner's rule of thumb, 2026-09-24). Packs count down, so a
+// 30-ticket pack is numbered 29 to 0. Used to fill in a new game's pack size.
+const STANDARD_PACK_SIZES = { 40: 30, 30: 30, 20: 30, 10: 50, 5: 80, 3: 100, 2: 100, 1: 240 };
+
 // Price tier of each slot, slots 1-24 in order, taken from the SEP LOTTO 2026 workbook
 // (layout as of 2026-09-22). Only used to seed the very first month; edit in-app afterwards.
 const INITIAL_SLOT_PRICES = {
