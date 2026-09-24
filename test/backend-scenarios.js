@@ -135,23 +135,27 @@ S.DailySummary.rows.splice(1);
 let st = run('closeStatus(emp)'); assert.equal(st.closed, null);
 const live = st.slots.filter((x) => x.pack);
 const entry = (x, extra) => ({ box: x.box, slot: x.slot, packKey: `${x.pack.gameNumber}-${x.pack.packNumber}`, ...extra });
+const unchanged = (x) => ({ type: 'scan', ticketNumber: x.pack.exposedTicket });
 // incomplete
-assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(live.slice(1).map((x) => entry(x, { type: 'no_sales' })))})`)), 'incomplete');
+assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(live.slice(1).map((x) => entry(x, unchanged(x))))})`)), 'incomplete');
+// "no sales" without a scan is not accepted any more
+assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(live.map((x) => entry(x, { type: 'no_sales' })))})`)), 'bad_request');
 // ticket above top
-const bad = live.map((x, i) => entry(x, i === 0 ? { type: 'scan', ticketNumber: x.pack.exposedTicket + 1 } : { type: 'no_sales' }));
+const bad = live.map((x, i) => entry(x, i === 0 ? { type: 'scan', ticketNumber: x.pack.exposedTicket + 1 } : unchanged(x)));
 assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(bad)})`)), 'bad_ticket');
 // wrong pack
-const stale = live.map((x) => entry(x, { type: 'no_sales' })); stale[0].packKey = '0000-0000000';
+const stale = live.map((x) => entry(x, unchanged(x))); stale[0].packKey = '0000-0000000';
 assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(stale)})`)), 'slots_changed');
 const logBefore = S.DailyCloseLog.rows.length;
 assert.equal(S.DailyCloseLog.rows.length, logBefore); // nothing written by failed attempts
 // good close: first slot sells 5, second sold out, rest no sales
-const good = live.map((x, i) => entry(x, i === 0 ? { type: 'scan', ticketNumber: x.pack.exposedTicket - 5 } : i === 1 ? { type: 'sold_out' } : { type: 'no_sales' }));
+const good = live.map((x, i) => entry(x, i === 0 ? { type: 'scan', ticketNumber: x.pack.exposedTicket - 5 } : i === 1 ? { type: 'sold_out' } : unchanged(x)));
 const soldOutRemaining = live[1].pack.remaining;
 const priorToday = S.DailyCloseLog.rows.slice(1).filter((r) => r[0] === '2026-09-24').reduce((a, r) => a + r[6], 0);
 r = run(`submitClose(emp, ${JSON.stringify(good)})`);
 assert.equal(r.ticketsSold, priorToday + 5 + soldOutRemaining); assert.equal(r.dollarsSold, undefined);
 assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(good)})`)), 'already_closed');
+
 st = run('closeStatus(owner)'); assert.ok(st.closed.dollarsSold >= 0); assert.ok(st.closed.inventoryValue > 0);
 let s0 = st.slots.find((x) => x.box === live[0].box && x.slot === live[0].slot);
 assert.equal(s0.pack.exposedTicket, live[0].pack.exposedTicket - 5); assert.equal(s0.pack.lastCloseDate, '2026-09-24');
@@ -186,7 +190,7 @@ globalThis.TODAY = '2026-09-25';
 let day1 = run('closeStatus(emp)'); assert.equal(day1.closed, null);
 let live1 = day1.slots.filter((x) => x.pack);
 const target = live1[0];
-r = run(`submitClose(emp, ${JSON.stringify(live1.map((x, i) => ({ box: x.box, slot: x.slot, packKey: `${x.pack.gameNumber}-${x.pack.packNumber}`, type: i === 0 ? 'sold_out' : 'no_sales' })))})`);
+r = run(`submitClose(emp, ${JSON.stringify(live1.map((x, i) => ({ box: x.box, slot: x.slot, packKey: `${x.pack.gameNumber}-${x.pack.packNumber}`, ...(i === 0 ? { type: 'sold_out' } : { type: 'scan', ticketNumber: x.pack.exposedTicket }) })))})`);
 assert.equal(run('listSlots()').find((x) => x.box === target.box && x.slot === target.slot).pack, null);
 globalThis.TODAY = '2026-09-26';
 S.ReserveInventory.rows.push(['6060', target.slotPrice, 30, 4, 120]);
@@ -196,7 +200,7 @@ let day2 = run('closeStatus(emp)'); assert.equal(day2.closed, null);
 let live2 = day2.slots.filter((x) => x.pack);
 const fresh = live2.find((x) => x.box === target.box && x.slot === target.slot);
 assert.equal(fresh.pack.packNumber, '0606060'); assert.equal(fresh.pack.exposedTicket, 29);
-r = run(`submitClose(emp, ${JSON.stringify(live2.map((x) => ({ box: x.box, slot: x.slot, packKey: `${x.pack.gameNumber}-${x.pack.packNumber}`, ...(x === fresh ? { type: 'scan', ticketNumber: 21 } : { type: 'no_sales' }) })))})`);
+r = run(`submitClose(emp, ${JSON.stringify(live2.map((x) => ({ box: x.box, slot: x.slot, packKey: `${x.pack.gameNumber}-${x.pack.packNumber}`, ...(x === fresh ? { type: 'scan', ticketNumber: 21 } : { type: 'scan', ticketNumber: x.pack.exposedTicket }) })))})`);
 assert.equal(r.ticketsSold, 8);
 const row = S.DailyCloseLog.rows[S.DailyCloseLog.rows.length - live2.length + live2.indexOf(fresh)];
 const H = S.DailyCloseLog.rows[0];

@@ -6,7 +6,9 @@
 // slot's top ticket back and removes the summary; packs marked sold out during the close stay
 // ended (the owner can put them back with undoEndPack).
 
-const CLOSE_ENTRY_TYPES = ['scan', 'no_sales', 'sold_out'];
+// Every live slot must be scanned (an unchanged top ticket means 0 sold) or marked sold out.
+// There is deliberately no "no sales" shortcut: it let a slot be skipped without checking it.
+const CLOSE_ENTRY_TYPES = ['scan', 'sold_out'];
 // A slot selling more than this many tickets in a day is flagged on the phone before submitting.
 const LARGE_SALE_TICKETS = 50;
 
@@ -39,7 +41,7 @@ function closeStatus(user) {
   };
 }
 
-// entries: [{ box, slot, packKey, type: 'scan' | 'no_sales' | 'sold_out', ticketNumber? }],
+// entries: [{ box, slot, packKey, type: 'scan' | 'sold_out', ticketNumber? }],
 // one for every slot with a live pack.
 function submitClose(user, entries) {
   if (!Array.isArray(entries)) throw new ApiError('bad_request', 'Nothing to submit.');

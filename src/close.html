@@ -31,7 +31,6 @@
     </div>
     <div class="choices">
       <button type="button" id="soldOutBtn">Sold out</button>
-      <button type="button" id="noSalesBtn">No sales</button>
       <button type="button" id="skipBtn">Skip</button>
     </div>
 
@@ -95,8 +94,10 @@
       try {
         const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
         if (!draft || draft.date !== status.today) return {};
-        // Drop anything for a slot whose pack has changed since it was scanned.
+        // Drop anything for a slot whose pack has changed since it was scanned, and old
+        // "no sales" taps (that button was removed; those slots need a real scan).
         return Object.fromEntries(Object.entries(draft.entries).filter(([key, e]) => {
+          if (e.type !== 'scan' && e.type !== 'sold_out') return false;
           const slot = live.find((s) => keyOf(s) === key);
           return slot && packKeyOf(slot) === e.packKey;
         }));
@@ -130,7 +131,6 @@
       saveDraft();
       const where = `Box ${slot.box} · Slot ${slot.slot}`;
       const what = entry.type === 'sold_out' ? `sold out (${entry.sold} sold)`
-        : entry.type === 'no_sales' ? 'no sales'
         : `${entry.sold} sold`;
       const large = entry.sold >= status.largeSaleTickets ? ' — that is a lot, double-check it' : '';
       flash(`${where}: ${what} ✓${note || ''}${large}`, large ? 'error' : 'ok');
@@ -157,7 +157,7 @@
       }
       const elsewhere = currentKey && keyOf(slot) !== currentKey ? ` (it belongs to box ${slot.box} · slot ${slot.slot})` : '';
       const sold = exposed - ticket.ticketNumber;
-      record(slot, sold === 0 ? { type: 'no_sales', sold: 0 } : { type: 'scan', ticketNumber: ticket.ticketNumber, sold }, elsewhere);
+      record(slot, { type: 'scan', ticketNumber: ticket.ticketNumber, sold }, elsewhere);
     }
 
     // --- Drawing ---
@@ -170,7 +170,7 @@
 
       const current = live.find((s) => keyOf(s) === currentKey);
       $('currentCard').classList.toggle('hidden', !current);
-      ['soldOutBtn', 'noSalesBtn', 'skipBtn'].forEach((id) => { $(id).disabled = !current; });
+      ['soldOutBtn', 'skipBtn'].forEach((id) => { $(id).disabled = !current; });
       if (current) {
         $('curWhere').textContent = `Box ${current.box} · Slot ${current.slot}`;
         $('curPack').textContent = `$${current.pack.price} · ${packKeyOf(current)}`;
@@ -206,7 +206,6 @@
 
     function describe(entry) {
       if (entry.type === 'sold_out') return `sold out · ${entry.sold}`;
-      if (entry.type === 'no_sales') return 'no sales';
       return `${entry.sold} sold · top ${pad3(entry.ticketNumber)}`;
     }
 
@@ -232,7 +231,6 @@
       if (!confirm(`Box ${slot.box} · Slot ${slot.slot}: pack ${packKeyOf(slot)} is empty? All ${slot.pack.remaining} tickets left count as sold, and the slot goes out of stock.`)) return;
       record(slot, { type: 'sold_out', sold: slot.pack.remaining });
     });
-    $('noSalesBtn').addEventListener('click', () => record(current(), { type: 'no_sales', sold: 0 }));
     $('skipBtn').addEventListener('click', () => {
       const next = nextOpen(currentKey);
       currentKey = next && next !== currentKey ? next : currentKey;
