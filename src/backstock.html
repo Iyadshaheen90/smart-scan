@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Smart Scan — Back Stock</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
+  <h1>Back stock</h1>
+
+  <div class="segmented" id="modeSwitch">
+    <button type="button" data-mode="shipment">Shipment received</button>
+    <button type="button" data-mode="count">Count the back</button>
+  </div>
+  <p class="sub" id="modeHint"></p>
+
+  <div class="scan-viewport paused" id="viewport">
+    <video id="video" playsinline muted autoplay></video>
+    <div class="scan-guide"></div>
+  </div>
+  <button type="button" class="hold-button" id="holdBtn">Press and hold to scan</button>
+  <form id="typedForm">
+    <label for="typed">Or type a ticket number, or just the 4-digit game number</label>
+    <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075 or 1747">
+    <button type="submit">Add game</button>
+  </form>
+  <div id="flash" class="message"></div>
+
+  <div id="lines"></div>
+  <div id="saveArea" class="hidden">
+    <label for="notes">Notes (optional)</label>
+    <input id="notes" autocomplete="off" placeholder="e.g. invoice number">
+    <button type="button" class="primary" id="saveBtn">Save</button>
+    <button type="button" id="clearBtn">Clear list</button>
+  </div>
+  <div id="saveMessage" class="message"></div>
+
+  <h2>In the back now</h2>
+  <p class="sub" id="totals"></p>
+  <div id="stock">Loading…</div>
+  <div id="stockMessage" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="barcode.js"></script>
+  <script type="module">
+    import { startScanner } from './scanner.js';
+
+    // Scan one ticket from each game, type how many packs, and save the whole list at once.
+    // The list is kept on this phone until saved.
+
+    const session = requireLogin('owner');
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => `$${Number(n).toLocaleString()}`;
+    const DRAFT_KEY = 'smartScanBackStockDraft';
+    const HINTS = {
+      shipment: 'Scan one ticket from each game in the delivery and enter how many packs came. They are added to what is in the back.',
+      count: 'Scan one ticket from each game on the shelf and enter how many packs you counted. That becomes the number in the back; any difference is logged. Games you don\'t scan are left as they are.',
+    };
+
+    let mode = 'shipment';
+    let lines = [];      // { gameNumber, packs, gamePrice?, ticketsPerPack? }
+    let stock = [];      // from listBackStock
+
+    if (session) $('who').textContent = session.username;
+
+    // --- Draft ---
+    function saveDraft() {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ mode, lines, notes: $('notes').value })); } catch (e) {}
+    }
+    function loadDraft() {
+      try {
+        const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+        if (draft) {
+          mode = draft.mode === 'count' ? 'count' : 'shipment';
+          lines = Array.isArray(draft.lines) ? draft.lines : [];
+          $('notes').value = draft.notes || '';
+        }
+      } catch (e) {}
+    }
+
+    const known = (gameNumber) => stock.find((g) => g.gameNumber === gameNumber);
+
+    function flash(text, kind = 'ok') { showMessage($('flash'), text, kind); }
+
+    function addGame(gameNumber) {
+      const existing = lines.find((l) => l.gameNumber === gameNumber);
+      if (existing) {
+        flash(`Game ${gameNumber} is already on the list — change its number of packs below.`);
+        focusLine(gameNumber);
+        return;
+      }
+      const game = known(gameNumber);
+      const line = { gameNumber, packs: mode === 'count' && game ? game.packsInBack : '' };
+      lines.unshift(line);
+      saveDraft();
+      render();
+      flash(game ? `Game ${gameNumber} ($${game.price}) added. Enter the packs.` : `Game ${gameNumber} is new — enter its price and the packs.`);
+      focusLine(gameNumber);
+    }
+
+    function focusLine(gameNumber) {
+      const input = document.querySelector(`[data-game="${gameNumber}"] input.packs`);
+      if (input) { input.focus(); input.select(); }
+    }
+
+    // --- Drawing ---
+
+    function render() {
+      document.querySelectorAll('#modeSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+      $('modeHint').textContent = HINTS[mode];
+
+      const list = $('lines');
+      list.innerHTML = '';
+      for (const line of lines) list.append(lineCard(line));
+      $('saveArea').classList.toggle('hidden', lines.length === 0);
+      const packs = lines.reduce((sum, l) => sum + (Number(l.packs) || 0), 0);
+      const games = `${lines.length} game${lines.length === 1 ? '' : 's'}`;
+      $('saveBtn').textContent = mode === 'shipment'
+        ? `Save shipment (${games}, ${packs} pack${packs === 1 ? '' : 's'})`
+        : `Save count (${games})`;
+    }
+
+    function lineCard(line) {
+      const game = known(line.gameNumber);
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.game = line.gameNumber;
+
+      const top = document.createElement('div');
+      top.className = 'row';
+      const name = document.createElement('strong');
+      name.textContent = game ? `Game ${line.gameNumber} · $${game.price}` : `Game ${line.gameNumber} · new`;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'small';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => { lines = lines.filter((l) => l !== line); saveDraft(); render(); });
+      top.append(name, remove);
+      card.append(top);
+
+      const info = document.createElement('div');
+      info.className = 'slot-detail';
+      info.textContent = game
+        ? `${game.ticketsPerPack} tickets per pack · ${game.packsInBack} in the back now`
+        : 'Not set up yet. Pack size comes from the price.';
+      card.append(info);
+
+      if (!game) {
+        card.append(field('Price per ticket ($)', line.gamePrice, 'decimal', (v) => {
+          line.gamePrice = v;
+          const standard = STANDARD_PACK_SIZES[Number(v)];
+          if (standard) {
+            line.ticketsPerPack = standard;
+            card.querySelector('input.size').value = standard;
+          }
+        }));
+        card.append(field('Tickets per pack', line.ticketsPerPack, 'numeric', (v) => { line.ticketsPerPack = v; }, 'size'));
+      }
+
+      const label = mode === 'shipment' ? 'Packs received' : 'Packs counted';
+      card.append(field(label, line.packs, 'numeric', (v) => { line.packs = v; }, 'packs'));
+
+      if (mode === 'count' && game && line.packs !== '' && Number(line.packs) !== game.packsInBack) {
+        const diff = document.createElement('div');
+        diff.className = 'slot-detail';
+        const d = Number(line.packs) - game.packsInBack;
+        diff.textContent = `${d > 0 ? '+' : ''}${d} pack${Math.abs(d) === 1 ? '' : 's'} compared to the app`;
+        card.append(diff);
+      }
+      return card;
+    }
+
+    function field(labelText, value, inputmode, onChange, cls = '') {
+      const wrap = document.createElement('div');
+      const label = document.createElement('label');
+      label.textContent = labelText;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = '1';
+      input.inputMode = inputmode;
+      input.className = cls;
+      input.value = value ?? '';
+      input.addEventListener('input', () => { onChange(input.value); saveDraft(); updateSaveLabel(); });
+      input.addEventListener('change', () => render());
+      label.append(input);
+      wrap.append(label);
+      return wrap;
+    }
+
+    function updateSaveLabel() {
+      const packs = lines.reduce((sum, l) => sum + (Number(l.packs) || 0), 0);
+      if (mode === 'shipment') $('saveBtn').textContent = `Save shipment (${lines.length} game${lines.length === 1 ? '' : 's'}, ${packs} pack${packs === 1 ? '' : 's'})`;
+    }
+
+    function renderStock() {
+      const total = stock.reduce((sum, g) => sum + g.valueInBack, 0);
+      const packs = stock.reduce((sum, g) => sum + g.packsInBack, 0);
+      $('totals').textContent = `${packs} packs · ${money(total)} at ticket price`;
+      const list = $('stock');
+      list.innerHTML = '';
+      if (stock.length === 0) list.textContent = 'No games yet.';
+      for (const g of stock) {
+        const card = document.createElement('div');
+        card.className = 'card' + (g.packsInBack === 0 ? ' inactive' : '');
+        const top = document.createElement('div');
+        top.className = 'row';
+        const name = document.createElement('strong');
+        name.textContent = `Game ${g.gameNumber} · $${g.price}`;
+        const tag = document.createElement('span');
+        tag.className = g.packsInBack === 0 ? 'tag warn' : 'tag live';
+        tag.textContent = `${g.packsInBack} pack${g.packsInBack === 1 ? '' : 's'}`;
+        top.append(name, tag);
+        const detail = document.createElement('div');
+        detail.className = 'slot-detail';
+        detail.textContent = `${g.ticketsInBack} tickets · ${money(g.valueInBack)} · ${g.ticketsPerPack} per pack`
+          + (g.standardPackSize && g.ticketsPerPack !== g.standardPackSize ? ` (usually ${g.standardPackSize}!)` : '')
+          + (g.liveSlots ? ` · live in ${g.liveSlots} slot${g.liveSlots === 1 ? '' : 's'}` : '');
+        card.append(top, detail);
+        if (g.packsInBack > 0) card.append(removeControls(g));
+        list.append(card);
+      }
+    }
+
+    function removeControls(g) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.style.marginTop = '8px';
+      row.style.justifyContent = 'flex-start';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'small';
+      button.textContent = 'Remove packs…';
+      button.addEventListener('click', async () => {
+        const packs = prompt(`How many packs of game ${g.gameNumber} are leaving the back? (${g.packsInBack} there now)`);
+        if (!packs) return;
+        const reason = prompt('Why? Type: returned, damaged, stolen, or other', 'returned');
+        if (!reason) return;
+        try {
+          stock = await whileBusy(button, '…', () =>
+            api('removeBackStock', { gameNumber: g.gameNumber, packs: Number(packs), reason: reason.trim().toLowerCase() }));
+          renderStock();
+          showMessage($('stockMessage'), `Removed ${packs} pack${Number(packs) === 1 ? '' : 's'} of game ${g.gameNumber}.`, 'ok');
+        } catch (err) {
+          showMessage($('stockMessage'), err.message);
+        }
+      });
+      row.append(button);
+      return row;
+    }
+
+    // --- Actions ---
+
+    document.querySelectorAll('#modeSwitch button').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.mode === mode) return;
+      if (lines.length && !confirm('Switch? The games on the list stay, but check the numbers — a shipment adds packs, a count replaces them.')) return;
+      mode = b.dataset.mode;
+      saveDraft();
+      render();
+    }));
+
+    $('typedForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = $('typed').value.trim();
+      try {
+        addGame(/^\d{4}$/.test(text) ? text : parsePrintedTicket(text).gameNumber);
+        $('typed').value = '';
+      } catch (err) {
+        flash(err.message, 'error');
+      }
+    });
+
+    $('notes').addEventListener('input', saveDraft);
+
+    $('clearBtn').addEventListener('click', () => {
+      if (!confirm('Clear the list without saving?')) return;
+      lines = [];
+      $('notes').value = '';
+      saveDraft();
+      render();
+    });
+
+    $('saveBtn').addEventListener('click', async () => {
+      $('saveMessage').className = 'message';
+      const missing = lines.find((l) => l.packs === '' || l.packs == null);
+      if (missing) {
+        showMessage($('saveMessage'), `Enter the packs for game ${missing.gameNumber}.`);
+        focusLine(missing.gameNumber);
+        return;
+      }
+      const odd = lines.find((l) => !known(l.gameNumber) && STANDARD_PACK_SIZES[Number(l.gamePrice)]
+        && Number(l.ticketsPerPack) !== STANDARD_PACK_SIZES[Number(l.gamePrice)]);
+      if (odd && !confirm(`Game ${odd.gameNumber}: $${odd.gamePrice} packs usually have ${STANDARD_PACK_SIZES[Number(odd.gamePrice)]} tickets, not ${odd.ticketsPerPack}. Save anyway?`)) return;
+      try {
+        const result = await whileBusy($('saveBtn'), 'Saving…', () =>
+          api('saveBackStock', { mode, lines, notes: $('notes').value }));
+        stock = result.backStock;
+        const summary = result.results.map((r) => `${r.gameNumber}: ${r.before} → ${r.after}`).join(', ');
+        lines = [];
+        $('notes').value = '';
+        saveDraft();
+        render();
+        renderStock();
+        showMessage($('saveMessage'), `${mode === 'shipment' ? 'Shipment' : 'Count'} saved. Packs in the back — ${summary}.`, 'ok');
+      } catch (err) {
+        showMessage($('saveMessage'), err.message);
+      }
+    });
+
+    // --- Start ---
+
+    async function start() {
+      loadDraft();
+      render();
+      stock = await api('listBackStock');
+      render();
+      renderStock();
+      await startScanner({
+        video: $('video'),
+        viewport: $('viewport'),
+        holdBtn: $('holdBtn'),
+        onStatus: (text) => (text ? flash(text, 'error') : null),
+        onScan: (ticket) => addGame(ticket.gameNumber),
+      });
+    }
+
+    if (session) start().catch((err) => { $('stock').textContent = ''; showMessage($('stockMessage'), err.message); });
+  </script>
+</body>
+</html>

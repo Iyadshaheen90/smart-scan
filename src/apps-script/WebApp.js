@@ -27,6 +27,9 @@ const SIGNED_IN_ACTIONS = {
   submitClose: { run: (req, user) => submitClose(user, req.entries) },
   reopenClose: { owner: true, run: () => reopenClose() },
   setPackSize: { owner: true, run: (req) => setPackSize(req) },
+  listBackStock: { owner: true, run: () => listBackStock() },
+  saveBackStock: { owner: true, run: (req, user) => saveBackStock(user, req.mode, req.lines, req.notes) },
+  removeBackStock: { owner: true, run: (req, user) => removeBackStock(user, req) },
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
 };
 
