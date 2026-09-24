@@ -66,6 +66,11 @@
           detail.firstChild.textContent = `${s.pack.gameNumber}-${s.pack.packNumber}`;
           detail.append(`top ticket ${String(s.pack.exposedTicket).padStart(3, '0')} · ${s.pack.packsInBack} in back`);
           card.append(detail);
+        } else if (s.endedToday) {
+          const detail = document.createElement('div');
+          detail.className = 'slot-detail';
+          detail.textContent = `${s.endedToday.reason === 'sold_out' ? 'Sold out' : 'Returned'} today: ${s.endedToday.packKey}`;
+          card.append(detail);
         }
         listEl.append(card);
       }

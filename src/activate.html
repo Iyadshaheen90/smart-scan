@@ -29,6 +29,9 @@
     </div>
   </div>
 
+  <!-- Owner: an empty slot whose pack was ended today can have that undone. -->
+  <button type="button" class="hidden" id="undoEndBtn"></button>
+
   <p class="sub hidden" id="emptyNote">This slot is out of stock. The owner puts new packs in.</p>
 
   <!-- Owner, after the old pack is ended: replace it now, or leave the slot out of stock. -->
@@ -129,7 +132,7 @@
         if (document.activeElement !== $('slotPrice')) $('slotPrice').value = slot.slotPrice;
       }
       if (finished) {
-        ['oldStep', 'nextStep', 'emptyNote', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
+        ['oldStep', 'nextStep', 'emptyNote', 'undoEndBtn', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
         show('doneBtn', true);
         return;
       }
@@ -142,6 +145,12 @@
       }
 
       show('emptyNote', !pack && !isOwner);
+      const canUndoEnd = isOwner && !pack && slot.endedToday && !newTicket;
+      show('undoEndBtn', canUndoEnd);
+      if (canUndoEnd) {
+        const how = slot.endedToday.reason === 'sold_out' ? 'sold out' : 'returned';
+        $('undoEndBtn').textContent = `Mistake? Put back pack ${slot.endedToday.packKey} (marked ${how} today)`;
+      }
       const oldPackDealtWith = pack && oldEnd && !waitingForOldTop();
       show('nextStep', isOwner && oldPackDealtWith && !replacing);
       if (oldPackDealtWith) {
@@ -260,6 +269,24 @@
           : "Back stock wasn't changed (this pack wasn't taken from it).";
         showMessage(messageEl, `Undone. Pack ${result.packKey} is out of this slot, and the slot is $${result.slotPrice} and out of stock. ${back} Now go to the right slot and scan it there.`, 'ok');
         render();
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+
+    $('undoEndBtn').addEventListener('click', async () => {
+      const ended = slot.endedToday;
+      if (!confirm(`Put pack ${ended.packKey} back in this slot? Today's sales entry for it will be removed.`)) return;
+      clearMessage();
+      try {
+        const result = await whileBusy($('undoEndBtn'), 'Putting back…', () => api('undoEndPack', { box, slot: slotNumber }));
+        const slots = await api('listSlots');
+        slot = slots.find((s) => s.box === box && s.slot === slotNumber) || slot;
+        oldEnd = null;
+        oldTop = null;
+        replacing = false;
+        render();
+        showMessage(messageEl, `Pack ${result.packKey} is back in this slot with top ticket ${pad3(result.exposedTicket)}.`, 'ok');
       } catch (err) {
         showMessage(messageEl, err.message);
       }

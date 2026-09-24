@@ -21,6 +21,7 @@ const SIGNED_IN_ACTIONS = {
   activatePack: { owner: true, run: (req, user) => activatePack(user, req) },
   endPack: { run: (req, user) => endPack(user, req) },
   undoActivation: { owner: true, run: (req, user) => undoActivation(user, req) },
+  undoEndPack: { owner: true, run: (req) => undoEndPack(req) },
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
 };
 

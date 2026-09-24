@@ -11,6 +11,8 @@
 //   nothing to sales or inventory, and back stock is untouched.
 // - A pack activated into the wrong slot can be undone until that slot's first close: the slot
 //   empties, its old price comes back, and the pack goes back to back stock if it came from there.
+// - A pack marked sold out or returned by mistake can be put back the same day (owner only),
+//   as long as the slot is still empty and the day hasn't been closed.
 // - Tickets count down to 0, so a pack whose exposed ticket is N has N + 1 tickets left.
 
 const END_REASONS = ['sold_out', 'returned'];
@@ -49,10 +51,13 @@ function listSlots() {
   const config = readTable(monthSheet('SlotConfig'));
   const state = readTable(monthSheet('SlotState'));
   const reserve = readTable(monthSheet('ReserveInventory'));
+  const today = todayLabel();
+  const endedToday = readTable(monthSheet('PackHistory')).filter((p) => dateLabel(p.end_date) === today);
   return config.map((c) => {
     const s = state.find(isSlot(c.box, c.slot_number)) || {};
     const hasPack = Boolean(s.pack_key);
     const inBack = reserve.find((r) => String(r.game_number) === String(s.game_number));
+    const ended = hasPack ? null : endedToday.filter(isSlot(c.box, c.slot_number)).pop();
     return {
       box: Number(c.box),
       slot: Number(c.slot_number),
@@ -67,6 +72,7 @@ function listSlots() {
         lastCloseDate: dateLabel(s.last_close_date),
         packsInBack: packsInBack(inBack),
       } : null,
+      endedToday: ended ? { packKey: `${ended.game_number}-${ended.pack_number}`, reason: ended.end_reason } : null,
     };
   });
 }
@@ -305,5 +311,47 @@ function setSlotPrice(req) {
       throw new ApiError('no_slot', `There's no slot ${req.slot} in box ${req.box}.`);
     }
     return { box: Number(req.box), slot: Number(req.slot), slotPrice: price };
+  });
+}
+
+// Owner only: puts back a pack marked sold out or returned by mistake today. Removes that
+// ending's DailyCloseLog and PackHistory rows and restores the slot as it was.
+function undoEndPack(req) {
+  return withLock(() => {
+    const today = todayLabel();
+    const state = readTable(slotStateSheet()).find(isSlot(req.box, req.slot));
+    if (!state) throw new ApiError('no_slot', `There's no slot ${req.slot} in box ${req.box}.`);
+    if (state.pack_key) {
+      throw new ApiError('slot_occupied', `Pack ${state.pack_key} is in this slot now. Undo that activation first.`);
+    }
+    if (readTable(monthSheet('DailySummary')).some((d) => dateLabel(d.close_date) === today)) {
+      throw new ApiError('already_closed', "Today has already been closed, so this can't be undone.");
+    }
+    const ended = readTable(monthSheet('PackHistory'))
+      .filter((p) => isSlot(req.box, req.slot)(p) && dateLabel(p.end_date) === today).pop();
+    if (!ended) throw new ApiError('nothing_to_undo', 'No pack was marked sold out or returned in this slot today.');
+    const packKey = `${ended.game_number}-${ended.pack_number}`;
+    const isEnding = (row) => row.pack_key === packKey && END_REASONS.includes(row.close_type) && dateLabel(row.close_date) === today;
+    const log = readTable(monthSheet('DailyCloseLog')).find(isEnding);
+    if (!log) throw new ApiError('nothing_to_undo', `Can't find today's sales entry for pack ${packKey}.`);
+
+    deleteRowsWhere(monthSheet('DailyCloseLog'), isEnding);
+    deleteRowsWhere(monthSheet('PackHistory'), (p) => `${p.game_number}-${p.pack_number}` === packKey);
+
+    // The last regular close of this pack, if any, is when it was last closed.
+    const lastClose = readTable(monthSheet('DailyCloseLog'))
+      .filter((r) => r.pack_key === packKey && !END_REASONS.includes(r.close_type))
+      .map((r) => dateLabel(r.close_date)).sort().pop() || '';
+    const exposed = Number(log.previous_exposed_ticket_number);
+    updateRowsWhere(slotStateSheet(), isSlot(req.box, req.slot), {
+      pack_key: packKey,
+      game_number: String(ended.game_number),
+      pack_number: String(ended.pack_number),
+      price_per_ticket: Number(ended.price_per_ticket),
+      current_exposed_ticket_number: exposed,
+      activation_date: dateLabel(ended.activation_date) || '',
+      last_close_date: lastClose,
+    });
+    return { packKey, reason: ended.end_reason, exposedTicket: exposed };
   });
 }
