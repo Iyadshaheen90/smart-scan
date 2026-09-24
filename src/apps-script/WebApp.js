@@ -23,6 +23,9 @@ const SIGNED_IN_ACTIONS = {
   undoActivation: { owner: true, run: (req, user) => undoActivation(user, req) },
   undoEndPack: { owner: true, run: (req) => undoEndPack(req) },
   swapSlots: { owner: true, run: (req) => swapSlots(req) },
+  closeStatus: { run: (req, user) => closeStatus(user) },
+  submitClose: { run: (req, user) => submitClose(user, req.entries) },
+  reopenClose: { owner: true, run: () => reopenClose() },
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
 };
 

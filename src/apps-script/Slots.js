@@ -217,7 +217,7 @@ function endPackInSlot(user, state, reason, topTicket) {
   const today = todayLabel();
 
   appendObject(monthSheet('DailyCloseLog'), {
-    close_date: today,
+    close_date: salesDate(),
     box: Number(state.box),
     slot_number: Number(state.slot_number),
     pack_key: state.pack_key,
@@ -324,23 +324,23 @@ function undoEndPack(req) {
     if (state.pack_key) {
       throw new ApiError('slot_occupied', `Pack ${state.pack_key} is in this slot now. Undo that activation first.`);
     }
-    if (readTable(monthSheet('DailySummary')).some((d) => dateLabel(d.close_date) === today)) {
-      throw new ApiError('already_closed', "Today has already been closed, so this can't be undone.");
-    }
     const ended = readTable(monthSheet('PackHistory'))
       .filter((p) => isSlot(req.box, req.slot)(p) && dateLabel(p.end_date) === today).pop();
     if (!ended) throw new ApiError('nothing_to_undo', 'No pack was marked sold out or returned in this slot today.');
     const packKey = `${ended.game_number}-${ended.pack_number}`;
-    const isEnding = (row) => row.pack_key === packKey && END_REASONS.includes(row.close_type) && dateLabel(row.close_date) === today;
+    const isEnding = (row) => row.pack_key === packKey && END_REASONS.includes(row.close_type);
     const log = readTable(monthSheet('DailyCloseLog')).find(isEnding);
-    if (!log) throw new ApiError('nothing_to_undo', `Can't find today's sales entry for pack ${packKey}.`);
+    if (!log) throw new ApiError('nothing_to_undo', `Can't find the sales entry for pack ${packKey}.`);
+    if (summaryOn(dateLabel(log.close_date))) {
+      throw new ApiError('already_closed', "That day's close already counted this pack's sales, so it can't be undone.");
+    }
 
     deleteRowsWhere(monthSheet('DailyCloseLog'), isEnding);
     deleteRowsWhere(monthSheet('PackHistory'), (p) => `${p.game_number}-${p.pack_number}` === packKey);
 
     // The last regular close of this pack, if any, is when it was last closed.
     const lastClose = readTable(monthSheet('DailyCloseLog'))
-      .filter((r) => r.pack_key === packKey && !END_REASONS.includes(r.close_type))
+      .filter((r) => r.pack_key === packKey && r.close_type === 'close')
       .map((r) => dateLabel(r.close_date)).sort().pop() || '';
     const exposed = Number(log.previous_exposed_ticket_number);
     updateRowsWhere(slotStateSheet(), isSlot(req.box, req.slot), {

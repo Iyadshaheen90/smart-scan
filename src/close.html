@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Smart Scan — Close Day</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
+  <h1>Close Day</h1>
+  <p class="sub" id="dateLine">Loading…</p>
+
+  <!-- Today is already closed. -->
+  <div id="closedView" class="hidden">
+    <div class="card" id="summary"></div>
+    <button type="button" class="hidden" id="reopenBtn">Reopen today's close to fix it</button>
+    <a class="button" href="index.html">Done</a>
+  </div>
+
+  <!-- Scanning. -->
+  <div id="closeView" class="hidden">
+    <div class="row"><span id="progressText"></span><span class="tag" id="leftTag"></span></div>
+    <div class="progress"><div id="progressBar"></div></div>
+
+    <div class="card current" id="currentCard">
+      <div class="current-where" id="curWhere"></div>
+      <div class="slot-detail"><span class="mono" id="curPack"></span></div>
+      <div class="slot-detail" id="curLast"></div>
+      <div class="slot-detail" id="curDone"></div>
+    </div>
+    <div class="choices">
+      <button type="button" id="soldOutBtn">Sold out</button>
+      <button type="button" id="noSalesBtn">No sales</button>
+      <button type="button" id="skipBtn">Skip</button>
+    </div>
+
+    <div id="flash" class="message"></div>
+
+    <div class="scan-viewport paused" id="viewport">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="scan-guide"></div>
+    </div>
+    <button type="button" class="hold-button" id="holdBtn">Press and hold to scan</button>
+    <div class="segmented" id="modeSwitch" style="margin-top: 10px;">
+      <button type="button" data-mode="hold">Press and hold</button>
+      <button type="button" data-mode="auto">Auto scan</button>
+    </div>
+    <form id="typedForm">
+      <label for="typed">Or type the number printed on the ticket</label>
+      <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
+      <button type="submit">Use this number</button>
+    </form>
+
+    <h2>All slots</h2>
+    <p class="sub">Tap a slot to go back to it. A new scan replaces the old one.</p>
+    <div id="review"></div>
+    <button type="button" class="primary" id="submitBtn" disabled>Submit close</button>
+    <div id="submitMessage" class="message"></div>
+  </div>
+
+  <div id="message" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="barcode.js"></script>
+  <script type="module">
+    import { startScanner } from './scanner.js';
+
+    // Scans are kept on this phone until Submit, so they're instant and survive a reload or a
+    // dropped connection. The server checks everything again when the close is submitted.
+
+    const session = requireLogin();
+    const isOwner = session && session.role === 'owner';
+    const $ = (id) => document.getElementById(id);
+    const pad3 = (n) => String(n).padStart(3, '0');
+    const keyOf = (s) => `${s.box}-${s.slot}`;
+    const packKeyOf = (s) => `${s.pack.gameNumber}-${s.pack.packNumber}`;
+    const DRAFT_KEY = `smartScanCloseDraft:${session ? session.username : ''}`;
+    const MODE_KEY = 'smartScanCloseMode';
+
+    let status = null;
+    let live = [];          // slots with a pack, box 1 slots 1-24 then box 2 slots 1-24
+    let entries = {};       // slot key -> { packKey, type, ticketNumber?, sold }
+    let currentKey = null;
+    let scanner = null;
+    let mode = 'hold';      // press-and-hold unless this phone was switched to auto
+    try { mode = localStorage.getItem(MODE_KEY) === 'auto' ? 'auto' : 'hold'; } catch (e) {}
+
+    if (session) $('who').textContent = session.username;
+
+    // --- Draft kept on the phone ---
+
+    function loadDraft() {
+      try {
+        const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+        if (!draft || draft.date !== status.today) return {};
+        // Drop anything for a slot whose pack has changed since it was scanned.
+        return Object.fromEntries(Object.entries(draft.entries).filter(([key, e]) => {
+          const slot = live.find((s) => keyOf(s) === key);
+          return slot && packKeyOf(slot) === e.packKey;
+        }));
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveDraft() {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: status.today, entries })); } catch (e) {}
+    }
+
+    function clearDraft() {
+      try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    }
+
+    // --- Moving through the slots ---
+
+    // The next slot without an entry, starting after `fromKey` and wrapping around.
+    function nextOpen(fromKey) {
+      const start = fromKey ? live.findIndex((s) => keyOf(s) === fromKey) + 1 : 0;
+      for (let i = 0; i < live.length; i++) {
+        const slot = live[(start + i) % live.length];
+        if (!entries[keyOf(slot)]) return keyOf(slot);
+      }
+      return null;
+    }
+
+    function record(slot, entry, note) {
+      entries[keyOf(slot)] = { packKey: packKeyOf(slot), ...entry };
+      saveDraft();
+      const where = `Box ${slot.box} · Slot ${slot.slot}`;
+      const what = entry.type === 'sold_out' ? `sold out (${entry.sold} sold)`
+        : entry.type === 'no_sales' ? 'no sales'
+        : `${entry.sold} sold`;
+      const large = entry.sold >= status.largeSaleTickets ? ' — that is a lot, double-check it' : '';
+      flash(`${where}: ${what} ✓${note || ''}${large}`, large ? 'error' : 'ok');
+      currentKey = nextOpen(keyOf(slot));
+      render();
+    }
+
+    function flash(text, kind) {
+      showMessage($('flash'), text, kind);
+    }
+
+    function useTicket(ticket) {
+      const slot = live.find((s) => s.pack.gameNumber === ticket.gameNumber && s.pack.packNumber === ticket.packNumber);
+      if (!slot) {
+        if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+        flash(`Pack ${ticket.gameNumber}-${ticket.packNumber} isn't in any slot. Not saved.`, 'error');
+        return;
+      }
+      const exposed = slot.pack.exposedTicket;
+      if (ticket.ticketNumber > exposed) {
+        if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+        flash(`Ticket ${pad3(ticket.ticketNumber)} is above the last top ticket (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error');
+        return;
+      }
+      const elsewhere = currentKey && keyOf(slot) !== currentKey ? ` (it belongs to box ${slot.box} · slot ${slot.slot})` : '';
+      const sold = exposed - ticket.ticketNumber;
+      record(slot, sold === 0 ? { type: 'no_sales', sold: 0 } : { type: 'scan', ticketNumber: ticket.ticketNumber, sold }, elsewhere);
+    }
+
+    // --- Drawing ---
+
+    function render() {
+      const done = live.filter((s) => entries[keyOf(s)]).length;
+      $('progressText').textContent = `${done} of ${live.length} slots done`;
+      $('leftTag').textContent = done === live.length ? 'Ready to submit' : `${live.length - done} left`;
+      $('progressBar').style.width = live.length ? `${(100 * done) / live.length}%` : '100%';
+
+      const current = live.find((s) => keyOf(s) === currentKey);
+      $('currentCard').classList.toggle('hidden', !current);
+      ['soldOutBtn', 'noSalesBtn', 'skipBtn'].forEach((id) => { $(id).disabled = !current; });
+      if (current) {
+        $('curWhere').textContent = `Box ${current.box} · Slot ${current.slot}`;
+        $('curPack').textContent = `$${current.pack.price} · ${packKeyOf(current)}`;
+        $('curLast').textContent = `Last top ticket ${pad3(current.pack.exposedTicket)} (${current.pack.remaining} left)`;
+        const entry = entries[currentKey];
+        $('curDone').textContent = entry ? `Already done: ${describe(entry)}. Scan again to replace it.` : 'Scan the top ticket.';
+      }
+
+      const review = $('review');
+      review.innerHTML = '';
+      for (const slot of live) {
+        const entry = entries[keyOf(slot)];
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'review-row' + (keyOf(slot) === currentKey ? ' active' : '');
+        const left = document.createElement('span');
+        left.textContent = `B${slot.box} · S${slot.slot} · $${slot.pack.price}`;
+        const right = document.createElement('span');
+        right.className = entry ? (entry.sold >= status.largeSaleTickets ? 'tag warn' : 'tag live') : 'tag';
+        right.textContent = entry ? describe(entry) : 'not done';
+        row.append(left, right);
+        row.addEventListener('click', () => {
+          currentKey = keyOf(slot);
+          render();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        review.append(row);
+      }
+
+      $('submitBtn').disabled = done !== live.length;
+      $('submitBtn').textContent = done === live.length ? 'Submit close' : `Submit close (${live.length - done} left)`;
+    }
+
+    function describe(entry) {
+      if (entry.type === 'sold_out') return `sold out · ${entry.sold}`;
+      if (entry.type === 'no_sales') return 'no sales';
+      return `${entry.sold} sold · top ${pad3(entry.ticketNumber)}`;
+    }
+
+    function renderClosed(summary) {
+      $('closeView').classList.add('hidden');
+      $('closedView').classList.remove('hidden');
+      const lines = [`<strong>Closed for ${summary.date}</strong>`, `${summary.ticketsSold} tickets sold today`];
+      if ('dollarsSold' in summary) {
+        lines.push(`$${summary.dollarsSold.toLocaleString()} sold today`);
+        lines.push(`Inventory value: $${summary.inventoryValue.toLocaleString()} (live slots + back stock)`);
+      }
+      lines.push(`${summary.liveSlots} slots live`);
+      $('summary').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
+      $('reopenBtn').classList.toggle('hidden', !isOwner);
+    }
+
+    // --- Buttons ---
+
+    const current = () => live.find((s) => keyOf(s) === currentKey);
+
+    $('soldOutBtn').addEventListener('click', () => {
+      const slot = current();
+      if (!confirm(`Box ${slot.box} · Slot ${slot.slot}: pack ${packKeyOf(slot)} is empty? All ${slot.pack.remaining} tickets left count as sold, and the slot goes out of stock.`)) return;
+      record(slot, { type: 'sold_out', sold: slot.pack.remaining });
+    });
+    $('noSalesBtn').addEventListener('click', () => record(current(), { type: 'no_sales', sold: 0 }));
+    $('skipBtn').addEventListener('click', () => {
+      const next = nextOpen(currentKey);
+      currentKey = next && next !== currentKey ? next : currentKey;
+      $('flash').className = 'message';
+      $('flash').textContent = '';
+      render();
+    });
+
+    $('typedForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      try {
+        useTicket(parsePrintedTicket($('typed').value));
+        $('typed').value = '';
+      } catch (err) {
+        flash(err.message, 'error');
+      }
+    });
+
+    const modeButtons = document.querySelectorAll('#modeSwitch button');
+    function setMode(next) {
+      mode = next;
+      modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+      if (scanner) scanner.setMode(mode);
+      try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+    }
+    modeButtons.forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+    $('submitBtn').addEventListener('click', async () => {
+      const submitMessage = $('submitMessage');
+      submitMessage.className = 'message';
+      const payload = live.map((s) => {
+        const e = entries[keyOf(s)];
+        return { box: s.box, slot: s.slot, packKey: e.packKey, type: e.type, ticketNumber: e.ticketNumber };
+      });
+      try {
+        const summary = await whileBusy($('submitBtn'), 'Submitting…', () => api('submitClose', { entries: payload }));
+        clearDraft();
+        renderClosed(summary);
+        window.scrollTo({ top: 0 });
+      } catch (err) {
+        showMessage(submitMessage, err.code === 'slots_changed' ? `${err.message} (Your scans for unchanged slots are kept.)` : err.message);
+      }
+    });
+
+    $('reopenBtn').addEventListener('click', async () => {
+      if (!confirm("Reopen today's close? Every slot goes back to its top ticket from before the close, and the day has to be closed again.")) return;
+      try {
+        await whileBusy($('reopenBtn'), 'Reopening…', () => api('reopenClose'));
+        location.reload();
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    });
+
+    // --- Start ---
+
+    async function start() {
+      status = await api('closeStatus');
+      $('dateLine').textContent = status.today;
+      if (status.closed) {
+        renderClosed(status.closed);
+        return;
+      }
+      live = status.slots.filter((s) => s.pack).sort((a, b) => a.box - b.box || a.slot - b.slot);
+      entries = loadDraft();
+      currentKey = nextOpen(null);
+      $('closeView').classList.remove('hidden');
+      render();
+      setMode(mode);
+
+      scanner = await startScanner({
+        video: $('video'),
+        viewport: $('viewport'),
+        holdBtn: $('holdBtn'),
+        mode,
+        onStatus: (text) => (text ? flash(text, 'error') : null),
+        onScan: useTicket,
+      });
+      setMode(mode);
+    }
+
+    if (session) start().catch((err) => { $('dateLine').textContent = ''; showMessage($('message'), err.message); });
+  </script>
+</body>
+</html>

@@ -1,20 +1,40 @@
-// Press-and-hold ticket scanner for the app pages (raw-scanner.html is the standalone test bench).
-// Decodes only while the button is held, and takes at most one scan per press.
+// Ticket scanner for the app pages (raw-scanner.html is the standalone test bench).
 // Needs barcode.js loaded first (for parseTicketBarcode).
 //
-//   startScanner({ video, viewport, holdBtn, onStatus, onScan })
+// Two modes. 'hold' (the default): decodes only while the button is held, one scan per press,
+// so nothing is picked up by accident. 'auto': scans whatever comes into view, then pauses, and
+// won't count the same ticket again until it has left the view.
+//
+//   const scanner = await startScanner({ video, viewport, holdBtn, onStatus, onScan, mode })
+//   scanner.setMode('auto' | 'hold')
 //   onScan(ticket) gets the parsed ticket; a barcode that isn't a ticket goes to onStatus instead.
 
 import { readBarcodes, prepareZXingModule } from 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/es/reader/index.js';
 
 // Ticket barcodes are 26-digit ITF; see barcode.js for the layout.
 const READER_OPTIONS = { formats: ['ITF'], tryHarder: true, tryRotate: true, maxNumberOfSymbols: 1 };
+const AUTO_COOLDOWN_MS = 1500;
+const SAME_TICKET_GONE_MS = 1000;
 
-export async function startScanner({ video, viewport, holdBtn, onStatus, onScan }) {
+export async function startScanner({ video, viewport, holdBtn, onStatus, onScan, mode = 'hold' }) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   let holding = false;
   let done = false;
+  let pausedUntil = 0;
+  let lastText = null;
+  let lastSeenAt = 0;
+
+  const controller = {
+    setMode(next) {
+      mode = next === 'auto' ? 'auto' : 'hold';
+      holding = false;
+      done = false;
+      holdBtn.classList.add('hidden');
+      if (mode === 'hold') holdBtn.classList.remove('hidden');
+    },
+  };
+  controller.setMode(mode);
 
   holdBtn.addEventListener('pointerdown', (e) => {
     holdBtn.setPointerCapture(e.pointerId);
@@ -32,10 +52,22 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan 
   holdBtn.addEventListener('pointercancel', release);
   holdBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
+  const decoding = () => (mode === 'hold' ? holding && !done : Date.now() >= pausedUntil);
+
   function handle(text, format) {
-    if (!holding || done) return; // a decode can finish after release
-    done = true;
-    holdBtn.textContent = 'Got it — release';
+    const now = Date.now();
+    if (mode === 'hold') {
+      if (!holding || done) return; // a decode can finish after release
+      done = true;
+      holdBtn.textContent = 'Got it — release';
+    } else {
+      const stillInView = text === lastText && now - lastSeenAt < SAME_TICKET_GONE_MS;
+      if (text === lastText) lastSeenAt = now;
+      if (now < pausedUntil || stillInView) return;
+      pausedUntil = now + AUTO_COOLDOWN_MS;
+      lastText = text;
+      lastSeenAt = now;
+    }
     viewport.classList.add('hit');
     setTimeout(() => viewport.classList.remove('hit'), 400);
     if (navigator.vibrate) navigator.vibrate(80);
@@ -47,8 +79,9 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan 
   }
 
   async function loop() {
-    viewport.classList.toggle('paused', !holding || done);
-    if (holding && !done && video.readyState >= 2 && video.videoWidth > 0) {
+    viewport.classList.toggle('paused', !decoding());
+    // In auto mode keep decoding during the pause, just to notice when the last ticket leaves view.
+    if ((decoding() || mode === 'auto') && video.readyState >= 2 && video.videoWidth > 0) {
       // Decode only the middle band of the frame, around the on-screen guide box.
       const vw = video.videoWidth;
       const vh = video.videoHeight;
@@ -87,4 +120,5 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan 
   } catch (err) {
     onStatus('Camera not available (' + err + '). Type the ticket number instead.');
   }
+  return controller;
 }
