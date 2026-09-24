@@ -59,7 +59,8 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `index.html` home · `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
 - `slots.html` both boxes · `activate.html?box=&slot=` one slot: end pack, activate, undo, swap, prices, pack size
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack;
-  Sold out / Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold); draft kept in localStorage until one `submitClose` call
+  Sold out / Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold); draft kept in localStorage until one `submitClose` call;
+  anyone can **Clear all scans** (wipes this phone's draft only, e.g. after a practice close)
 - `backstock.html` (owner) scan one ticket per game + enter packs; Shipment (adds) or Count (sets); remove packs
 - `raw-scanner.html`, `backend-test.html` dev/test pages
 

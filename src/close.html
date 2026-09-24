@@ -56,6 +56,7 @@
     <div id="review"></div>
     <button type="button" class="primary" id="submitBtn" disabled>Submit close</button>
     <div id="submitMessage" class="message"></div>
+    <button type="button" class="danger hidden" id="clearBtn">Clear all scans and start over</button>
   </div>
 
   <div id="message" class="message"></div>
@@ -202,6 +203,7 @@
 
       $('submitBtn').disabled = done !== live.length;
       $('submitBtn').textContent = done === live.length ? 'Submit close' : `Submit close (${live.length - done} left)`;
+      $('clearBtn').classList.toggle('hidden', done === 0);
     }
 
     function describe(entry) {
@@ -237,6 +239,21 @@
       $('flash').className = 'message';
       $('flash').textContent = '';
       render();
+    });
+
+    // Throws away every scan on this phone (e.g. after a practice run) so tonight's close starts
+    // from nothing. Nothing was sent to the server yet, so there is nothing else to undo.
+    $('clearBtn').addEventListener('click', () => {
+      const done = Object.keys(entries).length;
+      if (!confirm(`Clear all ${done} scans on this phone and start the close over? Every slot has to be scanned again. This can't be undone.`)) return;
+      entries = {};
+      clearDraft();
+      currentKey = nextOpen(null);
+      $('submitMessage').className = 'message';
+      $('submitMessage').textContent = '';
+      flash('All scans cleared. Start again from the first slot.', 'ok');
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     $('typedForm').addEventListener('submit', (e) => {

@@ -62,6 +62,7 @@ button, .button {
   color: var(--text);
 }
 button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.danger { color: var(--danger); border-color: var(--danger); }
 button.small {
   display: inline-block;
   width: auto;
