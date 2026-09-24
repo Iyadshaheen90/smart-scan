@@ -355,3 +355,42 @@ function undoEndPack(req) {
     return { packKey, reason: ended.end_reason, exposedTicket: exposed };
   });
 }
+
+// --- Rearranging ---
+
+// Every SlotState column that belongs to the pack rather than the position (all but box,
+// slot_number, and the remaining_count formula).
+const PACK_COLUMNS = MONTHLY_TABS.SlotState.filter((h) => !['box', 'slot_number', 'remaining_count'].includes(h));
+
+// Owner only: swaps everything in two slots — the packs (with their top tickets and dates) and
+// the slots' price tiers. Either slot may be empty, which moves a pack. Swapping the same two
+// slots again puts things back. Nothing is sold and back stock is untouched.
+function swapSlots(req) {
+  if (Number(req.box) === Number(req.toBox) && Number(req.slot) === Number(req.toSlot)) {
+    throw new ApiError('bad_request', 'Pick a different slot to swap with.');
+  }
+  return withLock(() => {
+    const configSheet = monthSheet('SlotConfig');
+    const configs = readTable(configSheet);
+    const a = configs.find(isSlot(req.box, req.slot));
+    const b = configs.find(isSlot(req.toBox, req.toSlot));
+    if (!a || !b) throw new ApiError('no_slot', "One of those slots doesn't exist.");
+
+    const stateSheet = slotStateSheet();
+    const states = readTable(stateSheet);
+    const stateA = states.find(isSlot(req.box, req.slot)) || {};
+    const stateB = states.find(isSlot(req.toBox, req.toSlot)) || {};
+    const packFields = (s) => Object.fromEntries(PACK_COLUMNS.map((h) => [h, s[h] === undefined ? '' : s[h]]));
+    const fieldsA = packFields(stateA);
+    const fieldsB = packFields(stateB);
+    updateRowsWhere(stateSheet, isSlot(req.box, req.slot), fieldsB);
+    updateRowsWhere(stateSheet, isSlot(req.toBox, req.toSlot), fieldsA);
+    updateRowsWhere(configSheet, isSlot(req.box, req.slot), { price_per_ticket: Number(b.price_per_ticket) });
+    updateRowsWhere(configSheet, isSlot(req.toBox, req.toSlot), { price_per_ticket: Number(a.price_per_ticket) });
+
+    return {
+      from: { box: Number(req.box), slot: Number(req.slot), packKey: fieldsB.pack_key || null },
+      to: { box: Number(req.toBox), slot: Number(req.toSlot), packKey: fieldsA.pack_key || null },
+    };
+  });
+}

@@ -78,6 +78,19 @@
   <div id="message" class="message"></div>
   <a class="button hidden" id="doneBtn" href="slots.html">Back to slots</a>
 
+  <!-- Owner only: move this slot's pack, or swap it with another slot's. -->
+  <form id="swapForm" class="hidden">
+    <h2>Move or swap</h2>
+    <p class="sub">For rearranging the boxes. The pack, its top ticket, and this slot's price all go to the other slot, and whatever is there comes here. Swap the same two slots again to undo.</p>
+    <div class="choices">
+      <select id="swapBox" aria-label="Box"><option value="1">Box 1</option><option value="2">Box 2</option></select>
+      <select id="swapSlot" aria-label="Slot"></select>
+    </div>
+    <p class="slot-detail" id="swapPreview"></p>
+    <button type="submit">Swap</button>
+    <div id="swapMessage" class="message"></div>
+  </form>
+
   <!-- Owner only: the slot's price tier. -->
   <form id="priceForm" class="hidden">
     <h2>Slot price</h2>
@@ -128,6 +141,8 @@
       const pack = slot.pack;
       $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock');
       if (isOwner) {
+        show('swapForm', true);
+        renderSwapPreview();
         show('priceForm', true);
         if (document.activeElement !== $('slotPrice')) $('slotPrice').value = slot.slotPrice;
       }
@@ -280,15 +295,63 @@
       clearMessage();
       try {
         const result = await whileBusy($('undoEndBtn'), 'Putting back…', () => api('undoEndPack', { box, slot: slotNumber }));
-        const slots = await api('listSlots');
-        slot = slots.find((s) => s.box === box && s.slot === slotNumber) || slot;
         oldEnd = null;
         oldTop = null;
         replacing = false;
-        render();
+        await loadSlots();
         showMessage(messageEl, `Pack ${result.packKey} is back in this slot with top ticket ${pad3(result.exposedTicket)}.`, 'ok');
       } catch (err) {
         showMessage(messageEl, err.message);
+      }
+    });
+
+    // --- Move or swap ---
+    let allSlots = [];
+    const describeSlot = (s) => `$${s.slotPrice} · ` + (s.pack ? `pack ${s.pack.gameNumber}-${s.pack.packNumber}, top ticket ${pad3(s.pack.exposedTicket)}` : 'empty');
+    const swapTarget = () => allSlots.find((s) => s.box === Number($('swapBox').value) && s.slot === Number($('swapSlot').value));
+
+    function fillSwapSlots() {
+      const chosenBox = Number($('swapBox').value);
+      const current = $('swapSlot').value;
+      $('swapSlot').innerHTML = '';
+      for (const s of allSlots.filter((x) => x.box === chosenBox && !(x.box === box && x.slot === slotNumber))) {
+        const option = document.createElement('option');
+        option.value = s.slot;
+        option.textContent = `Slot ${s.slot} · $${s.slotPrice}${s.pack ? '' : ' · empty'}`;
+        $('swapSlot').append(option);
+      }
+      if ([...$('swapSlot').options].some((o) => o.value === current)) $('swapSlot').value = current;
+      renderSwapPreview();
+    }
+
+    function renderSwapPreview() {
+      const target = swapTarget();
+      $('swapPreview').textContent = target
+        ? `Here: ${describeSlot(slot)}. Box ${target.box}, slot ${target.slot}: ${describeSlot(target)}.`
+        : '';
+    }
+
+    $('swapBox').addEventListener('change', fillSwapSlots);
+    $('swapSlot').addEventListener('change', renderSwapPreview);
+
+    $('swapForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const target = swapTarget();
+      if (!target) return;
+      if (!slot.pack && !target.pack) {
+        showMessage($('swapMessage'), 'Both slots are empty, so there is nothing to move.');
+        return;
+      }
+      const verb = slot.pack && target.pack ? 'Swap' : 'Move';
+      if (!confirm(`${verb} box ${box} slot ${slotNumber} with box ${target.box} slot ${target.slot}? Packs and slot prices trade places.`)) return;
+      $('swapMessage').className = 'message';
+      try {
+        await whileBusy($('swapForm').querySelector('button'), 'Swapping…', () =>
+          api('swapSlots', { box, slot: slotNumber, toBox: target.box, toSlot: target.slot }));
+        await loadSlots();
+        showMessage($('swapMessage'), `Done. Here now: ${describeSlot(slot)}. Box ${target.box}, slot ${target.slot} now: ${describeSlot(swapTarget())}.`, 'ok');
+      } catch (err) {
+        showMessage($('swapMessage'), err.message);
       }
     });
 
@@ -335,9 +398,7 @@
         if (result.backWasEmpty) lines.push('(Back stock already showed none of this game, so it stayed at 0. Check that the shipment was entered.)');
         finished = true;
         showMessage(messageEl, lines.join(' '), 'ok');
-        const updated = await api('listSlots');
-        slot = updated.find((s) => s.box === box && s.slot === slotNumber) || slot;
-        render();
+        await loadSlots();
       } catch (err) {
         if (err.code === 'unknown_game' && isOwner) {
           show('newGame', true);
@@ -361,14 +422,17 @@
         : `Pack ${ended.packKey} marked returned (${ended.ticketsSoldToday} sold today, ${ended.remainingReturned} going back).`;
     }
 
+    async function loadSlots() {
+      allSlots = await api('listSlots');
+      slot = allSlots.find((s) => s.box === box && s.slot === slotNumber);
+      if (!slot) throw new Error(`There's no slot ${slotNumber} in box ${box}.`);
+      if (isOwner) fillSwapSlots();
+      render();
+    }
+
     if (session) {
-      api('listSlots')
-        .then((slots) => {
-          slot = slots.find((s) => s.box === box && s.slot === slotNumber);
-          if (!slot) throw new Error(`There's no slot ${slotNumber} in box ${box}.`);
-          render();
-        })
-        .catch((err) => { $('slotInfo').textContent = ''; showMessage(messageEl, err.message); });
+      $('swapBox').value = String(box);
+      loadSlots().catch((err) => { $('slotInfo').textContent = ''; showMessage(messageEl, err.message); });
     }
   </script>
 </body>
