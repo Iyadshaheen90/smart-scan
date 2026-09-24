@@ -1,5 +1,8 @@
 // The 48 slots on the counter: listing them, activating a pack into one, and ending a pack.
 //
+// Who does what: employees can only mark a pack sold out (the slot shows out of stock). Putting
+// packs in, returns, and undoing an activation are the owner's, since they touch back stock.
+//
 // Inventory rules:
 // - Activating a pack takes one pack of its game out of back stock (ReserveInventory). The pack
 //   is still store inventory — it's now live in the slot instead of in the back.
@@ -185,6 +188,7 @@ function endPack(user, req) {
     const current = readTable(monthSheet('SlotState')).find(isSlot(req.box, req.slot));
     if (!current || !current.pack_key) throw new ApiError('slot_empty', 'This slot has no pack.');
     if (!END_REASONS.includes(req.reason)) throw new ApiError('bad_request', 'Say whether the pack sold out or was returned.');
+    if (req.reason === 'returned' && user.role !== 'owner') throw new ApiError('forbidden', 'Only the owner can return a pack.');
     return endPackInSlot(user, current, req.reason, req.ticketNumber);
   });
 }

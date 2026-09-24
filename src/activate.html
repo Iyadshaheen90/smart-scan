@@ -17,12 +17,25 @@
       <div>This slot still has pack <strong class="mono" id="oldKey"></strong></div>
       <div class="slot-detail" id="oldDetail"></div>
     </div>
-    <p class="sub" style="margin-top: 12px;">What happened to it?</p>
-    <div class="choices">
-      <button type="button" id="soldOutBtn">Sold out</button>
-      <button type="button" id="returnedBtn">Returned</button>
+    <!-- Employees: sold out just empties the slot. The owner puts new packs in. -->
+    <button type="button" class="primary employee-only hidden" id="markSoldOutBtn">Sold out — mark out of stock</button>
+    <div class="owner-only hidden">
+      <p class="sub" style="margin-top: 12px;">What happened to it?</p>
+      <div class="choices">
+        <button type="button" id="soldOutBtn">Sold out</button>
+        <button type="button" id="returnedBtn">Returned</button>
+      </div>
+      <button type="button" id="undoBtn" class="hidden">Wrong slot — undo this activation</button>
     </div>
-    <button type="button" id="undoBtn" class="hidden">Wrong slot — undo this activation</button>
+  </div>
+
+  <p class="sub hidden" id="emptyNote">This slot is out of stock. The owner puts new packs in.</p>
+
+  <!-- Owner, after the old pack is ended: replace it now, or leave the slot out of stock. -->
+  <div id="nextStep" class="hidden">
+    <p class="sub" style="margin-top: 12px;" id="nextPrompt"></p>
+    <button type="button" class="primary" id="replaceBtn">Scan a replacement pack</button>
+    <button type="button" id="leaveEmptyBtn">Mark out of stock</button>
   </div>
 
   <!-- Step 2: scan a ticket (the returned pack's top ticket, or the new pack's). -->
@@ -39,7 +52,6 @@
       <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
       <button type="submit">Use this number</button>
     </form>
-    <button type="button" id="leaveEmptyBtn" class="hidden">No new pack — mark out of stock</button>
   </div>
 
   <!-- Step 3: confirm the new pack. -->
@@ -92,13 +104,18 @@
     let oldTop = null;      // the returned pack's top ticket
     let newTicket = null;
     let overridePrice = false;
+    let replacing = false;  // owner chose to put a new pack in after ending the old one
     let finished = false;
     let scannerStarted = false;
 
     $('back').href = `slots.html?box=${box}`;
     $('doneBtn').href = `slots.html?box=${box}`;
     $('title').textContent = `Box ${box} · Slot ${slotNumber}`;
-    if (session) $('who').textContent = session.username;
+    const isOwner = session && session.role === 'owner';
+    if (session) {
+      $('who').textContent = session.username;
+      document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
+    }
 
     function clearMessage() { messageEl.className = 'message'; messageEl.textContent = ''; }
     function show(id, visible) { $(id).classList.toggle('hidden', !visible); }
@@ -107,12 +124,12 @@
     function render() {
       const pack = slot.pack;
       $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock');
-      if (session.role === 'owner') {
+      if (isOwner) {
         show('priceForm', true);
         if (document.activeElement !== $('slotPrice')) $('slotPrice').value = slot.slotPrice;
       }
       if (finished) {
-        ['oldStep', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
+        ['oldStep', 'nextStep', 'emptyNote', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
         show('doneBtn', true);
         return;
       }
@@ -124,7 +141,16 @@
         $('oldDetail').textContent = `Top ticket ${pad3(pack.exposedTicket)} · activated ${pack.activationDate || '—'}`;
       }
 
-      const scanning = (!pack || oldEnd) && !newTicket;
+      show('emptyNote', !pack && !isOwner);
+      const oldPackDealtWith = pack && oldEnd && !waitingForOldTop();
+      show('nextStep', isOwner && oldPackDealtWith && !replacing);
+      if (oldPackDealtWith) {
+        $('nextPrompt').textContent = oldEnd === 'sold_out'
+          ? `Pack ${pack.gameNumber}-${pack.packNumber} sold out. Put a new pack in now?`
+          : `Pack ${pack.gameNumber}-${pack.packNumber} returned with top ticket ${pad3(oldTop)}. Put a new pack in now?`;
+      }
+
+      const scanning = isOwner && !newTicket && (!pack || waitingForOldTop() || replacing);
       show('scanStep', scanning);
       if (scanning) {
         if (waitingForOldTop()) {
@@ -134,7 +160,6 @@
           $('scanPrompt').textContent = 'Scan the new pack';
           $('scanHint').textContent = 'Scan the top ticket of the pack going into this slot (the one customers get next).';
         }
-        show('leaveEmptyBtn', pack && oldEnd && !waitingForOldTop());
         startScannerOnce();
       }
 
@@ -185,6 +210,13 @@
 
     $('soldOutBtn').addEventListener('click', () => { oldEnd = 'sold_out'; clearMessage(); render(); });
     $('returnedBtn').addEventListener('click', () => { oldEnd = 'returned'; clearMessage(); render(); });
+    $('replaceBtn').addEventListener('click', () => { replacing = true; clearMessage(); render(); });
+    $('markSoldOutBtn').addEventListener('click', () => {
+      const pack = slot.pack;
+      if (!confirm(`Mark pack ${pack.gameNumber}-${pack.packNumber} sold out? The slot will show out of stock.`)) return;
+      oldEnd = 'sold_out';
+      markOutOfStock($('markSoldOutBtn'));
+    });
     $('rescanBtn').addEventListener('click', () => { newTicket = null; clearMessage(); render(); });
 
     $('typedForm').addEventListener('submit', (e) => {
@@ -197,10 +229,13 @@
       }
     });
 
-    $('leaveEmptyBtn').addEventListener('click', async () => {
+    $('leaveEmptyBtn').addEventListener('click', () => markOutOfStock($('leaveEmptyBtn')));
+
+    // Ends the old pack (as oldEnd says) and leaves the slot out of stock. Back stock is untouched.
+    async function markOutOfStock(button) {
       clearMessage();
       try {
-        const result = await whileBusy($('leaveEmptyBtn'), 'Saving…', () =>
+        const result = await whileBusy(button, 'Saving…', () =>
           api('endPack', { box, slot: slotNumber, reason: oldEnd, ticketNumber: oldTop }));
         slot.pack = null;
         finished = true;
@@ -209,7 +244,7 @@
       } catch (err) {
         showMessage(messageEl, err.message);
       }
-    });
+    }
 
     $('undoBtn').addEventListener('click', async () => {
       const pack = slot.pack;
@@ -277,10 +312,10 @@
         slot = updated.find((s) => s.box === box && s.slot === slotNumber) || slot;
         render();
       } catch (err) {
-        if (err.code === 'unknown_game' && session.role === 'owner') {
+        if (err.code === 'unknown_game' && isOwner) {
           show('newGame', true);
           showMessage(messageEl, err.message);
-        } else if (err.code === 'price_mismatch' && session.role === 'owner' && !overridePrice) {
+        } else if (err.code === 'price_mismatch' && isOwner && !overridePrice) {
           if (confirm(err.message)) {
             overridePrice = true;
             activate();

@@ -9,7 +9,7 @@
 <body>
   <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
   <h1>Slots</h1>
-  <p class="sub">Tap a slot to put a new pack in it or empty it.</p>
+  <p class="sub" id="hint"></p>
 
   <div class="segmented" id="boxSwitch">
     <button type="button" data-box="1">Box 1</button>
@@ -23,7 +23,12 @@
   <script src="api.js"></script>
   <script>
     const session = requireLogin();
-    if (session) document.getElementById('who').textContent = session.username;
+    if (session) {
+      document.getElementById('who').textContent = session.username;
+      document.getElementById('hint').textContent = session.role === 'owner'
+        ? 'Tap a slot to put a new pack in it, end a pack, or change its price.'
+        : 'Tap a slot to mark its pack sold out.';
+    }
 
     const listEl = document.getElementById('list');
     const summaryEl = document.getElementById('summary');

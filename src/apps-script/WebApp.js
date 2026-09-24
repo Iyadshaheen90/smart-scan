@@ -18,9 +18,9 @@ const SIGNED_IN_ACTIONS = {
   setUserActive: { owner: true, run: (req, user) => setUserActive(user, req.username, req.active) },
   resetPassword: { owner: true, run: (req) => resetPassword(req.username, req.newPassword) },
   listSlots: { run: () => listSlots() },
-  activatePack: { run: (req, user) => activatePack(user, req) },
+  activatePack: { owner: true, run: (req, user) => activatePack(user, req) },
   endPack: { run: (req, user) => endPack(user, req) },
-  undoActivation: { run: (req, user) => undoActivation(user, req) },
+  undoActivation: { owner: true, run: (req, user) => undoActivation(user, req) },
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
 };
 
