@@ -79,7 +79,11 @@ function seedSlots(month) {
 // Creates any missing tabs with a bold, frozen header row, and removes the default empty "Sheet1".
 function ensureTabs(spreadsheet, tabs) {
   for (const [name, headers] of Object.entries(tabs)) {
-    if (spreadsheet.getSheetByName(name)) continue;
+    const existing = spreadsheet.getSheetByName(name);
+    if (existing) {
+      ensureHeaders(existing, headers);
+      continue;
+    }
     const sheet = spreadsheet.insertSheet(name);
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
     sheet.setFrozenRows(1);

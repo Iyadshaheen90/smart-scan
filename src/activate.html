@@ -22,6 +22,7 @@
       <button type="button" id="soldOutBtn">Sold out</button>
       <button type="button" id="returnedBtn">Returned</button>
     </div>
+    <button type="button" id="undoBtn" class="hidden">Wrong slot — undo this activation</button>
   </div>
 
   <!-- Step 2: scan a ticket (the returned pack's top ticket, or the new pack's). -->
@@ -62,6 +63,16 @@
   <div id="message" class="message"></div>
   <a class="button hidden" id="doneBtn" href="slots.html">Back to slots</a>
 
+  <!-- Owner only: the slot's price tier. -->
+  <form id="priceForm" class="hidden">
+    <h2>Slot price</h2>
+    <p class="sub">The price this slot expects from the next pack. A pack already in it keeps its own price.</p>
+    <label for="slotPrice">Price per ticket ($)</label>
+    <input id="slotPrice" type="number" inputmode="decimal" min="1" step="1" required>
+    <button type="submit">Save slot price</button>
+    <div id="priceMessage" class="message"></div>
+  </form>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
   <script src="barcode.js"></script>
@@ -96,6 +107,10 @@
     function render() {
       const pack = slot.pack;
       $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock');
+      if (session.role === 'owner') {
+        show('priceForm', true);
+        if (document.activeElement !== $('slotPrice')) $('slotPrice').value = slot.slotPrice;
+      }
       if (finished) {
         ['oldStep', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
         show('doneBtn', true);
@@ -103,6 +118,7 @@
       }
 
       show('oldStep', pack && !oldEnd);
+      show('undoBtn', pack && !pack.lastCloseDate);
       if (pack) {
         $('oldKey').textContent = `${pack.gameNumber}-${pack.packNumber}`;
         $('oldDetail').textContent = `Top ticket ${pad3(pack.exposedTicket)} · activated ${pack.activationDate || '—'}`;
@@ -192,6 +208,41 @@
         render();
       } catch (err) {
         showMessage(messageEl, err.message);
+      }
+    });
+
+    $('undoBtn').addEventListener('click', async () => {
+      const pack = slot.pack;
+      if (!confirm(`Take pack ${pack.gameNumber}-${pack.packNumber} back out of this slot? Use this only if it went into the wrong slot.`)) return;
+      clearMessage();
+      try {
+        const result = await whileBusy($('undoBtn'), 'Undoing…', () => api('undoActivation', { box, slot: slotNumber }));
+        slot.pack = null;
+        slot.slotPrice = result.slotPrice;
+        finished = true;
+        const back = result.returnedToBack
+          ? `It's counted back in the back (${result.packsInBack} pack${result.packsInBack === 1 ? '' : 's'} of game ${result.gameNumber}).`
+          : "Back stock wasn't changed (this pack wasn't taken from it).";
+        showMessage(messageEl, `Undone. Pack ${result.packKey} is out of this slot, and the slot is $${result.slotPrice} and out of stock. ${back} Now go to the right slot and scan it there.`, 'ok');
+        render();
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+
+    $('priceForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const priceMessage = $('priceMessage');
+      priceMessage.className = 'message';
+      priceMessage.textContent = '';
+      try {
+        const result = await whileBusy($('priceForm').querySelector('button'), 'Saving…', () =>
+          api('setSlotPrice', { box, slot: slotNumber, price: $('slotPrice').value }));
+        slot.slotPrice = result.slotPrice;
+        render();
+        showMessage(priceMessage, `Slot price is now $${result.slotPrice}.`, 'ok');
+      } catch (err) {
+        showMessage(priceMessage, err.message);
       }
     });
 

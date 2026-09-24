@@ -20,6 +20,8 @@ const SIGNED_IN_ACTIONS = {
   listSlots: { run: () => listSlots() },
   activatePack: { run: (req, user) => activatePack(user, req) },
   endPack: { run: (req, user) => endPack(user, req) },
+  undoActivation: { run: (req, user) => undoActivation(user, req) },
+  setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
 };
 
 function doPost(e) {

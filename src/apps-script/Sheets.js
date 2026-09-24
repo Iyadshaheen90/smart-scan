@@ -9,6 +9,15 @@ function readTable(sheet) {
     .map((row) => Object.fromEntries(headers.map((h, i) => [h, row[i]])));
 }
 
+// Adds any of `headers` missing from the header row, at the end, so tabs made before a column
+// existed pick it up without moving the columns (or formulas) already there.
+function ensureHeaders(sheet, headers) {
+  const existing = headersOf(sheet);
+  const missing = headers.filter((h) => !existing.includes(h));
+  if (missing.length === 0) return;
+  sheet.getRange(1, existing.length + 1, 1, missing.length).setValues([missing]).setFontWeight('bold');
+}
+
 function headersOf(sheet) {
   return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 }

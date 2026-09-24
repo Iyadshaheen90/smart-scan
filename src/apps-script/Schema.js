@@ -12,6 +12,8 @@ const MONTHLY_TABS = {
   SlotState: [
     'box', 'slot_number', 'pack_key', 'game_number', 'pack_number', 'price_per_ticket',
     'current_exposed_ticket_number', 'remaining_count', 'activation_date', 'last_close_date',
+    // Kept so a pack activated into the wrong slot can be undone exactly.
+    'price_before_activation', 'took_from_reserve',
   ],
   ReserveInventory: ['game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_in_reserve', 'tickets_in_reserve'],
   Shipments: [

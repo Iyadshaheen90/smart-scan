@@ -6,6 +6,8 @@
 // - Ending a pack (sold out, or returned to the lottery) logs any sales since the last close
 //   and records the pack in PackHistory. A slot with no pack is "out of stock": it adds
 //   nothing to sales or inventory, and back stock is untouched.
+// - A pack activated into the wrong slot can be undone until that slot's first close: the slot
+//   empties, its old price comes back, and the pack goes back to back stock if it came from there.
 // - Tickets count down to 0, so a pack whose exposed ticket is N has N + 1 tickets left.
 
 const END_REASONS = ['sold_out', 'returned'];
@@ -22,6 +24,12 @@ function dateLabel(value) {
 
 function isSlot(box, slot) {
   return (row) => Number(row.box) === Number(box) && Number(row.slot_number) === Number(slot);
+}
+
+function slotStateSheet() {
+  const sheet = monthSheet('SlotState');
+  ensureHeaders(sheet, MONTHLY_TABS.SlotState);
+  return sheet;
 }
 
 function findReserve(gameNumber) {
@@ -70,7 +78,7 @@ function activatePack(user, req) {
   return withLock(() => {
     const config = readTable(monthSheet('SlotConfig')).find(isSlot(req.box, req.slot));
     if (!config) throw new ApiError('no_slot', `There's no slot ${req.slot} in box ${req.box}.`);
-    const stateSheet = monthSheet('SlotState');
+    const stateSheet = slotStateSheet();
     const states = readTable(stateSheet);
     const current = states.find(isSlot(req.box, req.slot));
 
@@ -93,7 +101,8 @@ function activatePack(user, req) {
     }
 
     const slotPrice = Number(config.price_per_ticket);
-    if (gamePrice !== slotPrice) {
+    const priceChanged = gamePrice !== slotPrice;
+    if (priceChanged) {
       if (user.role !== 'owner') {
         throw new ApiError('price_mismatch', `Game ${ticket.gameNumber} is $${gamePrice}, but this is a $${slotPrice} slot. Ask the owner.`);
       }
@@ -127,6 +136,8 @@ function activatePack(user, req) {
       current_exposed_ticket_number: ticket.ticketNumber,
       activation_date: today,
       last_close_date: '',
+      price_before_activation: priceChanged ? slotPrice : '',
+      took_from_reserve: before > 0,
     });
 
     return {
@@ -229,10 +240,66 @@ function endPackInSlot(user, state, reason, topTicket) {
     performed_by: user.username,
   });
 
-  updateRowsWhere(monthSheet('SlotState'), isSlot(state.box, state.slot_number), {
+  clearSlot(state.box, state.slot_number);
+  return { packKey: state.pack_key, reason, ticketsSoldToday: soldNow, remainingReturned: remaining };
+}
+
+function clearSlot(box, slot) {
+  updateRowsWhere(slotStateSheet(), isSlot(box, slot), {
     pack_key: '', game_number: '', pack_number: '', price_per_ticket: '',
     current_exposed_ticket_number: '', activation_date: '', last_close_date: '',
+    price_before_activation: '', took_from_reserve: '',
   });
+}
 
-  return { packKey: state.pack_key, reason, ticketsSoldToday: soldNow, remainingReturned: remaining };
+// --- Fixing mistakes ---
+
+// Takes back a pack activated into the wrong slot. Only before the slot's first close, since
+// after that its sales are on record. A pack ended to make room for it stays ended.
+function undoActivation(user, req) {
+  return withLock(() => {
+    const state = readTable(slotStateSheet()).find(isSlot(req.box, req.slot));
+    if (!state || !state.pack_key) throw new ApiError('slot_empty', 'This slot has no pack.');
+    if (state.last_close_date !== '') {
+      throw new ApiError('already_closed', `Pack ${state.pack_key} has been through a close, so it can't be undone. Mark it sold out or returned instead.`);
+    }
+
+    const reserve = findReserve(state.game_number);
+    let inBack = packsInBack(reserve);
+    if (state.took_from_reserve === true && reserve) {
+      inBack += 1;
+      updateRowsWhere(monthSheet('ReserveInventory'), (r) => String(r.game_number) === String(state.game_number), {
+        packs_in_reserve: inBack,
+        tickets_in_reserve: inBack * Number(reserve.tickets_per_pack),
+      });
+    }
+
+    let slotPrice = Number(readTable(monthSheet('SlotConfig')).find(isSlot(req.box, req.slot)).price_per_ticket);
+    if (state.price_before_activation !== '') {
+      slotPrice = Number(state.price_before_activation);
+      updateRowsWhere(monthSheet('SlotConfig'), isSlot(req.box, req.slot), { price_per_ticket: slotPrice });
+    }
+
+    clearSlot(req.box, req.slot);
+    return {
+      packKey: state.pack_key,
+      gameNumber: String(state.game_number),
+      returnedToBack: state.took_from_reserve === true,
+      packsInBack: inBack,
+      slotPrice,
+    };
+  });
+}
+
+// Owner only: sets a slot's price tier. A live pack keeps its own price; this is the price the
+// slot expects from the next pack.
+function setSlotPrice(req) {
+  const price = Number(req.price);
+  if (!(price > 0)) throw new ApiError('bad_price', 'Enter a price above $0.');
+  return withLock(() => {
+    if (!updateRowsWhere(monthSheet('SlotConfig'), isSlot(req.box, req.slot), { price_per_ticket: price })) {
+      throw new ApiError('no_slot', `There's no slot ${req.slot} in box ${req.box}.`);
+    }
+    return { box: Number(req.box), slot: Number(req.slot), slotPrice: price };
+  });
 }
