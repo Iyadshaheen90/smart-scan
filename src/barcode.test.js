@@ -1,7 +1,7 @@
 // Run with: node --test src/*.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseTicketBarcode, formatTicket } = require('./barcode.js');
+const { parseTicketBarcode, parsePrintedTicket, formatTicket } = require('./barcode.js');
 
 // Real tickets, decoded from photos (printed text in comments).
 test('parses real ticket 1747-1263622-4-075', () => {
@@ -44,3 +44,17 @@ test('rejects non-digits', () => rejects('1747-1263622-4-075', 'ITF', 'not_numer
 test('rejects empty input', () => rejects('', 'ITF', 'not_numeric'));
 test('rejects wrong length', () => rejects('317020184796', 'ITF', 'wrong_length'));
 test('rejects front validation barcode (non-zero reserved digits)', () => rejects('17471263622075123456789478', 'ITF', 'front_barcode'));
+
+test('parses typed printed numbers', () => {
+  const expected = { gameNumber: '1747', packNumber: '1263622', ticketNumber: 75 };
+  for (const typed of ['1747-1263622-4-075', '1747 1263622 4 075', '1747-1263622-075', '174712636224075', '17471263622075']) {
+    const { raw, ...t } = parsePrintedTicket(typed);
+    assert.deepEqual(t, expected, typed);
+  }
+});
+
+test('rejects typed numbers of the wrong shape', () => {
+  for (const typed of ['', '1747-126362-4-075', '1747-1263622-4-75', '12345', 'abc']) {
+    assert.throws(() => parsePrintedTicket(typed), { code: 'bad_printed' }, typed);
+  }
+});

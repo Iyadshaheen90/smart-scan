@@ -55,11 +55,29 @@ function parseTicketBarcode(raw, format) {
   };
 }
 
+// Parses the number printed on the ticket, typed by hand: "1747-1263622-4-075", with or
+// without the check digit, and with dashes, spaces or nothing between the parts.
+function parsePrintedTicket(typed) {
+  const text = String(typed ?? '').trim();
+  const parts = text.split(/[^0-9]+/).filter(Boolean);
+  let game, pack, ticket;
+  if (parts.length === 4 || parts.length === 3) {
+    [game, pack] = parts;
+    ticket = parts[parts.length - 1];
+  } else if (parts.length === 1 && (text.length === 15 || text.length === 14)) {
+    [game, pack, ticket] = [text.slice(0, 4), text.slice(4, 11), text.slice(-3)];
+  }
+  if (!/^\d{4}$/.test(game || '') || !/^\d{7}$/.test(pack || '') || !/^\d{3}$/.test(ticket || '')) {
+    throw new BarcodeParseError('bad_printed', 'Type the number printed on the ticket, like 1747-1263622-4-075.');
+  }
+  return { gameNumber: game, packNumber: pack, ticketNumber: Number(ticket), raw: text };
+}
+
 // Human-readable form matching what's printed on the ticket, minus the check digit.
 function formatTicket({ gameNumber, packNumber, ticketNumber }) {
   return `${gameNumber}-${packNumber}-${String(ticketNumber).padStart(3, '0')}`;
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { parseTicketBarcode, formatTicket, BarcodeParseError, TICKET_BARCODE_LENGTH };
+  module.exports = { parseTicketBarcode, parsePrintedTicket, formatTicket, BarcodeParseError, TICKET_BARCODE_LENGTH };
 }

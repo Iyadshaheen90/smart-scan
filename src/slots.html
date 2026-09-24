@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan — Slots</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
+  <h1>Slots</h1>
+  <p class="sub">Tap a slot to put a new pack in it or empty it.</p>
+
+  <div class="segmented" id="boxSwitch">
+    <button type="button" data-box="1">Box 1</button>
+    <button type="button" data-box="2">Box 2</button>
+  </div>
+  <div id="summary" class="sub"></div>
+  <div id="list">Loading…</div>
+  <div id="message" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const session = requireLogin();
+    if (session) document.getElementById('who').textContent = session.username;
+
+    const listEl = document.getElementById('list');
+    const summaryEl = document.getElementById('summary');
+    const boxButtons = document.querySelectorAll('#boxSwitch button');
+    let slots = [];
+    let box = Number(new URLSearchParams(location.search).get('box')) === 2 ? 2 : 1;
+
+    function render() {
+      boxButtons.forEach((b) => b.classList.toggle('active', Number(b.dataset.box) === box));
+      const inBox = slots.filter((s) => s.box === box);
+      const empty = inBox.filter((s) => !s.pack).length;
+      summaryEl.textContent = `${inBox.length - empty} live · ${empty} out of stock`;
+
+      listEl.innerHTML = '';
+      for (const s of inBox) {
+        const card = document.createElement('a');
+        card.className = 'card';
+        card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
+
+        const top = document.createElement('div');
+        top.className = 'row';
+        const name = document.createElement('span');
+        name.className = 'slot-num';
+        name.textContent = `Slot ${s.slot} · $${s.slotPrice}`;
+        const tag = document.createElement('span');
+        tag.className = s.pack ? 'tag live' : 'tag warn';
+        tag.textContent = s.pack ? `${s.pack.remaining} left` : 'Out of stock';
+        top.append(name, tag);
+        card.append(top);
+
+        if (s.pack) {
+          const detail = document.createElement('div');
+          detail.className = 'slot-detail';
+          detail.innerHTML = '<span class="mono"></span> · ';
+          detail.firstChild.textContent = `${s.pack.gameNumber}-${s.pack.packNumber}`;
+          detail.append(`top ticket ${String(s.pack.exposedTicket).padStart(3, '0')} · ${s.pack.packsInBack} in back`);
+          card.append(detail);
+        }
+        listEl.append(card);
+      }
+    }
+
+    boxButtons.forEach((b) => b.addEventListener('click', () => {
+      box = Number(b.dataset.box);
+      history.replaceState(null, '', `?box=${box}`);
+      render();
+    }));
+
+    if (session) {
+      api('listSlots')
+        .then((data) => { slots = data; render(); })
+        .catch((err) => { listEl.textContent = ''; showMessage(document.getElementById('message'), err.message); });
+    }
+  </script>
+</body>
+</html>

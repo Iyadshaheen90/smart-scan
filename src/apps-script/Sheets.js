@@ -14,9 +14,9 @@ function headersOf(sheet) {
 }
 
 // Sheets reads typed text like "007" as a number and "=..." as a formula, so string values are
-// written into plain-text cells to be stored exactly as given.
+// written into plain-text cells to be stored exactly as given. Clearing a cell ('') leaves its format.
 function setCell(range, value) {
-  if (typeof value === 'string') range.setNumberFormat('@');
+  if (typeof value === 'string' && value !== '') range.setNumberFormat('@');
   range.setValue(value);
 }
 

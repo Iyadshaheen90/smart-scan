@@ -17,6 +17,9 @@ const SIGNED_IN_ACTIONS = {
   createUser: { owner: true, run: (req) => createUser(req.username, req.password, req.role) },
   setUserActive: { owner: true, run: (req, user) => setUserActive(user, req.username, req.active) },
   resetPassword: { owner: true, run: (req) => resetPassword(req.username, req.newPassword) },
+  listSlots: { run: () => listSlots() },
+  activatePack: { run: (req, user) => activatePack(user, req) },
+  endPack: { run: (req, user) => endPack(user, req) },
 };
 
 function doPost(e) {

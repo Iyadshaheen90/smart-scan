@@ -93,3 +93,31 @@ button:disabled { opacity: 0.6; }
 .tag { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--surface); color: var(--muted); }
 .inactive { opacity: 0.55; }
 .hidden { display: none !important; }
+
+/* Segmented switch (e.g. Box 1 / Box 2). */
+.segmented { display: flex; gap: 4px; padding: 3px; border-radius: 8px; background: var(--surface); margin-bottom: 8px; }
+.segmented button { margin: 0; padding: 8px; font-size: 15px; border: none; background: transparent; }
+.segmented button.active { background: var(--bg); font-weight: 600; }
+
+/* Slot list. */
+a.card { display: block; color: inherit; text-decoration: none; }
+.slot-num { font-weight: 600; }
+.slot-detail { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.tag.warn { background: var(--error-bg); color: var(--text); }
+.tag.live { background: var(--ok-bg); color: var(--text); }
+
+/* Camera scanner (scanner.js). */
+.scan-viewport { position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: #111; aspect-ratio: 4 / 3; margin-top: 12px; }
+.scan-viewport video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-guide {
+  position: absolute; left: 6%; right: 6%; top: 35%; bottom: 35%;
+  border: 2px solid rgba(255, 255, 255, 0.8); border-radius: 6px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); pointer-events: none;
+}
+.scan-viewport.hit .scan-guide { border-color: #3c3; }
+.scan-viewport.paused .scan-guide { border-style: dashed; border-color: rgba(255, 255, 255, 0.35); }
+.hold-button { padding: 22px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
+.hold-button.holding { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.choices { display: flex; gap: 8px; }
+.choices button { margin-top: 8px; }

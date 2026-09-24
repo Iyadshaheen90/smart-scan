@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Smart Scan — Slot</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar"><a href="slots.html" id="back">‹ Slots</a><span id="who"></span></div>
+  <h1 id="title">Slot</h1>
+  <p class="sub" id="slotInfo">Loading…</p>
+
+  <!-- Step 1: the slot still has a pack — what happened to it? -->
+  <div id="oldStep" class="hidden">
+    <div class="card">
+      <div>This slot still has pack <strong class="mono" id="oldKey"></strong></div>
+      <div class="slot-detail" id="oldDetail"></div>
+    </div>
+    <p class="sub" style="margin-top: 12px;">What happened to it?</p>
+    <div class="choices">
+      <button type="button" id="soldOutBtn">Sold out</button>
+      <button type="button" id="returnedBtn">Returned</button>
+    </div>
+  </div>
+
+  <!-- Step 2: scan a ticket (the returned pack's top ticket, or the new pack's). -->
+  <div id="scanStep" class="hidden">
+    <h2 id="scanPrompt"></h2>
+    <p class="sub" id="scanHint"></p>
+    <div class="scan-viewport paused" id="viewport">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="scan-guide"></div>
+    </div>
+    <button type="button" class="hold-button" id="holdBtn">Press and hold to scan</button>
+    <form id="typedForm">
+      <label for="typed">Or type the number printed on the ticket</label>
+      <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
+      <button type="submit">Use this number</button>
+    </form>
+    <button type="button" id="leaveEmptyBtn" class="hidden">No new pack — mark out of stock</button>
+  </div>
+
+  <!-- Step 3: confirm the new pack. -->
+  <div id="confirmStep" class="hidden">
+    <h2>New pack</h2>
+    <div class="card">
+      <div class="mono" id="newKey"></div>
+      <div class="slot-detail" id="newDetail"></div>
+    </div>
+    <div id="newGame" class="hidden">
+      <p class="sub" style="margin-top: 12px;">First time this game has been seen. Enter its details once.</p>
+      <label for="gamePrice">Price per ticket ($)</label>
+      <input id="gamePrice" type="number" inputmode="decimal" min="1" step="1">
+      <label for="ticketsPerPack">Tickets per pack</label>
+      <input id="ticketsPerPack" type="number" inputmode="numeric" min="1" step="1">
+    </div>
+    <button type="button" class="primary" id="activateBtn">Activate pack</button>
+    <button type="button" id="rescanBtn">Scan a different ticket</button>
+  </div>
+
+  <div id="message" class="message"></div>
+  <a class="button hidden" id="doneBtn" href="slots.html">Back to slots</a>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="barcode.js"></script>
+  <script type="module">
+    import { startScanner } from './scanner.js';
+
+    const session = requireLogin();
+    const params = new URLSearchParams(location.search);
+    const box = Number(params.get('box'));
+    const slotNumber = Number(params.get('slot'));
+    const $ = (id) => document.getElementById(id);
+    const messageEl = $('message');
+    const pad3 = (n) => String(n).padStart(3, '0');
+
+    let slot = null;
+    let oldEnd = null;      // 'sold_out' | 'returned', once chosen
+    let oldTop = null;      // the returned pack's top ticket
+    let newTicket = null;
+    let overridePrice = false;
+    let finished = false;
+    let scannerStarted = false;
+
+    $('back').href = `slots.html?box=${box}`;
+    $('doneBtn').href = `slots.html?box=${box}`;
+    $('title').textContent = `Box ${box} · Slot ${slotNumber}`;
+    if (session) $('who').textContent = session.username;
+
+    function clearMessage() { messageEl.className = 'message'; messageEl.textContent = ''; }
+    function show(id, visible) { $(id).classList.toggle('hidden', !visible); }
+    const waitingForOldTop = () => oldEnd === 'returned' && oldTop === null;
+
+    function render() {
+      const pack = slot.pack;
+      $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock');
+      if (finished) {
+        ['oldStep', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
+        show('doneBtn', true);
+        return;
+      }
+
+      show('oldStep', pack && !oldEnd);
+      if (pack) {
+        $('oldKey').textContent = `${pack.gameNumber}-${pack.packNumber}`;
+        $('oldDetail').textContent = `Top ticket ${pad3(pack.exposedTicket)} · activated ${pack.activationDate || '—'}`;
+      }
+
+      const scanning = (!pack || oldEnd) && !newTicket;
+      show('scanStep', scanning);
+      if (scanning) {
+        if (waitingForOldTop()) {
+          $('scanPrompt').textContent = 'Scan the returned pack';
+          $('scanHint').textContent = `Scan the top ticket still in pack ${pack.gameNumber}-${pack.packNumber}. Tickets above it count as sold today.`;
+        } else {
+          $('scanPrompt').textContent = 'Scan the new pack';
+          $('scanHint').textContent = 'Scan the top ticket of the pack going into this slot (the one customers get next).';
+        }
+        show('leaveEmptyBtn', pack && oldEnd && !waitingForOldTop());
+        startScannerOnce();
+      }
+
+      show('confirmStep', Boolean(newTicket));
+      if (newTicket) {
+        $('newKey').textContent = `${newTicket.gameNumber}-${newTicket.packNumber}`;
+        $('newDetail').textContent = `Top ticket ${pad3(newTicket.ticketNumber)} · ${newTicket.ticketNumber + 1} tickets`;
+      }
+    }
+
+    function startScannerOnce() {
+      if (scannerStarted) return;
+      scannerStarted = true;
+      startScanner({
+        video: $('video'),
+        viewport: $('viewport'),
+        holdBtn: $('holdBtn'),
+        onStatus: (text) => (text ? showMessage(messageEl, text) : clearMessage()),
+        onScan: useTicket,
+      });
+    }
+
+    function useTicket(ticket) {
+      clearMessage();
+      if ($('scanStep').classList.contains('hidden')) return;
+      if (waitingForOldTop()) {
+        const pack = slot.pack;
+        if (ticket.gameNumber !== pack.gameNumber || ticket.packNumber !== pack.packNumber) {
+          showMessage(messageEl, `That ticket is from pack ${ticket.gameNumber}-${ticket.packNumber}, not the returned pack ${pack.gameNumber}-${pack.packNumber}.`);
+          return;
+        }
+        if (ticket.ticketNumber > pack.exposedTicket) {
+          showMessage(messageEl, `Ticket ${pad3(ticket.ticketNumber)} is above the last recorded top ticket (${pad3(pack.exposedTicket)}). Scan the ticket on top now.`);
+          return;
+        }
+        oldTop = ticket.ticketNumber;
+      } else {
+        if (slot.pack && ticket.gameNumber === slot.pack.gameNumber && ticket.packNumber === slot.pack.packNumber) {
+          showMessage(messageEl, 'That ticket is from the pack already in this slot. Scan the new pack.');
+          return;
+        }
+        newTicket = ticket;
+        overridePrice = false;
+        show('newGame', false);
+      }
+      render();
+    }
+
+    $('soldOutBtn').addEventListener('click', () => { oldEnd = 'sold_out'; clearMessage(); render(); });
+    $('returnedBtn').addEventListener('click', () => { oldEnd = 'returned'; clearMessage(); render(); });
+    $('rescanBtn').addEventListener('click', () => { newTicket = null; clearMessage(); render(); });
+
+    $('typedForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      try {
+        useTicket(parsePrintedTicket($('typed').value));
+        $('typed').value = '';
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+
+    $('leaveEmptyBtn').addEventListener('click', async () => {
+      clearMessage();
+      try {
+        const result = await whileBusy($('leaveEmptyBtn'), 'Saving…', () =>
+          api('endPack', { box, slot: slotNumber, reason: oldEnd, ticketNumber: oldTop }));
+        slot.pack = null;
+        finished = true;
+        showMessage(messageEl, `${describeEnded(result)} The slot is now out of stock. Back stock wasn't changed.`, 'ok');
+        render();
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+
+    $('activateBtn').addEventListener('click', activate);
+
+    async function activate() {
+      clearMessage();
+      const req = {
+        box,
+        slot: slotNumber,
+        gameNumber: newTicket.gameNumber,
+        packNumber: newTicket.packNumber,
+        ticketNumber: newTicket.ticketNumber,
+        oldPackEnd: oldEnd || undefined,
+        oldPackTicket: oldTop === null ? undefined : oldTop,
+        overridePrice,
+      };
+      if (!$('newGame').classList.contains('hidden')) {
+        req.gamePrice = $('gamePrice').value;
+        req.ticketsPerPack = $('ticketsPerPack').value;
+      }
+      try {
+        const result = await whileBusy($('activateBtn'), 'Activating…', () => api('activatePack', req));
+        const lines = [];
+        if (result.oldPack) lines.push(describeEnded(result.oldPack));
+        lines.push(`Pack ${result.packKey} is live in box ${result.box}, slot ${result.slot}.`);
+        lines.push(`${result.packsInBack} pack${result.packsInBack === 1 ? '' : 's'} of game ${newTicket.gameNumber} left in the back.`);
+        if (result.backWasEmpty) lines.push('(Back stock already showed none of this game, so it stayed at 0. Check that the shipment was entered.)');
+        finished = true;
+        showMessage(messageEl, lines.join(' '), 'ok');
+        const updated = await api('listSlots');
+        slot = updated.find((s) => s.box === box && s.slot === slotNumber) || slot;
+        render();
+      } catch (err) {
+        if (err.code === 'unknown_game' && session.role === 'owner') {
+          show('newGame', true);
+          showMessage(messageEl, err.message);
+        } else if (err.code === 'price_mismatch' && session.role === 'owner' && !overridePrice) {
+          if (confirm(err.message)) {
+            overridePrice = true;
+            activate();
+          } else {
+            showMessage(messageEl, 'Not activated. The slot price was left as it is.');
+          }
+        } else {
+          showMessage(messageEl, err.message);
+        }
+      }
+    }
+
+    function describeEnded(ended) {
+      return ended.reason === 'sold_out'
+        ? `Pack ${ended.packKey} marked sold out (${ended.ticketsSoldToday} tickets sold today).`
+        : `Pack ${ended.packKey} marked returned (${ended.ticketsSoldToday} sold today, ${ended.remainingReturned} going back).`;
+    }
+
+    if (session) {
+      api('listSlots')
+        .then((slots) => {
+          slot = slots.find((s) => s.box === box && s.slot === slotNumber);
+          if (!slot) throw new Error(`There's no slot ${slotNumber} in box ${box}.`);
+          render();
+        })
+        .catch((err) => { $('slotInfo').textContent = ''; showMessage(messageEl, err.message); });
+    }
+  </script>
+</body>
+</html>
