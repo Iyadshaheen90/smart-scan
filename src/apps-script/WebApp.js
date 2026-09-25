@@ -33,6 +33,8 @@ const SIGNED_IN_ACTIONS = {
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
   monthStatus: { owner: true, run: () => monthStatus() },
   startNewMonth: { owner: true, run: (req) => startNewMonth(req) },
+  listMonths: { owner: true, run: () => listMonths() },
+  monthSummary: { owner: true, run: (req) => monthSummary(req.label) },
 };
 
 function doPost(e) {

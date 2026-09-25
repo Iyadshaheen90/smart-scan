@@ -143,3 +143,41 @@ function startNewMonth(req) {
     return { label, previous: current.label, url: spreadsheetUrl(id), moved };
   });
 }
+
+// --- Monthly totals (owner only) ---
+
+// Every month, newest first.
+function listMonths() {
+  return readTable(getControlSpreadsheet().getSheetByName('Months'))
+    .map((m) => ({ label: normalizeMonthLabel(m.month_label), status: m.status, url: spreadsheetUrl(m.spreadsheet_id) }))
+    .sort((a, b) => b.label.localeCompare(a.label));
+}
+
+// A month's totals, worked out from its own DailySummary rows (like the Excel Summary tab), so they
+// can't drift from the days they come from. Ending inventory is the last closed day's, not a sum.
+function monthSummary(label) {
+  const month = readTable(getControlSpreadsheet().getSheetByName('Months'))
+    .find((m) => normalizeMonthLabel(m.month_label) === label);
+  if (!month) throw new ApiError('no_month', `There's no spreadsheet for ${label}.`);
+  const spreadsheet = SpreadsheetApp.openById(month.spreadsheet_id);
+  const days = readTable(spreadsheet.getSheetByName('DailySummary'))
+    .map((d) => ({
+      date: dateLabel(d.close_date),
+      ticketsSold: Number(d.total_tickets_sold),
+      dollarsSold: Number(d.total_dollars_sold),
+      inventoryValue: Number(d.total_inventory_value),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const shipments = readTable(spreadsheet.getSheetByName('Shipments'));
+  const sum = (rows, f) => rows.reduce((total, r) => total + (Number(f(r)) || 0), 0);
+  return {
+    label,
+    status: month.status,
+    url: spreadsheetUrl(month.spreadsheet_id),
+    days,
+    ticketsSold: sum(days, (d) => d.ticketsSold),
+    dollarsSold: sum(days, (d) => d.dollarsSold),
+    shipmentValue: sum(shipments, (s) => s.tickets_received * s.price_per_ticket),
+    endingInventoryValue: days.length ? days[days.length - 1].inventoryValue : null,
+  };
+}

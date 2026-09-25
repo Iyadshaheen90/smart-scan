@@ -3,15 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Smart Scan — New Month</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f7a4d">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Months</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
-  <h1>Start New Month</h1>
-  <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook.</p>
+  <h1>Months</h1>
+  <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook. Totals come from each day's close.</p>
 
-  <div id="status">Loading…</div>
+  <div id="current">Loading…</div>
   <p id="notYet" class="sub hidden" style="margin-top: 12px"></p>
 
   <div id="startBox" class="hidden">
@@ -29,16 +35,20 @@
   </div>
   <div id="message" class="message"></div>
 
+  <div id="pastBox" class="hidden">
+    <h2>Past months</h2>
+    <div id="past"></div>
+  </div>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
   <script>
     const session = requireLogin('owner');
     if (session) document.getElementById('who').textContent = session.username;
 
-    const statusEl = document.getElementById('status');
-    const startBox = document.getElementById('startBox');
-    const startBtn = document.getElementById('startBtn');
-    const message = document.getElementById('message');
+    const $ = (id) => document.getElementById(id);
+    const startBtn = $('startBtn');
+    const message = $('message');
     const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
       'September', 'October', 'November', 'December'];
     let status = null;
@@ -49,41 +59,126 @@
       return `${MONTHS[month - 1]} ${year}`;
     }
 
+    // "2026-10-01" -> "Thu Oct 1"
+    function dayName(date) {
+      return new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function money(n) {
+      return n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`;
+    }
+
+    function el(tag, className, text) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+
     function link(url, text) {
-      const a = document.createElement('a');
+      const a = el('a', null, text);
       a.href = url;
       a.target = '_blank';
-      a.textContent = text;
       return a;
     }
 
-    function render() {
+    // Totals, then one row per closed day.
+    function summaryView(summary) {
+      const box = el('div');
+      const tiles = el('div', 'tiles');
+      for (const [label, value] of [
+        ['Tickets sold', summary.ticketsSold.toLocaleString('en-US')],
+        ['Sales', money(summary.dollarsSold)],
+        ['Shipments in', money(summary.shipmentValue)],
+        ['Inventory at last close', money(summary.endingInventoryValue)],
+      ]) {
+        const tile = el('div', 'tile');
+        tile.append(el('div', 'tile-label', label), el('div', 'tile-value', value));
+        tiles.append(tile);
+      }
+      box.append(tiles);
+      if (summary.days.length === 0) {
+        box.append(el('p', 'sub', 'No days closed yet.'));
+        return box;
+      }
+      const table = el('table', 'days');
+      const head = el('tr');
+      for (const h of ['Day', 'Tickets', 'Sales', 'Inventory']) head.append(el('th', null, h));
+      table.append(head);
+      for (const d of summary.days.slice().reverse()) {
+        const row = el('tr');
+        row.append(el('td', null, dayName(d.date)), el('td', null, d.ticketsSold.toLocaleString('en-US')),
+          el('td', null, money(d.dollarsSold)), el('td', null, money(d.inventoryValue)));
+        table.append(row);
+      }
+      box.append(table);
+      return box;
+    }
+
+    function monthHeader(label, url, prefix) {
+      const top = el('div', 'row');
+      top.append(el('strong', null, `${prefix}${monthName(label)}`), link(url, 'Open spreadsheet'));
+      return top;
+    }
+
+    async function showCurrent() {
+      const current = $('current');
+      current.innerHTML = '';
+      const card = el('div', 'card');
+      card.append(monthHeader(status.current, status.currentUrl, 'This month: '));
+      const body = el('div', 'slot-detail', 'Loading totals…');
+      card.append(body);
+      current.append(card);
+      try {
+        body.replaceWith(summaryView(await api('monthSummary', { label: status.current })));
+      } catch (err) {
+        body.textContent = err.message;
+      }
+    }
+
+    function showStart() {
       const current = monthName(status.current);
       const next = monthName(status.next);
-      statusEl.innerHTML = '';
-      const card = document.createElement('div');
-      card.className = 'card row';
-      const name = document.createElement('strong');
-      name.textContent = `This month: ${current}`;
-      card.append(name, link(status.currentUrl, 'Open spreadsheet'));
-      statusEl.append(card);
-
-      document.querySelectorAll('.currentMonth').forEach((el) => { el.textContent = current; });
-      document.querySelectorAll('.nextMonth').forEach((el) => { el.textContent = next.split(' ')[0]; });
-      document.getElementById('startHeading').textContent = `Start ${next}`;
+      document.querySelectorAll('.currentMonth').forEach((e) => { e.textContent = current; });
+      document.querySelectorAll('.nextMonth').forEach((e) => { e.textContent = next.split(' ')[0]; });
+      $('startHeading').textContent = `Start ${next}`;
       startBtn.textContent = `Start ${next}`;
-      startBox.classList.toggle('hidden', !status.canStart);
-      const notYet = document.getElementById('notYet');
-      notYet.textContent = `You can start ${next} from ${next.replace(' ', ' 1, ')}.`;
-      notYet.classList.toggle('hidden', status.canStart);
+      $('startBox').classList.toggle('hidden', !status.canStart);
+      $('notYet').textContent = `You can start ${next} from ${next.replace(' ', ' 1, ')}.`;
+      $('notYet').classList.toggle('hidden', status.canStart);
+    }
+
+    // Past months load their totals when tapped (each is a separate spreadsheet).
+    async function showPast() {
+      const months = (await api('listMonths')).filter((m) => m.label !== status.current);
+      const past = $('past');
+      past.innerHTML = '';
+      $('pastBox').classList.toggle('hidden', months.length === 0);
+      for (const m of months) {
+        const card = el('div', 'card');
+        card.append(monthHeader(m.label, m.url, ''));
+        const button = el('button', 'small', 'Show totals');
+        button.type = 'button';
+        button.style.marginTop = '10px';
+        button.addEventListener('click', () => whileBusy(button, 'Loading…', async () => {
+          try {
+            button.replaceWith(summaryView(await api('monthSummary', { label: m.label })));
+          } catch (err) {
+            showMessage(message, err.message);
+          }
+        }));
+        card.append(button);
+        past.append(card);
+      }
     }
 
     async function load() {
       try {
         status = await api('monthStatus');
-        render();
+        showStart();
+        await Promise.all([showCurrent(), showPast()]);
       } catch (err) {
-        statusEl.textContent = '';
+        $('current').textContent = '';
         showMessage(message, err.message);
       }
     }
@@ -98,11 +193,7 @@
           const moved = Object.values(result.moved).reduce((a, b) => a + b, 0);
           showMessage(message, `${monthName(result.label)} started.` +
             (moved ? ` ${moved} ${moved === 1 ? 'entry' : 'entries'} dated ${MONTHS[Number(result.label.slice(5)) - 1]} moved over from ${monthName(result.previous)}.` : ''), 'ok');
-          // The month after this one can't be started yet (it's at least a month away).
-          const [year, month] = result.label.split('-').map(Number);
-          const next = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
-          status = { current: result.label, currentUrl: result.url, next, canStart: false };
-          render();
+          await load();
         } catch (err) {
           showMessage(message, err.message);
         }

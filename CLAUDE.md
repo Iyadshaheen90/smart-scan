@@ -70,7 +70,10 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack;
   Sold out / Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold); draft kept in localStorage until one `submitClose` call;
   anyone can **Clear all scans** (wipes this phone's draft only, e.g. after a practice close)
-- `month.html` (owner) Start New Month
+- `month.html` (owner) Months: this month's totals + per-day table, Start New Month, past months' totals
+- `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
+  shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
+  Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
 - `backstock.html` (owner) scan one ticket per game + enter packs; Shipment (adds) or Count (sets); remove packs
 - `raw-scanner.html`, `backend-test.html` dev/test pages
 
@@ -78,7 +81,7 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `WebApp.js` `doPost` router: `PUBLIC_ACTIONS`, `SIGNED_IN_ACTIONS` (`owner: true` = owner only); `doGet` health check
 - `Schema.js` tabs/headers, `CARRIED_FORWARD_TABS`, `STANDARD_PACK_SIZES`, `INITIAL_SLOT_PRICES`
 - `Sheets.js` `readTable`, `appendObject`, `updateRowsWhere`, `deleteRowsWhere`, `ensureHeaders`, `withLock`, `setCell`
-- `Months.js` active month lookup (Control → Months tab), `monthStatus`, `startNewMonth` · `Setup.js` one-time `setup()` (safe to re-run; adds missing columns)
+- `Months.js` active month lookup (Control → Months tab), `monthStatus`, `startNewMonth`, `listMonths`, `monthSummary` (totals from that month's DailySummary) · `Setup.js` one-time `setup()` (safe to re-run; adds missing columns)
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management
 - `Slots.js` `listSlots`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
   `swapSlots`, `setSlotPrice`, `setPackSize`, `addGameToReserve`

@@ -117,3 +117,18 @@ for (let i = 0; i < 5; i++) run('appendObject').call(null, small, { a: `x${i}` }
 assert.deepEqual(col(small, 'a'), ['x0', 'x1', 'x2', 'x3', 'x4']);
 assert.equal(run('deleteRowsWhere').call(null, small, () => true), 5); assert.equal(small.rows.length, 1);
 console.log('all new-month scenarios pass');
+
+// Monthly totals come from each month's own DailySummary rows.
+assert.deepEqual([...run('listMonths()')].map((m) => `${m.label} ${m.status}`), ['2026-11 active', '2026-10 archived', '2026-09 archived']);
+const septTotals = run(`monthSummary('2026-09')`);
+assert.deepEqual([...septTotals.days].map((d) => d.date), ['2026-09-29', '2026-09-30']);
+assert.equal(septTotals.ticketsSold, (29 - 25 + 49 - 45) + (25 - 20 + 45 - 40));
+assert.equal(septTotals.dollarsSold, 4 * 20 + 4 * 10 + 5 * 20 + 5 * 10);
+assert.equal(septTotals.shipmentValue, 80 * 5);
+assert.equal(septTotals.endingInventoryValue, septTotals.days[1].inventoryValue);
+const octTotals = run(`monthSummary('2026-10')`);
+assert.deepEqual([...octTotals.days].map((d) => d.date), ['2026-10-01', '2026-10-02']);
+assert.equal(octTotals.ticketsSold, 35 + 5);
+assert.equal(run(`monthSummary('2026-11')`).endingInventoryValue, null); // reopened, so no closed day yet
+assert.equal(code(() => run(`monthSummary('2025-01')`)), 'no_month');
+console.log('monthly totals pass');

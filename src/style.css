@@ -133,3 +133,13 @@ a.card { display: block; color: inherit; text-decoration: none; }
   margin: 6px 0 0; padding: 10px 12px; font-size: 15px; font-weight: 500; text-align: left;
 }
 .review-row.active { border-color: var(--accent); }
+
+/* Months page: totals tiles and the per-day table. */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.tile { background: var(--surface); border-radius: 8px; padding: 10px; }
+.tile-label { font-size: 12px; color: var(--muted); }
+.tile-value { font-size: 20px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+table.days { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.days th { text-align: right; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 0; border-bottom: 1px solid var(--border); }
+table.days td { text-align: right; padding: 7px 0; border-bottom: 1px solid var(--border); }
+table.days th:first-child, table.days td:first-child { text-align: left; }

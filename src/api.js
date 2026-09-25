@@ -3,6 +3,9 @@
 
 const SESSION_STORAGE_KEY = 'smartScanSession';
 
+// Makes the app installable to the home screen (see sw.js).
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
 class ApiError extends Error {
   constructor(code, message) {
     super(message);
