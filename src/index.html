@@ -13,12 +13,14 @@
   </div>
   <h1>Smart Scan</h1>
   <p class="sub">Route 66 Liquor — scratcher tracking</p>
+  <a id="newMonthDue" class="message error hidden" href="month.html" style="display: block; color: inherit"></a>
 
   <a class="button primary" href="close.html">Close Day</a>
   <a class="button" href="slots.html">Slots</a>
   <a class="button" href="raw-scanner.html">Scanner test</a>
   <a class="button owner-only hidden" href="backstock.html">Back stock &amp; shipments</a>
   <a class="button owner-only hidden" href="users.html">Manage employees</a>
+  <a class="button owner-only hidden" href="month.html">Start New Month</a>
   <a class="button" href="account.html">Change my password</a>
 
 
@@ -30,8 +32,22 @@
       document.getElementById('who').textContent = `${session.username} · ${session.role}`;
       if (session.role === 'owner') {
         document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
+        showNewMonthReminder();
       }
     }
+    // From the 1st, until the owner starts the new month.
+    async function showNewMonthReminder() {
+      try {
+        const status = await api('monthStatus');
+        if (!status.canStart) return;
+        const [year, month] = status.next.split('-').map(Number);
+        const name = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long' });
+        const el = document.getElementById('newMonthDue');
+        el.textContent = `It's ${name} — tap here to start the new month's spreadsheet.`;
+        el.classList.remove('hidden');
+      } catch (e) {}
+    }
+
     document.getElementById('signOut').addEventListener('click', (e) => {
       e.preventDefault();
       signOut();

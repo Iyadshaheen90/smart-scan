@@ -4,24 +4,7 @@
 globalThis.TODAY = '2026-09-24';
 const fs = require('fs'); const vm = require('vm'); const path = require('path'); const assert = require('assert/strict');
 const dir = process.argv[2] || path.join(__dirname, '..', 'src', 'apps-script');
-function fakeSheet(headers, old) {
-  const rows = [(old || headers).slice()];
-  const width = () => rows[0].length;
-  return {
-    rows,
-    getDataRange: () => ({ getValues: () => rows.map((r) => Array.from({ length: width() }, (_, i) => r[i] ?? '')) }),
-    getLastRow: () => rows.length, getLastColumn: () => width(),
-    getRange: (r, c, nr, nc) => nr ? {
-      getValues: () => [rows[0].slice(c - 1, c - 1 + nc)],
-      setValues([v]) { v.forEach((x, i) => { rows[0][c - 1 + i] = x; }); return this; },
-      setFontWeight() { return this; },
-    } : {
-      setNumberFormat() { return this; },
-      setValue(v) { (rows[r - 1] ||= []); rows[r - 1][c - 1] = v; return this; },
-    },
-    deleteRow: (r) => rows.splice(r - 1, 1),
-  };
-}
+const { fakeSheet } = require('./fakes');
 const ctx = { console, Utilities: { formatDate: (d, tz) => tz === 'UTC' ? d.toISOString().slice(0, 10) : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);

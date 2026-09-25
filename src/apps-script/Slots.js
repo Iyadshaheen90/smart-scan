@@ -218,7 +218,7 @@ function endPackInSlot(user, state, reason, topTicket) {
   const soldNow = exposed + 1 - remaining;
   const today = todayLabel();
 
-  appendObject(monthSheet('DailyCloseLog'), {
+  appendObject(closeLogSheet(), {
     close_date: salesDate(),
     box: Number(state.box),
     slot_number: Number(state.slot_number),
@@ -232,6 +232,7 @@ function endPackInSlot(user, state, reason, topTicket) {
     close_type: reason,
     late_activation: false,
     performed_by: user.username,
+    previous_close_date: dateLabel(state.last_close_date) || '',
   });
 
   const reserve = findReserve(state.game_number);
@@ -340,10 +341,7 @@ function undoEndPack(req) {
     deleteRowsWhere(monthSheet('DailyCloseLog'), isEnding);
     deleteRowsWhere(monthSheet('PackHistory'), (p) => `${p.game_number}-${p.pack_number}` === packKey);
 
-    // The last regular close of this pack, if any, is when it was last closed.
-    const lastClose = readTable(monthSheet('DailyCloseLog'))
-      .filter((r) => r.pack_key === packKey && r.close_type === 'close')
-      .map((r) => dateLabel(r.close_date)).sort().pop() || '';
+    const lastClose = closeBefore(log, readTable(monthSheet('DailyCloseLog')));
     const exposed = Number(log.previous_exposed_ticket_number);
     updateRowsWhere(slotStateSheet(), isSlot(req.box, req.slot), {
       pack_key: packKey,

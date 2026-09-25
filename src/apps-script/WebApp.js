@@ -31,6 +31,8 @@ const SIGNED_IN_ACTIONS = {
   saveBackStock: { owner: true, run: (req, user) => saveBackStock(user, req.mode, req.lines, req.notes) },
   removeBackStock: { owner: true, run: (req, user) => removeBackStock(user, req) },
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },
+  monthStatus: { owner: true, run: () => monthStatus() },
+  startNewMonth: { owner: true, run: (req) => startNewMonth(req) },
 };
 
 function doPost(e) {

@@ -32,6 +32,8 @@ function setCell(range, value) {
 function appendObject(sheet, obj) {
   const headers = headersOf(sheet);
   const row = sheet.getLastRow() + 1;
+  // A new tab has 1000 rows and getRange can't reach past the last one (a month of closes is ~1500 rows).
+  if (row > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 500);
   headers.forEach((h, i) => {
     if (h in obj) setCell(sheet.getRange(row, i + 1), obj[h]);
   });
@@ -52,13 +54,23 @@ function updateRowsWhere(sheet, predicate, changes) {
   return count;
 }
 
-// Deletes every row matching `predicate`, bottom-up so row numbers stay valid.
+// Deletes every row matching `predicate` and returns how many. Works bottom-up so row numbers
+// stay valid, deleting each run of neighbouring rows in one call (clearing a month of log rows
+// one at a time would take minutes).
 function deleteRowsWhere(sheet, predicate) {
   const [headers, ...rows] = sheet.getDataRange().getValues();
-  for (let i = rows.length - 1; i >= 0; i--) {
-    const obj = Object.fromEntries(headers.map((h, j) => [h, rows[i][j]]));
-    if (predicate(obj)) sheet.deleteRow(i + 2);
+  const matches = rows.map((row) => predicate(Object.fromEntries(headers.map((h, j) => [h, row[j]]))));
+  const count = matches.filter(Boolean).length;
+  // Sheets won't delete every row under the frozen header, so keep a blank row below the data.
+  if (count > 0 && rows.length + 1 >= sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 1);
+  for (let end = matches.length - 1; end >= 0; end--) {
+    if (!matches[end]) continue;
+    let start = end;
+    while (start > 0 && matches[start - 1]) start -= 1;
+    sheet.deleteRows(start + 2, end - start + 1);
+    end = start;
   }
+  return count;
 }
 
 // Runs fn while holding the script-wide lock, so concurrent writes can't interleave.

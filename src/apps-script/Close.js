@@ -12,6 +12,21 @@ const CLOSE_ENTRY_TYPES = ['scan', 'sold_out'];
 // A slot selling more than this many tickets in a day is flagged on the phone before submitting.
 const LARGE_SALE_TICKETS = 50;
 
+// The log tab, with any columns added since the month's spreadsheet was made.
+function closeLogSheet() {
+  const sheet = monthSheet('DailyCloseLog');
+  ensureHeaders(sheet, MONTHLY_TABS.DailyCloseLog);
+  return sheet;
+}
+
+// The pack's last close before `row` was logged, for putting it back when the row is undone.
+// Rows logged before previous_close_date was kept fall back to this month's log.
+function closeBefore(row, log) {
+  return dateLabel(row.previous_close_date) || log
+    .filter((r) => r.pack_key === row.pack_key && r.close_type === 'close')
+    .map((r) => dateLabel(r.close_date)).sort().pop() || '';
+}
+
 function todaysSummary() {
   return summaryOn(todayLabel());
 }
@@ -80,7 +95,7 @@ function submitClose(user, entries) {
       }
       const sold = exposed - ticket;
       const price = Number(state.price_per_ticket);
-      appendObject(monthSheet('DailyCloseLog'), {
+      appendObject(closeLogSheet(), {
         close_date: today,
         box: Number(state.box),
         slot_number: Number(state.slot_number),
@@ -94,6 +109,7 @@ function submitClose(user, entries) {
         close_type: 'close',
         late_activation: dateLabel(state.activation_date) === today,
         performed_by: user.username,
+        previous_close_date: dateLabel(state.last_close_date) || '',
       });
       updateRowsWhere(stateSheet, isSlot(state.box, state.slot_number), {
         current_exposed_ticket_number: ticket,
@@ -144,7 +160,7 @@ function reopenClose() {
   return withLock(() => {
     const today = todayLabel();
     if (!todaysSummary()) throw new ApiError('not_closed', "Today hasn't been closed.");
-    const logSheet = monthSheet('DailyCloseLog');
+    const logSheet = closeLogSheet();
     const isTodaysClose = (r) => r.close_type === 'close' && dateLabel(r.close_date) === today;
     const closes = readTable(logSheet).filter(isTodaysClose);
     deleteRowsWhere(logSheet, isTodaysClose);
@@ -155,12 +171,9 @@ function reopenClose() {
       // Found by pack, since it may have been moved since the close. An ended pack stays ended.
       const state = readTable(stateSheet).find((s) => s.pack_key === row.pack_key);
       if (!state) continue;
-      const lastClose = log
-        .filter((r) => r.pack_key === row.pack_key && r.close_type === 'close')
-        .map((r) => dateLabel(r.close_date)).sort().pop() || '';
       updateRowsWhere(stateSheet, isSlot(state.box, state.slot_number), {
         current_exposed_ticket_number: Number(row.previous_exposed_ticket_number),
-        last_close_date: lastClose,
+        last_close_date: closeBefore(row, log),
       });
     }
     deleteRowsWhere(monthSheet('DailySummary'), (d) => dateLabel(d.close_date) === today);

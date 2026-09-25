@@ -46,6 +46,15 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Wrong pack size → `setPackSize` (refused if a live pack's top ticket wouldn't fit). Wrong slot price → `setSlotPrice`.
 - Wrong close → `reopenClose` restores every top ticket (found by pack, so moves after the close are fine).
 
+**Months** (one spreadsheet per month, like the owner's monthly Excel workbook)
+- The owner starts each month on `month.html`, on or after the 1st (never automatic; home shows a reminder from the 1st).
+- `startNewMonth` copies the current month's whole spreadsheet, so `CARRIED_FORWARD_TABS` (Users, Sessions, SlotConfig,
+  SlotState, ReserveInventory) carry over exactly, then empties the log tabs except rows already dated in the new
+  month (`MONTHLY_LOG_DATE_COLUMNS`). Those rows move out of the old spreadsheet, so starting late loses nothing.
+- Safe to retry: an unregistered copy left by a failed attempt is trashed; the new month is marked active before the
+  old one is archived (`getCurrentMonth` picks the latest active). A second tap is refused (`already_started`).
+- `DailyCloseLog.previous_close_date` lets reopen/undo restore a pack's last close even when it was in an earlier month.
+
 **Scanning**
 - Press-and-hold is the default everywhere; Auto scan is an opt-in toggle (Close Day remembers it per phone).
 - Every scan screen also accepts the typed printed number (`parsePrintedTicket`).
@@ -61,6 +70,7 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack;
   Sold out / Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold); draft kept in localStorage until one `submitClose` call;
   anyone can **Clear all scans** (wipes this phone's draft only, e.g. after a practice close)
+- `month.html` (owner) Start New Month
 - `backstock.html` (owner) scan one ticket per game + enter packs; Shipment (adds) or Count (sets); remove packs
 - `raw-scanner.html`, `backend-test.html` dev/test pages
 
@@ -68,7 +78,7 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `WebApp.js` `doPost` router: `PUBLIC_ACTIONS`, `SIGNED_IN_ACTIONS` (`owner: true` = owner only); `doGet` health check
 - `Schema.js` tabs/headers, `CARRIED_FORWARD_TABS`, `STANDARD_PACK_SIZES`, `INITIAL_SLOT_PRICES`
 - `Sheets.js` `readTable`, `appendObject`, `updateRowsWhere`, `deleteRowsWhere`, `ensureHeaders`, `withLock`, `setCell`
-- `Months.js` active month lookup (Control → Months tab) · `Setup.js` one-time `setup()` (safe to re-run; adds missing columns)
+- `Months.js` active month lookup (Control → Months tab), `monthStatus`, `startNewMonth` · `Setup.js` one-time `setup()` (safe to re-run; adds missing columns)
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management
 - `Slots.js` `listSlots`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
   `swapSlots`, `setSlotPrice`, `setPackSize`, `addGameToReserve`
@@ -91,15 +101,10 @@ hand-edit them.
 ```sh
 node --test src/*.test.js                 # barcode parsing
 node test/backend-scenarios.js            # backend against a fake spreadsheet (store scenarios)
+node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js)
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"
 git push origin main                      # publishes the pages (GitHub Pages, ~1 min)
 ```
 After deploying, `curl -sL "$URL"` should return `{"ok":true,...,"slots":48}`, and an unknown-but-registered action
 should answer `unauthorized` (not `unknown_action`).
-
-## Not built yet
-
-- **Start New Month** (needed before the first October 2026 close): new monthly spreadsheet from the Template,
-  copy `CARRIED_FORWARD_TABS` (Users, SlotConfig, SlotState, ReserveInventory), mark it active in Control → Months,
-  `invalidateCurrentMonthCache()`. Sessions are not carried (everyone signs in again).

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Scan — New Month</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
+  <h1>Start New Month</h1>
+  <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook.</p>
+
+  <div id="status">Loading…</div>
+  <p id="notYet" class="sub hidden" style="margin-top: 12px"></p>
+
+  <div id="startBox" class="hidden">
+    <h2 id="startHeading"></h2>
+    <div class="card">
+      <strong>Carries over</strong>
+      <div class="slot-detail">Slot prices, the packs in every slot (they keep selling without a break), back stock, and employee logins.</div>
+    </div>
+    <div class="card">
+      <strong>Starts empty</strong>
+      <div class="slot-detail">Closes, sales, shipments and pack history. Anything already dated <span class="nextMonth"></span> moves over, so nothing is lost if you start it late: for example, a pack marked sold out after the last close of <span class="currentMonth"></span>.</div>
+    </div>
+    <p class="sub" style="margin-top: 12px"><span class="currentMonth"></span>'s spreadsheet stays in Google Drive.</p>
+    <button id="startBtn" class="primary" type="button"></button>
+  </div>
+  <div id="message" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const session = requireLogin('owner');
+    if (session) document.getElementById('who').textContent = session.username;
+
+    const statusEl = document.getElementById('status');
+    const startBox = document.getElementById('startBox');
+    const startBtn = document.getElementById('startBtn');
+    const message = document.getElementById('message');
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+      'September', 'October', 'November', 'December'];
+    let status = null;
+
+    // "2026-10" -> "October 2026"
+    function monthName(label) {
+      const [year, month] = label.split('-').map(Number);
+      return `${MONTHS[month - 1]} ${year}`;
+    }
+
+    function link(url, text) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.textContent = text;
+      return a;
+    }
+
+    function render() {
+      const current = monthName(status.current);
+      const next = monthName(status.next);
+      statusEl.innerHTML = '';
+      const card = document.createElement('div');
+      card.className = 'card row';
+      const name = document.createElement('strong');
+      name.textContent = `This month: ${current}`;
+      card.append(name, link(status.currentUrl, 'Open spreadsheet'));
+      statusEl.append(card);
+
+      document.querySelectorAll('.currentMonth').forEach((el) => { el.textContent = current; });
+      document.querySelectorAll('.nextMonth').forEach((el) => { el.textContent = next.split(' ')[0]; });
+      document.getElementById('startHeading').textContent = `Start ${next}`;
+      startBtn.textContent = `Start ${next}`;
+      startBox.classList.toggle('hidden', !status.canStart);
+      const notYet = document.getElementById('notYet');
+      notYet.textContent = `You can start ${next} from ${next.replace(' ', ' 1, ')}.`;
+      notYet.classList.toggle('hidden', status.canStart);
+    }
+
+    async function load() {
+      try {
+        status = await api('monthStatus');
+        render();
+      } catch (err) {
+        statusEl.textContent = '';
+        showMessage(message, err.message);
+      }
+    }
+
+    startBtn.addEventListener('click', () => {
+      const current = monthName(status.current);
+      const next = monthName(status.next);
+      if (!confirm(`Start ${next}? ${current} will be archived, and from now on everything is recorded in ${next}'s spreadsheet.`)) return;
+      whileBusy(startBtn, 'Starting… (this can take a minute)', async () => {
+        try {
+          const result = await api('startNewMonth', { label: status.next });
+          const moved = Object.values(result.moved).reduce((a, b) => a + b, 0);
+          showMessage(message, `${monthName(result.label)} started.` +
+            (moved ? ` ${moved} ${moved === 1 ? 'entry' : 'entries'} dated ${MONTHS[Number(result.label.slice(5)) - 1]} moved over from ${monthName(result.previous)}.` : ''), 'ok');
+          // The month after this one can't be started yet (it's at least a month away).
+          const [year, month] = result.label.split('-').map(Number);
+          const next = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+          status = { current: result.label, currentUrl: result.url, next, canStart: false };
+          render();
+        } catch (err) {
+          showMessage(message, err.message);
+        }
+      });
+    });
+
+    if (session) load();
+  </script>
+</body>
+</html>

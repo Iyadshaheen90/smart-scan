@@ -25,6 +25,8 @@ const MONTHLY_TABS = {
     'close_date', 'box', 'slot_number', 'pack_key', 'previous_exposed_ticket_number',
     'current_exposed_ticket_number', 'tickets_sold', 'price_per_ticket', 'dollars_sold',
     'remaining_after_close', 'close_type', 'late_activation', 'performed_by',
+    // The pack's last close before this row, so undoing it restores that even across months.
+    'previous_close_date',
   ],
   DailySummary: ['close_date', 'total_tickets_sold', 'total_dollars_sold', 'occupied_slot_count', 'total_inventory_value'],
   PackHistory: [
@@ -33,8 +35,18 @@ const MONTHLY_TABS = {
   ],
 };
 
-// Copied into the next month by Start New Month; every other tab starts empty.
-const CARRIED_FORWARD_TABS = ['Users', 'SlotConfig', 'SlotState', 'ReserveInventory'];
+// Start New Month copies the whole spreadsheet, so these carry into the next month as they are
+// (Sessions too, so nobody is signed out mid-shift).
+const CARRIED_FORWARD_TABS = ['Users', 'Sessions', 'SlotConfig', 'SlotState', 'ReserveInventory'];
+// The log tabs start each month empty, except rows already dated in the new month (the date
+// column is given here): those move from the old month's spreadsheet into the new one.
+const MONTHLY_LOG_DATE_COLUMNS = {
+  Shipments: 'shipment_date',
+  ReserveAdjustments: 'adjustment_date',
+  DailyCloseLog: 'close_date',
+  DailySummary: 'close_date',
+  PackHistory: 'end_date',
+};
 
 // Tickets in a pack by ticket price (owner's rule of thumb, 2026-09-24). Packs count down, so a
 // 30-ticket pack is numbered 29 to 0. Used to fill in a new game's pack size.
