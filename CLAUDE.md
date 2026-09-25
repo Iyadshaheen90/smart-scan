@@ -19,7 +19,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 ## Business rules
 
 **Roles** (enforced server-side with `owner: true` in `WebApp.js`, and hidden in the UI)
-- Employees: Close Day, and mark a pack **Sold out** (one tap, slot goes out of stock, no scan). Nothing else.
+- Employees: Close Day (where they mark packs **Sold out**) and a view-only Slots page. Nothing else — `endPack`
+  outside Close Day is owner-only (owner's choice 2026-09-25: one place to mark sold out, fewer mis-taps).
 - Owner: activate packs, returns, all undos, slot prices, pack sizes, move/swap, back stock, reopen a close, employees.
 - Employees never see dollar totals (`summaryFor` strips them).
 

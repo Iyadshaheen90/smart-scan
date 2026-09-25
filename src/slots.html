@@ -33,7 +33,7 @@
       document.getElementById('who').textContent = session.username;
       document.getElementById('hint').textContent = session.role === 'owner'
         ? 'Tap a slot to put a new pack in it, end a pack, or change its price.'
-        : 'Tap a slot to mark its pack sold out.';
+        : 'View only. Packs that sold out are marked during Close Day. Tell the owner when a slot needs a new pack.';
     }
 
     const listEl = document.getElementById('list');
@@ -50,9 +50,10 @@
 
       listEl.innerHTML = '';
       for (const s of inBox) {
-        const card = document.createElement('a');
+        // Only the owner can open a slot; employees just see it.
+        const card = document.createElement(session.role === 'owner' ? 'a' : 'div');
         card.className = 'card';
-        card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
+        if (session.role === 'owner') card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
 
         const top = document.createElement('div');
         top.className = 'row';

@@ -39,7 +39,8 @@ assert.deepEqual({ ...r.oldPack }, { packKey: '1747-1263622', reason: 'returned'
 assert.equal(r.packsInBack, 1);
 assert.equal(code(() => run(`activatePack(emp, { box: 1, slot: 2, gameNumber: '1747', packNumber: '1263622', ticketNumber: 29 })`)), 'pack_ended');
 // empty slot 2 as sold out
-r = run(`endPack(emp, { box: 1, slot: 2, reason: 'sold_out' })`);
+assert.equal(code(() => run(`endPack(emp, { box: 1, slot: 2, reason: 'sold_out' })`)), 'forbidden'); // employees: only in Close Day
+r = run(`endPack(owner, { box: 1, slot: 2, reason: 'sold_out' })`);
 assert.equal(r.ticketsSoldToday, 60);
 slots = run('listSlots()'); assert.equal(slots[1].pack, null); assert.equal(slots[0].pack.packNumber, '1263623');
 const hist = S.PackHistory.rows.slice(1); assert.equal(hist.length, 2);
@@ -73,7 +74,7 @@ r = run(`setSlotPrice({ box: 2, slot: 6, price: 30 })`); assert.equal(r.slotPric
 S.SlotState.rows.push([3, 1]); S.SlotConfig.rows.push([3, 1, 10]);
 run(`activatePack(owner, { box: 3, slot: 1, gameNumber: '2222', packNumber: '5555556', ticketNumber: 49 })`);
 assert.equal(code(() => run(`endPack(emp, { box: 3, slot: 1, reason: 'returned', ticketNumber: 10 })`)), 'forbidden');
-r = run(`endPack(emp, { box: 3, slot: 1, reason: 'sold_out' })`); assert.equal(r.ticketsSoldToday, 50);
+r = run(`endPack(owner, { box: 3, slot: 1, reason: 'sold_out' })`); assert.equal(r.ticketsSoldToday, 50);
 // undo the sold out just done in box 3 slot 1
 let ls = run('listSlots()').find((x) => x.box === 3);
 assert.deepEqual({ ...ls.endedToday }, { packKey: '2222-5555556', reason: 'sold_out' });
@@ -91,7 +92,7 @@ run(`undoActivation(owner, { box: 3, slot: 1 })`);
 r = run(`undoEndPack({ box: 3, slot: 1 })`); assert.equal(r.reason, 'returned'); assert.equal(r.exposedTicket, 49);
 assert.equal(code(() => run(`undoEndPack({ box: 2, slot: 6 })`)), 'nothing_to_undo');
 S.DailySummary.rows.push(['2026-09-24']);
-run(`endPack(emp, { box: 3, slot: 1, reason: 'sold_out' })`); // after today's close: counts toward tomorrow
+run(`endPack(owner, { box: 3, slot: 1, reason: 'sold_out' })`); // after today's close: counts toward tomorrow
 assert.equal(code(() => run(`undoEndPack({ box: 3, slot: 1 })`)), 'none');
 // swap: box 2 slot 10 (2222 pack, $10) <-> box 2 slot 6 (empty, $30)
 const at = (b, n) => run('listSlots()').find((x) => x.box === b && x.slot === n);
@@ -146,7 +147,7 @@ assert.equal(code(() => run(`undoActivation(owner, { box: ${live[0].box}, slot: 
 // can't undo the sold out done in the close
 assert.equal(code(() => run(`undoEndPack({ box: ${live[1].box}, slot: ${live[1].slot} })`)), 'already_closed');
 // sold out after close goes to tomorrow, and can be undone
-r = run(`endPack(emp, { box: ${live[0].box}, slot: ${live[0].slot}, reason: 'sold_out' })`);
+r = run(`endPack(owner, { box: ${live[0].box}, slot: ${live[0].slot}, reason: 'sold_out' })`);
 assert.equal(S.DailyCloseLog.rows[S.DailyCloseLog.rows.length - 1][0], '2026-09-25');
 run(`undoEndPack({ box: ${live[0].box}, slot: ${live[0].slot} })`);
 // reopen restores tickets; swap after close is followed by pack

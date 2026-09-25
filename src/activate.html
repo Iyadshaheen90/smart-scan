@@ -23,8 +23,6 @@
       <div>This slot still has pack <strong class="mono" id="oldKey"></strong></div>
       <div class="slot-detail" id="oldDetail"></div>
     </div>
-    <!-- Employees: sold out just empties the slot. The owner puts new packs in. -->
-    <button type="button" class="primary employee-only hidden" id="markSoldOutBtn">Sold out — mark out of stock</button>
     <div class="owner-only hidden">
       <p class="sub" style="margin-top: 12px;">What happened to it?</p>
       <div class="choices">
@@ -37,8 +35,6 @@
 
   <!-- Owner: an empty slot whose pack was ended today can have that undone. -->
   <button type="button" class="hidden" id="undoEndBtn"></button>
-
-  <p class="sub hidden" id="emptyNote">This slot is out of stock. The owner puts new packs in.</p>
 
   <!-- Owner, after the old pack is ended: replace it now, or leave the slot out of stock. -->
   <div id="nextStep" class="hidden">
@@ -123,7 +119,7 @@
   <script type="module">
     import { startScanner } from './scanner.js';
 
-    const session = requireLogin();
+    const session = requireLogin('owner');
     const params = new URLSearchParams(location.search);
     const box = Number(params.get('box'));
     const slotNumber = Number(params.get('slot'));
@@ -146,7 +142,7 @@
     const isOwner = session && session.role === 'owner';
     if (session) {
       $('who').textContent = session.username;
-      document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
+      document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
     }
 
     function clearMessage() { messageEl.className = 'message'; messageEl.textContent = ''; }
@@ -172,7 +168,7 @@
         if (document.activeElement !== $('slotPrice')) $('slotPrice').value = slot.slotPrice;
       }
       if (finished) {
-        ['oldStep', 'nextStep', 'emptyNote', 'undoEndBtn', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
+        ['oldStep', 'nextStep', 'undoEndBtn', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
         show('doneBtn', true);
         return;
       }
@@ -184,7 +180,6 @@
         $('oldDetail').textContent = `Top ticket ${pad3(pack.exposedTicket)} · activated ${pack.activationDate || '—'}`;
       }
 
-      show('emptyNote', !pack && !isOwner);
       const canUndoEnd = isOwner && !pack && slot.endedToday && !newTicket;
       show('undoEndBtn', canUndoEnd);
       if (canUndoEnd) {
@@ -260,12 +255,6 @@
     $('soldOutBtn').addEventListener('click', () => { oldEnd = 'sold_out'; clearMessage(); render(); });
     $('returnedBtn').addEventListener('click', () => { oldEnd = 'returned'; clearMessage(); render(); });
     $('replaceBtn').addEventListener('click', () => { replacing = true; clearMessage(); render(); });
-    $('markSoldOutBtn').addEventListener('click', () => {
-      const pack = slot.pack;
-      if (!confirm(`Mark pack ${pack.gameNumber}-${pack.packNumber} sold out? The slot will show out of stock.`)) return;
-      oldEnd = 'sold_out';
-      markOutOfStock($('markSoldOutBtn'));
-    });
     $('rescanBtn').addEventListener('click', () => { newTicket = null; clearMessage(); render(); });
 
     $('typedForm').addEventListener('submit', (e) => {

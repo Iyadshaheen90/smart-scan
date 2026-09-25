@@ -48,7 +48,7 @@ assert.equal(code(() => run(`startNewMonth({ label: '2026-10' })`)), 'too_early'
 run(`saveBackStock(owner, 'shipment', [{ gameNumber: '5555', packs: 1 }])`);
 run(`submitClose(emp, ${entries({ 1: 20, 2: 40 })})`);
 // After the Sep 30 close: slot 1 sells out (counts toward Oct 1), a new pack goes in slot 3.
-run(`endPack(emp, { box: 1, slot: 1, reason: 'sold_out' })`);
+run(`endPack(owner, { box: 1, slot: 1, reason: 'sold_out' })`);
 run(`activatePack(owner, { box: 1, slot: 3, gameNumber: '5555', packNumber: '0000001', ticketNumber: 79 })`);
 
 // Oct 1: nobody starts October, so the day is closed (and back stock adjusted) in September's sheet.
@@ -101,7 +101,7 @@ const nov = tabs(run('getCurrentMonth()').spreadsheetId);
 assert.equal(nov.DailyCloseLog.rows.length, 1);
 
 // Undoing a sold-out across the boundary keeps the pack's Oct 2 close, so its activation can't be undone.
-run(`endPack(emp, { box: 1, slot: 2, reason: 'sold_out' })`);
+run(`endPack(owner, { box: 1, slot: 2, reason: 'sold_out' })`);
 run(`undoEndPack({ box: 1, slot: 2 })`);
 assert.equal(slot(2).pack.lastCloseDate, '2026-10-02'); assert.equal(slot(2).pack.exposedTicket, 30);
 assert.equal(code(() => run(`undoActivation(owner, { box: 1, slot: 2 })`)), 'already_closed');
