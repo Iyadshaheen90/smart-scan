@@ -14,6 +14,9 @@ const MONTHLY_TABS = {
     'current_exposed_ticket_number', 'remaining_count', 'activation_date', 'last_close_date',
     // Kept so a pack activated into the wrong slot can be undone exactly.
     'price_before_activation', 'took_from_reserve',
+    // The game of the last pack that sold out or was returned here, kept after the slot empties
+    // so an out-of-stock slot can show how many packs of that game are in back stock.
+    'last_game_number',
   ],
   ReserveInventory: ['game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_in_reserve', 'tickets_in_reserve'],
   Shipments: [

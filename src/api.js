@@ -78,6 +78,12 @@ function showMessage(el, text, kind = 'error') {
   el.textContent = text;
 }
 
+// "Game 1747: 2 packs in back stock" — shown where a slot is (or is about to be) out of stock,
+// for the game most likely to go back in it.
+function backStockText(gameNumber, packs) {
+  return `Game ${gameNumber}: ${packs} ${packs === 1 ? 'pack' : 'packs'} in back stock`;
+}
+
 // Disables a form's button while a request runs, so a double tap can't submit twice.
 async function whileBusy(button, busyLabel, fn) {
   const label = button.textContent;

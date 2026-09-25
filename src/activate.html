@@ -151,7 +151,8 @@
 
     function render() {
       const pack = slot.pack;
-      $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock');
+      $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock')
+        + (!pack && slot.lastGame ? ` · ${backStockText(slot.lastGame.gameNumber, slot.lastGame.packsInBack)} (last game here)` : '');
       if (isOwner) {
         show('sizeForm', Boolean(pack));
         if (pack) {

@@ -43,6 +43,8 @@ assert.equal(code(() => run(`endPack(emp, { box: 1, slot: 2, reason: 'sold_out' 
 r = run(`endPack(owner, { box: 1, slot: 2, reason: 'sold_out' })`);
 assert.equal(r.ticketsSoldToday, 60);
 slots = run('listSlots()'); assert.equal(slots[1].pack, null); assert.equal(slots[0].pack.packNumber, '1263623');
+// the empty slot shows the game that was last in it and how many packs of it are in back
+assert.deepEqual({ ...slots[1].lastGame }, { gameNumber: '1111', packsInBack: 0 }); assert.equal(slots[0].lastGame, null);
 const hist = S.PackHistory.rows.slice(1); assert.equal(hist.length, 2);
 assert.equal(hist[0][8], 9); // returned pack: 30 - 21 sold total
 assert.equal(S.DailyCloseLog.rows.length, 3);
@@ -69,6 +71,8 @@ assert.equal(code(() => run(`undoActivation(emp, { box: 1, slot: 1 })`)), 'slot_
 r = run(`activatePack(owner, { box: 1, slot: 2, gameNumber: '1111', packNumber: '0000002', ticketNumber: 59 })`);
 r = run(`undoActivation(emp, { box: 1, slot: 2 })`);
 assert.equal(r.returnedToBack, false); assert.equal(r.packsInBack, 0);
+// undoing a wrong activation keeps the game that was really there before
+assert.deepEqual({ ...run('listSlots()')[1].lastGame }, { gameNumber: '1111', packsInBack: 0 });
 // setSlotPrice fixes a slot directly
 r = run(`setSlotPrice({ box: 2, slot: 6, price: 30 })`); assert.equal(r.slotPrice, 30);
 S.SlotState.rows.push([3, 1]); S.SlotConfig.rows.push([3, 1, 10]);
@@ -77,6 +81,12 @@ assert.equal(code(() => run(`endPack(emp, { box: 3, slot: 1, reason: 'returned',
 r = run(`endPack(owner, { box: 3, slot: 1, reason: 'sold_out' })`); assert.equal(r.ticketsSoldToday, 50);
 // undo the sold out just done in box 3 slot 1
 let ls = run('listSlots()').find((x) => x.box === 3);
+assert.deepEqual({ ...ls.lastGame }, { gameNumber: '2222', packsInBack: 0 });
+assert.equal(run('listSlots()').find((x) => x.box === 2 && x.slot === 6).lastGame, null); // never had a pack
+// a slot emptied before last_game_number existed falls back to this month's PackHistory
+{ const lg = S.SlotState.rows[0].indexOf('last_game_number'); const row = S.SlotState.rows.find((x) => x[0] === 3);
+  row[lg] = ''; assert.deepEqual({ ...run('listSlots()').find((x) => x.box === 3).lastGame }, { gameNumber: '2222', packsInBack: 0 });
+  row[lg] = '2222'; }
 assert.deepEqual({ ...ls.endedToday }, { packKey: '2222-5555556', reason: 'sold_out' });
 const logRows = S.DailyCloseLog.rows.length, histRows = S.PackHistory.rows.length;
 r = run(`undoEndPack({ box: 3, slot: 1 })`);

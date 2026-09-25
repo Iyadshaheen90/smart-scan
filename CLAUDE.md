@@ -28,7 +28,9 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Back stock = `ReserveInventory` (packs in the back). Live = packs in slots (`SlotState`).
 - Activating a pack takes one pack out of back stock (never below 0; `took_from_reserve` records whether it did)
   but it is still inventory. Total inventory value = live remaining × price + back stock tickets × price.
-- Empty slot = "out of stock": adds nothing to sales or inventory; back stock untouched.
+- Empty slot = "out of stock": adds nothing to sales or inventory; back stock untouched. It shows the packs in back
+  of the game last in it (`SlotState.last_game_number`, set when a pack sells out or is returned; falls back to this
+  month's PackHistory) on Slots, the slot page, a Close Day sold-out, and the after-close out-of-stock list.
 
 **Sales**
 - Close Day: sold = last top ticket − today's top ticket. A pack activated today counts from its activation ticket.

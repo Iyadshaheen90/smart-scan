@@ -89,11 +89,23 @@
             }
             card.append(size);
           }
-        } else if (s.endedToday) {
-          const detail = document.createElement('div');
-          detail.className = 'slot-detail';
-          detail.textContent = `${s.endedToday.reason === 'sold_out' ? 'Sold out' : 'Returned'} today: ${s.endedToday.packKey}`;
-          card.append(detail);
+        } else {
+          if (s.endedToday) {
+            const detail = document.createElement('div');
+            detail.className = 'slot-detail';
+            detail.textContent = `${s.endedToday.reason === 'sold_out' ? 'Sold out' : 'Returned'} today: ${s.endedToday.packKey}`;
+            card.append(detail);
+          }
+          // The game last in this slot is most likely what goes back in: show if the back has any.
+          if (s.lastGame) {
+            const back = document.createElement('div');
+            back.className = 'slot-detail';
+            const tag = document.createElement('span');
+            tag.className = s.lastGame.packsInBack > 0 ? 'tag live' : 'tag warn';
+            tag.textContent = backStockText(s.lastGame.gameNumber, s.lastGame.packsInBack);
+            back.append('Last game here · ', tag);
+            card.append(back);
+          }
         }
         listEl.append(card);
       }

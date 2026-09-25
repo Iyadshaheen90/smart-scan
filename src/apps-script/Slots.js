@@ -52,12 +52,18 @@ function listSlots() {
   const state = readTable(monthSheet('SlotState'));
   const reserve = readTable(monthSheet('ReserveInventory'));
   const today = todayLabel();
-  const endedToday = readTable(monthSheet('PackHistory')).filter((p) => dateLabel(p.end_date) === today);
+  const history = readTable(monthSheet('PackHistory'));
+  const endedToday = history.filter((p) => dateLabel(p.end_date) === today);
+  const gameInBack = (gameNumber) => reserve.find((r) => String(r.game_number) === String(gameNumber));
   return config.map((c) => {
     const s = state.find(isSlot(c.box, c.slot_number)) || {};
     const hasPack = Boolean(s.pack_key);
-    const inBack = reserve.find((r) => String(r.game_number) === String(s.game_number));
+    const inBack = gameInBack(s.game_number);
     const ended = hasPack ? null : endedToday.filter(isSlot(c.box, c.slot_number)).pop();
+    // An empty slot most likely gets another pack of the game that was last in it. Slots emptied
+    // before last_game_number existed fall back to this month's PackHistory.
+    const lastEnded = hasPack || s.last_game_number ? null : history.filter(isSlot(c.box, c.slot_number)).pop();
+    const lastGame = hasPack ? '' : String(s.last_game_number || (lastEnded ? lastEnded.game_number : ''));
     return {
       box: Number(c.box),
       slot: Number(c.slot_number),
@@ -75,6 +81,7 @@ function listSlots() {
         standardPackSize: STANDARD_PACK_SIZES[Number(s.price_per_ticket)] || null,
       } : null,
       endedToday: ended ? { packKey: `${ended.game_number}-${ended.pack_number}`, reason: ended.end_reason } : null,
+      lastGame: lastGame ? { gameNumber: lastGame, packsInBack: packsInBack(gameInBack(lastGame)) } : null,
     };
   });
 }
@@ -253,15 +260,18 @@ function endPackInSlot(user, state, reason, topTicket) {
     performed_by: user.username,
   });
 
-  clearSlot(state.box, state.slot_number);
+  clearSlot(state.box, state.slot_number, { last_game_number: String(state.game_number) });
   return { packKey: state.pack_key, reason, ticketsSoldToday: soldNow, remainingReturned: remaining };
 }
 
-function clearSlot(box, slot) {
+// Empties a slot. last_game_number is left as it was unless `extra` sets it, so undoing a
+// wrong activation keeps the game that was really there before.
+function clearSlot(box, slot, extra) {
   updateRowsWhere(slotStateSheet(), isSlot(box, slot), {
     pack_key: '', game_number: '', pack_number: '', price_per_ticket: '',
     current_exposed_ticket_number: '', activation_date: '', last_close_date: '',
     price_before_activation: '', took_from_reserve: '',
+    ...extra,
   });
 }
 
@@ -359,7 +369,8 @@ function undoEndPack(req) {
 // --- Rearranging ---
 
 // Every SlotState column that belongs to the pack rather than the position (all but box,
-// slot_number, and the remaining_count formula).
+// slot_number, and the remaining_count formula). last_game_number moves too, along with the
+// slot's price tier.
 const PACK_COLUMNS = MONTHLY_TABS.SlotState.filter((h) => !['box', 'slot_number', 'remaining_count'].includes(h));
 
 // Owner only: swaps everything in two slots — the packs (with their top tickets and dates) and
