@@ -1,0 +1,8 @@
+{
+  "name": "smart-scan",
+  "private": true,
+  "description": "Only for the browser tests in test/browser (the app itself has no build or dependencies).",
+  "devDependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}
