@@ -39,6 +39,9 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Day totals (`DailySummary`) = every `DailyCloseLog` row dated that day, so mid-day sold-outs are included.
 - A pack ended **after** today's close is logged to the next day (`salesDate()`).
 - One close per day (`already_closed`); the owner can reopen it (`reopenClose`).
+- A "day" is the calendar date (script time zone). Fine while the store closes at 11 pm (owner, 2026-09-26). It may
+  close as late as 2 am in future years; then the day must end after closing time (e.g. 4 am) in `todayLabel()`,
+  `salesDate()`, the phone's draft/`wrong_day` date and Start New Month, or a 1 am close lands on the wrong day.
 
 **Mistake recovery** (the owner tests by making deliberate mistakes — every action needs a way back)
 - Wrong-slot activation → `undoActivation` until the slot's first close: slot empties, old slot price comes
