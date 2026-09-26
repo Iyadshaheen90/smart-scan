@@ -271,5 +271,33 @@ assert.equal(r.packsInBack, 4); assert.equal(r.backWasEmpty, false);
 // the game search shows where a game is on display
 const g2001 = run('listBackStock()').find((g) => g.gameNumber === '2001');
 assert.equal(JSON.stringify(g2001.liveIn), '[{"box":4,"slot":1}]'); assert.equal(g2001.liveSlots, 1);
+// ---- Game ended (CA Lottery stopped a game) ----
+// The month's sheet was made before ended_date existed: the column is added when first needed.
+S.ReserveInventory.rows[0].pop();
+let games = run('listBackStock()'); assert.ok(games.every((x) => x.endedDate === null));
+assert.equal(code(() => run(`endGame('2001')`)), 'game_in_stock');          // packs still in the back
+run(`removeBackStock(owner, { gameNumber: '2001', packs: 4, reason: 'returned' })`);
+assert.equal(code(() => run(`endGame('2001')`)), 'game_in_slot');           // still selling in box 4 slot 1
+run(`endPack(owner, { box: 4, slot: 1, reason: 'returned', ticketNumber: 200 })`);
+assert.equal(code(() => run(`endGame('9999')`)), 'unknown_game');
+games = run(`endGame('2001')`);
+assert.equal(games.find((x) => x.gameNumber === '2001').endedDate, TODAY);
+assert.ok(S.ReserveInventory.rows[0].includes('ended_date'));
+assert.equal(code(() => run(`endGame('2001')`)), 'already_ended');
+// the emptied slot doesn't suggest the ended game
+assert.equal(run('listSlots()').find((x) => x.box === 4 && x.slot === 1).lastGame, null);
+// undo
+games = run(`bringBackGame('2001')`); assert.equal(games.find((x) => x.gameNumber === '2001').endedDate, null);
+assert.deepEqual({ ...run('listSlots()').find((x) => x.box === 4 && x.slot === 1).lastGame }, { gameNumber: '2001', packsInBack: 0 });
+assert.equal(code(() => run(`bringBackGame('2001')`)), 'not_ended');
+// a delivery of an ended game brings it back, price and pack size remembered
+run(`endGame('2001')`);
+r = run(`saveBackStock(owner, 'shipment', [{ gameNumber: '2001', packs: 2 }])`);
+let g = r.backStock.find((x) => x.gameNumber === '2001'); assert.equal(g.endedDate, null); assert.equal(g.packsInBack, 2); assert.equal(g.price, 1);
+// so does a pack of it going into a slot
+run(`removeBackStock(owner, { gameNumber: '2001', packs: 2, reason: 'returned' })`); run(`endGame('2001')`);
+run(`activatePack(owner, { box: 4, slot: 1, gameNumber: '2001', packNumber: '0000010', ticketNumber: 239 })`);
+assert.equal(run('listBackStock()').find((x) => x.gameNumber === '2001').endedDate, null);
+console.log('game ended scenarios pass');
 console.log('back stock scenarios pass');
 console.log('all slot, close and pack-size scenarios pass');

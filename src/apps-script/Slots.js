@@ -63,7 +63,9 @@ function listSlots() {
     // An empty slot most likely gets another pack of the game that was last in it. Slots emptied
     // before last_game_number existed fall back to this month's PackHistory.
     const lastEnded = hasPack || s.last_game_number ? null : history.filter(isSlot(c.box, c.slot_number)).pop();
-    const lastGame = hasPack ? '' : String(s.last_game_number || (lastEnded ? lastEnded.game_number : ''));
+    let lastGame = hasPack ? '' : String(s.last_game_number || (lastEnded ? lastEnded.game_number : ''));
+    // No back stock hint for a game CA Lottery has ended; that slot needs a different game.
+    if (lastGame && gameInBack(lastGame) && gameInBack(lastGame).ended_date) lastGame = '';
     return {
       box: Number(c.box),
       slot: Number(c.slot_number),
@@ -143,6 +145,8 @@ function activatePack(user, req) {
     updateRowsWhere(reserveSheet, (r) => String(r.game_number) === ticket.gameNumber, {
       packs_in_reserve: after,
       tickets_in_reserve: after * ticketsPerPack,
+      // A pack of an ended game going into a slot means the game is back.
+      ...(reserve.ended_date ? { ended_date: '' } : {}),
     });
 
     const today = todayLabel();

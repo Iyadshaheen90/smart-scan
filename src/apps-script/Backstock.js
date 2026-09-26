@@ -6,9 +6,11 @@
 //   ReserveAdjustments (reason "count").
 // - Remove packs: takes packs out (returned, damaged…), logged in ReserveAdjustments.
 // A game's price and pack size are entered once; the pack size defaults to the standard one.
+// - Game ended: once CA Lottery stops a game and none is left (back or slots), the owner hides it.
 
 const REMOVE_REASONS = ['returned', 'damaged', 'stolen', 'other'];
 
+// Every game, ended ones included (flagged `ended`, shown apart on the page).
 function listBackStock() {
   const live = readTable(monthSheet('SlotState')).filter((s) => s.pack_key);
   return readTable(monthSheet('ReserveInventory'))
@@ -24,6 +26,7 @@ function listBackStock() {
         packsInBack: packs,
         ticketsInBack: packs * size,
         valueInBack: packs * size * price,
+        endedDate: r.ended_date ? dateLabel(r.ended_date) : null,
         liveSlots: live.filter((s) => String(s.game_number) === String(r.game_number)).length,
         // Where it's on display, e.g. [{ box: 1, slot: 3 }], box 1 first.
         liveIn: live.filter((s) => String(s.game_number) === String(r.game_number))
@@ -64,6 +67,8 @@ function saveBackStock(user, mode, lines, notes) {
     const reserveSheet = monthSheet('ReserveInventory');
     const results = checked.map(({ gameNumber, packs, line }) => {
       const reserve = findReserve(gameNumber) || addGameToReserve(user, gameNumber, line.gamePrice, line.ticketsPerPack);
+      // Receiving or counting an ended game means it's back.
+      if (reserve.ended_date) updateRowsWhere(reserveSheet, (r) => String(r.game_number) === gameNumber, { ended_date: '' });
       const size = Number(reserve.tickets_per_pack);
       const price = Number(reserve.price_per_ticket);
       const before = packsInBack(reserve);
@@ -125,6 +130,41 @@ function removeBackStock(user, req) {
       notes: String(req.notes || ''),
       performed_by: user.username,
     });
+    return listBackStock();
+  });
+}
+
+// Hides a game CA Lottery has stopped. Only when none of it is left: no packs in the back and none
+// in a slot. Its row stays (with its price and pack size) and so does its history.
+function endGame(gameNumber) {
+  gameNumber = String(gameNumber || '');
+  return withLock(() => {
+    const reserve = findReserve(gameNumber);
+    if (!reserve) throw new ApiError('unknown_game', `Game ${gameNumber} isn't in back stock.`);
+    if (reserve.ended_date) throw new ApiError('already_ended', `Game ${gameNumber} is already marked ended.`);
+    const packs = packsInBack(reserve);
+    if (packs > 0) {
+      throw new ApiError('game_in_stock', `There ${packs === 1 ? 'is' : 'are'} still ${packs} pack${packs === 1 ? '' : 's'} of game ${gameNumber} in the back. Remove them first (e.g. returned).`);
+    }
+    const live = readTable(monthSheet('SlotState')).filter((s) => s.pack_key && String(s.game_number) === gameNumber);
+    if (live.length) {
+      const where = live.map((s) => `box ${s.box}, slot ${s.slot_number}`).join('; ');
+      throw new ApiError('game_in_slot', `Game ${gameNumber} is still in ${where}. End that pack first.`);
+    }
+    const sheet = monthSheet('ReserveInventory');
+    ensureHeaders(sheet, MONTHLY_TABS.ReserveInventory);
+    updateRowsWhere(sheet, (r) => String(r.game_number) === gameNumber, { ended_date: todayLabel() });
+    return listBackStock();
+  });
+}
+
+// Undoes Game ended.
+function bringBackGame(gameNumber) {
+  gameNumber = String(gameNumber || '');
+  return withLock(() => {
+    const reserve = findReserve(gameNumber);
+    if (!reserve || !reserve.ended_date) throw new ApiError('not_ended', `Game ${gameNumber} isn't marked ended.`);
+    updateRowsWhere(monthSheet('ReserveInventory'), (r) => String(r.game_number) === gameNumber, { ended_date: '' });
     return listBackStock();
   });
 }

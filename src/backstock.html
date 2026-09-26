@@ -19,7 +19,7 @@
   <label for="search">Find a game</label>
   <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Game number, e.g. 1747">
   <div id="searchResults"></div>
-  <div id="searchMessage" class="message"></div>
+  <div id="searchMessage" class="message" style="margin-bottom: 14px;"></div>
 
   <div class="segmented" id="modeSwitch">
     <button type="button" data-mode="shipment">Shipment received</button>
@@ -52,6 +52,13 @@
   <p class="sub" id="totals"></p>
   <div id="stock">Loading…</div>
   <div id="stockMessage" class="message"></div>
+
+  <!-- Games CA Lottery has stopped, hidden from the list above. -->
+  <details id="endedBox" class="hidden" style="margin-top: 18px;">
+    <summary id="endedTitle"></summary>
+    <p class="sub">Hidden from back stock. Receiving a pack of one, or putting one in a slot, brings it back by itself.</p>
+    <div id="ended"></div>
+  </details>
 
   <script src="config.js"></script>
   <script src="api.js"></script>
@@ -94,6 +101,8 @@
     }
 
     const known = (gameNumber) => stock.find((g) => g.gameNumber === gameNumber);
+    const active = () => stock.filter((g) => !g.endedDate);
+    const ended = () => stock.filter((g) => g.endedDate);
 
     function flash(text, kind = 'ok') { showMessage($('flash'), text, kind); }
 
@@ -155,9 +164,9 @@
 
       const info = document.createElement('div');
       info.className = 'slot-detail';
-      info.textContent = game
-        ? `${game.ticketsPerPack} tickets per pack · ${game.packsInBack} in the back now`
-        : 'Not set up yet. Pack size comes from the price.';
+      info.textContent = !game ? 'Not set up yet. Pack size comes from the price.'
+        : game.endedDate ? `Marked ended on ${game.endedDate}. Saving brings it back · ${game.ticketsPerPack} tickets per pack`
+          : `${game.ticketsPerPack} tickets per pack · ${game.packsInBack} in the back now`;
       card.append(info);
 
       if (!game) {
@@ -229,7 +238,7 @@
         results.append(none);
         return;
       }
-      for (const g of found) results.append(stockCard(g, true));
+      for (const g of found) results.append(g.endedDate ? endedCard(g, $('searchMessage')) : stockCard(g, true));
     }
 
     function stockCard(g, withSlots) {
@@ -258,19 +267,80 @@
           : 'Not in any slot now';
         card.append(where);
       }
-      // Removing from a search result reports up here, next to it, not at the bottom of the page.
-      if (g.packsInBack > 0) card.append(removeControls(g, withSlots ? $('searchMessage') : $('stockMessage')));
+      // Buttons on a search result report up here, next to it, not at the bottom of the page.
+      const messageEl = withSlots ? $('searchMessage') : $('stockMessage');
+      if (g.packsInBack > 0) card.append(removeControls(g, messageEl));
+      else if (!g.liveSlots) card.append(actionRow(endGameButton(g, messageEl)));
       return card;
     }
 
+    function endedCard(g, messageEl) {
+      const card = document.createElement('div');
+      card.className = 'card inactive';
+      const top = document.createElement('div');
+      top.className = 'row';
+      const name = document.createElement('strong');
+      name.textContent = `Game ${g.gameNumber} · $${g.price}`;
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = `ended ${g.endedDate}`;
+      top.append(name, tag);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'small';
+      button.textContent = 'Bring back';
+      button.addEventListener('click', () => changeGame(button, 'bringBackGame', g, messageEl, `Game ${g.gameNumber} is back in back stock.`));
+      card.append(top, actionRow(button));
+      return card;
+    }
+
+    // Only offered when none of the game is left: no packs in the back and not in a slot.
+    function endGameButton(g, messageEl) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'small';
+      button.textContent = 'Game ended…';
+      button.addEventListener('click', () => {
+        if (!confirm(`Mark game ${g.gameNumber} as ended? Do this when CA Lottery has stopped the game. It disappears from back stock. Its sales history stays, and receiving a pack of it later brings it back.`)) return;
+        changeGame(button, 'endGame', g, messageEl, `Game ${g.gameNumber} marked ended and hidden. It's under "Ended games" at the bottom if you need it back.`);
+      });
+      return button;
+    }
+
+    async function changeGame(button, action, g, messageEl, done) {
+      try {
+        stock = await whileBusy(button, '…', () => api(action, { gameNumber: g.gameNumber }));
+        renderStock();
+        showMessage(messageEl, done, 'ok');
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    }
+
+    function actionRow(...buttons) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.style.marginTop = '8px';
+      row.style.justifyContent = 'flex-start';
+      row.append(...buttons);
+      return row;
+    }
+
     function renderStock() {
-      const total = stock.reduce((sum, g) => sum + g.valueInBack, 0);
-      const packs = stock.reduce((sum, g) => sum + g.packsInBack, 0);
+      const games = active();
+      const total = games.reduce((sum, g) => sum + g.valueInBack, 0);
+      const packs = games.reduce((sum, g) => sum + g.packsInBack, 0);
       $('totals').textContent = `${packs} packs · ${money(total)} at ticket price`;
       const list = $('stock');
       list.innerHTML = '';
-      if (stock.length === 0) list.textContent = 'No games yet.';
-      for (const g of stock) list.append(stockCard(g, false));
+      if (games.length === 0) list.textContent = 'No games yet.';
+      for (const g of games) list.append(stockCard(g, false));
+
+      const gone = ended();
+      $('endedBox').classList.toggle('hidden', gone.length === 0);
+      $('endedTitle').textContent = `Ended games (${gone.length})`;
+      $('ended').innerHTML = '';
+      for (const g of gone) $('ended').append(endedCard(g, $('stockMessage')));
       renderSearch();
     }
 

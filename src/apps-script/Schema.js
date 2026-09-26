@@ -18,7 +18,12 @@ const MONTHLY_TABS = {
     // so an out-of-stock slot can show how many packs of that game are in back stock.
     'last_game_number',
   ],
-  ReserveInventory: ['game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_in_reserve', 'tickets_in_reserve'],
+  ReserveInventory: [
+    'game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_in_reserve', 'tickets_in_reserve',
+    // Set when the owner marks the game ended (CA Lottery stopped it): hidden from back stock, row kept
+    // for its price and pack size. Cleared if a pack of it is received or put in a slot again.
+    'ended_date',
+  ],
   Shipments: [
     'shipment_date', 'game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_received',
     'tickets_received', 'source', 'notes', 'performed_by',

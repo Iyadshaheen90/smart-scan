@@ -24,6 +24,10 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Owner: activate packs, returns, all undos, slot prices, pack sizes, move/swap, back stock, reopen a close, employees.
 - Employees never see dollar totals (`summaryFor` strips them).
 - Back stock, including its **Find a game** search, is owner-only (owner's choice 2026-09-26: no employee version).
+- **Game ended** (owner, back stock): when CA Lottery stops a game, the owner hides it (`endGame`), only allowed with
+  0 packs in the back and none in a slot. Sets `ReserveInventory.ended_date`; the row stays (price, pack size) and
+  carries forward each month but is listed under "Ended games". Undo: `bringBackGame`; receiving/counting it or
+  activating a pack of it clears `ended_date` by itself. An emptied slot doesn't suggest an ended game.
 
 **Inventory**
 - Back stock = `ReserveInventory` (packs in the back). Live = packs in slots (`SlotState`).
