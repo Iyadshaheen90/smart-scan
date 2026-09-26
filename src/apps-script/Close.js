@@ -27,6 +27,12 @@ function closeBefore(row, log) {
     .map((r) => dateLabel(r.close_date)).sort().pop() || '';
 }
 
+function dailySummarySheet() {
+  const sheet = monthSheet('DailySummary');
+  ensureHeaders(sheet, MONTHLY_TABS.DailySummary);
+  return sheet;
+}
+
 function todaysSummary() {
   return summaryOn(todayLabel());
 }
@@ -58,11 +64,22 @@ function closeStatus(user) {
 
 // entries: [{ box, slot, packKey, type: 'scan' | 'sold_out', ticketNumber? }],
 // one for every slot with a live pack.
-function submitClose(user, entries) {
+// closeId: made by the phone once per close. If the connection drops after the close was saved, the
+// phone sends it again with the same closeId and gets the saved close back instead of an error.
+// date: the day the phone started the close. A close still unsent at midnight is refused rather than
+// recorded as the next day's (which would block that night's close); its sales count in the next close.
+function submitClose(user, entries, closeId, date) {
   if (!Array.isArray(entries)) throw new ApiError('bad_request', 'Nothing to submit.');
   return withLock(() => {
-    if (todaysSummary()) throw new ApiError('already_closed', 'Today has already been closed.');
+    const summarySheet = dailySummarySheet();
+    const sent = closeId && readTable(summarySheet).find((d) => d.close_id === closeId);
+    if (sent) return { ...summaryFor(user, sent), alreadySent: true };
     const today = todayLabel();
+    if (date && date !== today) {
+      throw new ApiError('wrong_day', `This close was scanned on ${date} and couldn't be sent that day, so it wasn't saved. `
+        + "Those sales will count in today's close. Open Close Day and scan again.");
+    }
+    if (todaysSummary()) throw new ApiError('already_closed', 'Today has already been closed.');
     const stateSheet = slotStateSheet();
     const live = readTable(stateSheet).filter((s) => s.pack_key);
 
@@ -117,8 +134,8 @@ function submitClose(user, entries) {
       });
     }
 
-    const summary = buildSummary(today, user);
-    appendObject(monthSheet('DailySummary'), summary);
+    const summary = { ...buildSummary(today, user), close_id: closeId || '' };
+    appendObject(summarySheet, summary);
     return summaryFor(user, summary);
   });
 }

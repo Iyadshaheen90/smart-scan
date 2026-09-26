@@ -53,6 +53,56 @@ async function api(action, params = {}) {
   return body.data;
 }
 
+// --- A close waiting to be sent ---
+// Submit close saves the close on this phone first, then sends it. If the connection drops, it stays
+// saved and is sent again (Close Day retries, and so does the home page) until the server answers.
+// Its closeId lets the server spot a close it already saved, so sending twice is safe.
+
+const PENDING_CLOSE_KEY = 'smartScanPendingClose';
+
+function getPendingClose() {
+  try { return JSON.parse(localStorage.getItem(PENDING_CLOSE_KEY) || 'null'); } catch (e) { return null; }
+}
+
+function savePendingClose(pending) {
+  localStorage.setItem(PENDING_CLOSE_KEY, JSON.stringify(pending));
+}
+
+function clearPendingClose() {
+  try { localStorage.removeItem(PENDING_CLOSE_KEY); } catch (e) {}
+}
+
+function newCloseId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+// Worth trying again later: no connection, a server hiccup, or signed out (it's sent after signing in).
+function canRetryClose(err) {
+  return ['network', 'server_error', 'unauthorized'].includes(err.code);
+}
+
+// Sends the saved close and returns the day's summary. If the server refuses it (for example a slot
+// changed), the saved close is dropped and the error thrown; the scans are still in Close Day's draft.
+let sendingClose = null;
+function sendPendingClose() {
+  if (!sendingClose) {
+    sendingClose = (async () => {
+      const pending = getPendingClose();
+      if (!pending) return null;
+      try {
+        const summary = await api('submitClose', { closeId: pending.closeId, date: pending.date, entries: pending.entries });
+        clearPendingClose();
+        return summary;
+      } catch (err) {
+        if (!canRetryClose(err)) clearPendingClose();
+        throw err;
+      }
+    })().finally(() => { sendingClose = null; });
+  }
+  return sendingClose;
+}
+
 // Sends the user to the sign-in page unless signed in (and, with 'owner', the owner).
 function requireLogin(role) {
   const session = getSession();

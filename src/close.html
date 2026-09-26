@@ -24,6 +24,17 @@
     <a class="button" href="index.html">Done</a>
   </div>
 
+  <!-- Submitted and saved on this phone, but the server hasn't got it yet. -->
+  <div id="pendingView" class="hidden">
+    <div class="card">
+      <strong>Close saved on this phone. Not sent yet.</strong>
+      <div class="slot-detail" id="pendingInfo"></div>
+    </div>
+    <div id="pendingMessage" class="message"></div>
+    <button type="button" class="primary" id="retryBtn">Try sending now</button>
+    <button type="button" class="danger" id="cancelPendingBtn">Stop sending and change scans</button>
+  </div>
+
   <!-- Scanning. -->
   <div id="closeView" class="hidden">
     <div class="row"><span id="progressText"></span><span class="tag" id="leftTag"></span></div>
@@ -75,6 +86,8 @@
 
     // Scans are kept on this phone until Submit, so they're instant and survive a reload or a
     // dropped connection. The server checks everything again when the close is submitted.
+    // Submit saves the close on the phone before sending it; with no connection it waits here
+    // and is sent again automatically (see sendPendingClose in api.js).
 
     const session = requireLogin();
     const isOwner = session && session.role === 'owner';
@@ -84,12 +97,16 @@
     const packKeyOf = (s) => `${s.pack.gameNumber}-${s.pack.packNumber}`;
     const DRAFT_KEY = `smartScanCloseDraft:${session ? session.username : ''}`;
     const MODE_KEY = 'smartScanCloseMode';
+    // Why a saved close was refused, shown again after the page reloads.
+    const REFUSED_KEY = 'smartScanCloseRefused';
+    const RETRY_EVERY_MS = 30000;
 
     let status = null;
     let live = [];          // slots with a pack, box 1 slots 1-24 then box 2 slots 1-24
     let entries = {};       // slot key -> { packKey, type, ticketNumber?, sold }
     let currentKey = null;
     let scanner = null;
+    let retryTimer = null;
     let mode = 'hold';      // press-and-hold unless this phone was switched to auto
     try { mode = localStorage.getItem(MODE_KEY) === 'auto' ? 'auto' : 'hold'; } catch (e) {}
 
@@ -218,7 +235,9 @@
     }
 
     function renderClosed(summary) {
+      stopCamera();
       $('closeView').classList.add('hidden');
+      $('pendingView').classList.add('hidden');
       $('closedView').classList.remove('hidden');
       const lines = [`<strong>Closed for ${summary.date}</strong>`, `${summary.ticketsSold} tickets sold today`];
       if ('dollarsSold' in summary) {
@@ -229,6 +248,82 @@
       $('summary').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
       $('reopenBtn').classList.toggle('hidden', !isOwner);
     }
+
+    // --- Sending the close ---
+
+    function stopCamera() {
+      const stream = $('video').srcObject;
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+    }
+
+    function showPending(err) {
+      const pending = getPendingClose();
+      stopCamera();
+      $('closeView').classList.add('hidden');
+      $('pendingView').classList.remove('hidden');
+      $('dateLine').textContent = pending.date;
+      $('pendingInfo').textContent = `All ${pending.entries.length} slots for ${pending.date}. It is sent by itself when the `
+        + 'connection is back while this app is open. You can leave this page; opening the app again tries again. '
+        + "Don't close the day on another phone.";
+      if (err) {
+        const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        showMessage($('pendingMessage'), `Last try at ${time}: ${err.message}`);
+      }
+      if (!retryTimer) retryTimer = setInterval(trySend, RETRY_EVERY_MS);
+    }
+
+    function stopRetrying() {
+      clearInterval(retryTimer);
+      retryTimer = null;
+    }
+
+    // Returns true once the close is saved on the server, false while it is still waiting.
+    // If the server refuses it, the page reloads (the scans are still in the draft) and says why.
+    // A try already running (timer, button, back online) is shared rather than started again.
+    let attempt = null;
+    function trySend() {
+      if (!attempt) attempt = sendOnce().finally(() => { attempt = null; });
+      return attempt;
+    }
+
+    async function sendOnce() {
+      try {
+        const summary = await whileBusy($('retryBtn'), 'Sending…', sendPendingClose);
+        stopRetrying();
+        clearDraft();
+        if (summary) {
+          renderClosed(summary);
+          window.scrollTo({ top: 0 });
+        }
+        return true;
+      } catch (err) {
+        if (canRetryClose(err)) {
+          showPending(err);
+          return false;
+        }
+        stopRetrying();
+        // The page reloads by itself, so the server's "Reload Close Day." isn't needed.
+        const message = err.message.replace(' Reload Close Day.', '');
+        const why = err.code === 'slots_changed' ? `${message} (Your scans for unchanged slots are kept.)` : message;
+        try { sessionStorage.setItem(REFUSED_KEY, `The close wasn't saved: ${why}`); } catch (e) {}
+        location.reload();
+        return false;
+      }
+    }
+
+    $('retryBtn').addEventListener('click', () => trySend());
+    // Try again as soon as the phone is back online or the app comes back to the front.
+    window.addEventListener('online', () => { if (getPendingClose()) trySend(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && getPendingClose()) trySend();
+    });
+
+    $('cancelPendingBtn').addEventListener('click', () => {
+      if (!confirm("Stop sending this close? Your scans stay on this phone so you can change them and submit again. If it already reached the server, today is closed and only the owner can reopen it.")) return;
+      stopRetrying();
+      clearPendingClose();
+      location.reload();
+    });
 
     // --- Buttons ---
 
@@ -289,13 +384,12 @@
         return { box: s.box, slot: s.slot, packKey: e.packKey, type: e.type, ticketNumber: e.ticketNumber };
       });
       try {
-        const summary = await whileBusy($('submitBtn'), 'Submitting…', () => api('submitClose', { entries: payload }));
-        clearDraft();
-        renderClosed(summary);
-        window.scrollTo({ top: 0 });
+        savePendingClose({ closeId: newCloseId(), date: status.today, entries: payload });
       } catch (err) {
-        showMessage(submitMessage, err.code === 'slots_changed' ? `${err.message} (Your scans for unchanged slots are kept.)` : err.message);
+        showMessage(submitMessage, "This phone couldn't save the close. Try again.");
+        return;
       }
+      await whileBusy($('submitBtn'), 'Submitting…', trySend);
     });
 
     $('reopenBtn').addEventListener('click', async () => {
@@ -311,10 +405,23 @@
     // --- Start ---
 
     async function start() {
+      let refused = null;
+      try {
+        refused = sessionStorage.getItem(REFUSED_KEY);
+        sessionStorage.removeItem(REFUSED_KEY);
+      } catch (e) {}
+      // A close submitted earlier that hasn't reached the server yet: send it before anything else.
+      if (getPendingClose()) {
+        showPending();
+        if (await trySend()) return;
+        if (getPendingClose()) return;
+      }
+
       status = await api('closeStatus');
       $('dateLine').textContent = status.today;
       if (status.closed) {
         renderClosed(status.closed);
+        if (refused) showMessage($('message'), refused);
         return;
       }
       live = status.slots.filter((s) => s.pack).sort((a, b) => a.box - b.box || a.slot - b.slot);
@@ -322,6 +429,7 @@
       currentKey = nextOpen(null);
       $('closeView').classList.remove('hidden');
       render();
+      if (refused) flash(refused, 'error');
       setMode(mode);
 
       scanner = await startScanner({

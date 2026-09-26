@@ -19,6 +19,7 @@
   </div>
   <h1>Smart Scan</h1>
   <p class="sub">Route 66 Liquor — scratcher tracking</p>
+  <a id="pendingClose" class="message hidden" href="close.html" style="display: block; color: inherit"></a>
   <a id="newMonthDue" class="message error hidden" href="month.html" style="display: block; color: inherit"></a>
 
   <a class="button primary" href="close.html">Close Day</a>
@@ -41,6 +42,28 @@
         showNewMonthReminder();
       }
     }
+    // A close submitted with no connection is sent from here too, so it goes as soon as the app is opened online.
+    async function sendSavedClose() {
+      const el = document.getElementById('pendingClose');
+      const pending = getPendingClose();
+      if (!pending) return;
+      el.className = 'message error';
+      el.textContent = `The close for ${pending.date} is saved on this phone but not sent yet. Sending…`;
+      try {
+        const summary = await sendPendingClose();
+        el.className = 'message ok';
+        el.textContent = `The close for ${summary.date} was sent ✓`;
+      } catch (err) {
+        el.textContent = canRetryClose(err)
+          ? `The close for ${pending.date} is saved on this phone but not sent yet (no connection). Tap to open it.`
+          : `The close for ${pending.date} wasn't saved: ${err.message} Tap to open Close Day.`;
+      }
+    }
+    if (session) {
+      sendSavedClose();
+      window.addEventListener('online', sendSavedClose);
+    }
+
     // From the 1st, until the owner starts the new month.
     async function showNewMonthReminder() {
       try {

@@ -72,7 +72,11 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `slots.html` both boxes · `activate.html?box=&slot=` one slot: end pack, activate, undo, swap, prices, pack size
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack;
   Sold out / Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold); draft kept in localStorage until one `submitClose` call;
-  anyone can **Clear all scans** (wipes this phone's draft only, e.g. after a practice close)
+  anyone can **Clear all scans** (wipes this phone's draft only, e.g. after a practice close).
+  **Offline queue:** Submit saves the close on the phone (`smartScanPendingClose`, helpers in `api.js`) with a
+  `closeId`, then sends it; with no connection it shows "saved, not sent yet" and resends every 30s, when back
+  online, and from the home page. The server returns the saved close for a repeated `closeId` (`DailySummary.close_id`)
+  and refuses a close dated before today (`wrong_day`). A refusal drops the saved close; the draft stays.
 - `month.html` (owner) Months: this month's totals + per-day table, Start New Month, past months' totals
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.

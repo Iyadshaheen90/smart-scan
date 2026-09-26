@@ -31,7 +31,11 @@ const MONTHLY_TABS = {
     // The pack's last close before this row, so undoing it restores that even across months.
     'previous_close_date',
   ],
-  DailySummary: ['close_date', 'total_tickets_sold', 'total_dollars_sold', 'occupied_slot_count', 'total_inventory_value'],
+  DailySummary: [
+    'close_date', 'total_tickets_sold', 'total_dollars_sold', 'occupied_slot_count', 'total_inventory_value',
+    // Made by the phone for each close it submits, so a close sent twice (after a dropped connection) is saved once.
+    'close_id',
+  ],
   PackHistory: [
     'game_number', 'pack_number', 'box', 'slot_number', 'price_per_ticket', 'activation_date',
     'end_date', 'end_reason', 'final_tickets_sold_total', 'remaining_at_return', 'total_dollars_sold', 'performed_by',
