@@ -19,6 +19,7 @@
   <label for="search">Find a game</label>
   <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Game number, e.g. 1747">
   <div id="searchResults"></div>
+  <div id="searchMessage" class="message"></div>
 
   <div class="segmented" id="modeSwitch">
     <button type="button" data-mode="shipment">Shipment received</button>
@@ -257,7 +258,8 @@
           : 'Not in any slot now';
         card.append(where);
       }
-      if (g.packsInBack > 0) card.append(removeControls(g));
+      // Removing from a search result reports up here, next to it, not at the bottom of the page.
+      if (g.packsInBack > 0) card.append(removeControls(g, withSlots ? $('searchMessage') : $('stockMessage')));
       return card;
     }
 
@@ -272,7 +274,7 @@
       renderSearch();
     }
 
-    function removeControls(g) {
+    function removeControls(g, messageEl) {
       const row = document.createElement('div');
       row.className = 'row';
       row.style.marginTop = '8px';
@@ -290,9 +292,9 @@
           stock = await whileBusy(button, '…', () =>
             api('removeBackStock', { gameNumber: g.gameNumber, packs: Number(packs), reason: reason.trim().toLowerCase() }));
           renderStock();
-          showMessage($('stockMessage'), `Removed ${packs} pack${Number(packs) === 1 ? '' : 's'} of game ${g.gameNumber}.`, 'ok');
+          showMessage(messageEl, `Removed ${packs} pack${Number(packs) === 1 ? '' : 's'} of game ${g.gameNumber}.`, 'ok');
         } catch (err) {
-          showMessage($('stockMessage'), err.message);
+          showMessage(messageEl, err.message);
         }
       });
       row.append(button);
@@ -321,7 +323,11 @@
     });
 
     $('notes').addEventListener('input', saveDraft);
-    $('search').addEventListener('input', renderSearch);
+    $('search').addEventListener('input', () => {
+      $('searchMessage').className = 'message';
+      $('searchMessage').textContent = '';
+      renderSearch();
+    });
 
     $('clearBtn').addEventListener('click', () => {
       if (!confirm('Clear the list without saving?')) return;
