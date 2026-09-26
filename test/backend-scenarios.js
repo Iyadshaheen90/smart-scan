@@ -268,5 +268,8 @@ assert.equal(bs.find((g) => g.gameNumber === '1747').packsInBack, 3);
 S.SlotConfig.rows.push([4, 1, 1]); S.SlotState.rows.push([4, 1]);
 r = run(`activatePack(owner, { box: 4, slot: 1, gameNumber: '2001', packNumber: '0000009', ticketNumber: 239 })`);
 assert.equal(r.packsInBack, 4); assert.equal(r.backWasEmpty, false);
+// the game search shows where a game is on display
+const g2001 = run('listBackStock()').find((g) => g.gameNumber === '2001');
+assert.equal(JSON.stringify(g2001.liveIn), '[{"box":4,"slot":1}]'); assert.equal(g2001.liveSlots, 1);
 console.log('back stock scenarios pass');
 console.log('all slot, close and pack-size scenarios pass');

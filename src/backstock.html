@@ -16,6 +16,10 @@
   <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
   <h1>Back stock</h1>
 
+  <label for="search">Find a game</label>
+  <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Game number, e.g. 1747">
+  <div id="searchResults"></div>
+
   <div class="segmented" id="modeSwitch">
     <button type="button" data-mode="shipment">Shipment received</button>
     <button type="button" data-mode="count">Count the back</button>
@@ -69,6 +73,7 @@
     let mode = 'shipment';
     let lines = [];      // { gameNumber, packs, gamePrice?, ticketsPerPack? }
     let stock = [];      // from listBackStock
+    let stockLoaded = false;
 
     if (session) $('who').textContent = session.username;
 
@@ -202,6 +207,60 @@
       if (mode === 'shipment') $('saveBtn').textContent = `Save shipment (${lines.length} game${lines.length === 1 ? '' : 's'}, ${packs} pack${packs === 1 ? '' : 's'})`;
     }
 
+    // Quick lookup: games whose number contains what's typed (a typed ticket number uses its game).
+    function renderSearch() {
+      const results = $('searchResults');
+      results.innerHTML = '';
+      let query = $('search').value.replace(/\D/g, '');
+      if (query.length > 4) query = query.slice(0, 4);
+      if (!query) return;
+      if (!stockLoaded) {
+        results.textContent = 'Loading…';
+        return;
+      }
+      const found = stock.filter((g) => g.gameNumber.includes(query));
+      if (found.length === 0) {
+        const none = document.createElement('div');
+        none.className = 'message error';
+        none.textContent = query.length === 4
+          ? `Game ${query}: none in the back. It isn't in back stock at all.`
+          : `No game number has ${query} in it.`;
+        results.append(none);
+        return;
+      }
+      for (const g of found) results.append(stockCard(g, true));
+    }
+
+    function stockCard(g, withSlots) {
+      const card = document.createElement('div');
+      card.className = 'card' + (g.packsInBack === 0 ? ' inactive' : '');
+      const top = document.createElement('div');
+      top.className = 'row';
+      const name = document.createElement('strong');
+      name.textContent = `Game ${g.gameNumber} · $${g.price}`;
+      const tag = document.createElement('span');
+      tag.className = g.packsInBack === 0 ? 'tag warn' : 'tag live';
+      tag.textContent = g.packsInBack === 0 ? 'none in the back' : `${g.packsInBack} pack${g.packsInBack === 1 ? '' : 's'}`;
+      top.append(name, tag);
+      const detail = document.createElement('div');
+      detail.className = 'slot-detail';
+      detail.textContent = `${g.ticketsInBack} tickets · ${money(g.valueInBack)} · ${g.ticketsPerPack} per pack`
+        + (g.standardPackSize && g.ticketsPerPack !== g.standardPackSize ? ` (usually ${g.standardPackSize}!)` : '')
+        + (!withSlots && g.liveSlots ? ` · live in ${g.liveSlots} slot${g.liveSlots === 1 ? '' : 's'}` : '');
+      card.append(top, detail);
+      if (withSlots) {
+        const where = document.createElement('div');
+        where.className = 'slot-detail';
+        const slots = g.liveIn || [];
+        where.textContent = slots.length
+          ? `On display: ${slots.map((x) => `Box ${x.box} · Slot ${x.slot}`).join(', ')}`
+          : 'Not in any slot now';
+        card.append(where);
+      }
+      if (g.packsInBack > 0) card.append(removeControls(g));
+      return card;
+    }
+
     function renderStock() {
       const total = stock.reduce((sum, g) => sum + g.valueInBack, 0);
       const packs = stock.reduce((sum, g) => sum + g.packsInBack, 0);
@@ -209,26 +268,8 @@
       const list = $('stock');
       list.innerHTML = '';
       if (stock.length === 0) list.textContent = 'No games yet.';
-      for (const g of stock) {
-        const card = document.createElement('div');
-        card.className = 'card' + (g.packsInBack === 0 ? ' inactive' : '');
-        const top = document.createElement('div');
-        top.className = 'row';
-        const name = document.createElement('strong');
-        name.textContent = `Game ${g.gameNumber} · $${g.price}`;
-        const tag = document.createElement('span');
-        tag.className = g.packsInBack === 0 ? 'tag warn' : 'tag live';
-        tag.textContent = `${g.packsInBack} pack${g.packsInBack === 1 ? '' : 's'}`;
-        top.append(name, tag);
-        const detail = document.createElement('div');
-        detail.className = 'slot-detail';
-        detail.textContent = `${g.ticketsInBack} tickets · ${money(g.valueInBack)} · ${g.ticketsPerPack} per pack`
-          + (g.standardPackSize && g.ticketsPerPack !== g.standardPackSize ? ` (usually ${g.standardPackSize}!)` : '')
-          + (g.liveSlots ? ` · live in ${g.liveSlots} slot${g.liveSlots === 1 ? '' : 's'}` : '');
-        card.append(top, detail);
-        if (g.packsInBack > 0) card.append(removeControls(g));
-        list.append(card);
-      }
+      for (const g of stock) list.append(stockCard(g, false));
+      renderSearch();
     }
 
     function removeControls(g) {
@@ -280,6 +321,7 @@
     });
 
     $('notes').addEventListener('input', saveDraft);
+    $('search').addEventListener('input', renderSearch);
 
     $('clearBtn').addEventListener('click', () => {
       if (!confirm('Clear the list without saving?')) return;
@@ -322,6 +364,7 @@
       loadDraft();
       render();
       stock = await api('listBackStock');
+      stockLoaded = true;
       render();
       renderStock();
       await startScanner({

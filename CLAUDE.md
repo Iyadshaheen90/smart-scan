@@ -85,7 +85,7 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
   Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
-- `backstock.html` (owner) scan one ticket per game + enter packs; Shipment (adds) or Count (sets); remove packs
+- `backstock.html` (owner) **Find a game** search box at the top (by game number, as you type: packs in the back + which slots it is on display in, from `listBackStock().liveIn`); scan one ticket per game + enter packs; Shipment (adds) or Count (sets); remove packs
 - `raw-scanner.html`, `backend-test.html` dev/test pages
 
 Backend (`src/apps-script/`, pushed with clasp; all files share one global scope):

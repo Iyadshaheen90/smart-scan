@@ -25,6 +25,10 @@ function listBackStock() {
         ticketsInBack: packs * size,
         valueInBack: packs * size * price,
         liveSlots: live.filter((s) => String(s.game_number) === String(r.game_number)).length,
+        // Where it's on display, e.g. [{ box: 1, slot: 3 }], box 1 first.
+        liveIn: live.filter((s) => String(s.game_number) === String(r.game_number))
+          .map((s) => ({ box: Number(s.box), slot: Number(s.slot_number) }))
+          .sort((a, b) => a.box - b.box || a.slot - b.slot),
       };
     })
     .sort((a, b) => b.price - a.price || a.gameNumber.localeCompare(b.gameNumber));
