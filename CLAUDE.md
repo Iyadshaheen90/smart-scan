@@ -23,6 +23,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   outside Close Day is owner-only (owner's choice 2026-09-25: one place to mark sold out, fewer mis-taps).
 - Owner: activate packs, returns, all undos, slot prices, pack sizes, move/swap, back stock, reopen a close, employees.
 - Employees never see dollar totals (`summaryFor` strips them).
+- Back stock, including its **Find a game** search, is owner-only (owner's choice 2026-09-26: no employee version).
 
 **Inventory**
 - Back stock = `ReserveInventory` (packs in the back). Live = packs in slots (`SlotState`).
