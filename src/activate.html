@@ -80,6 +80,16 @@
   <div id="message" class="message"></div>
   <a class="button hidden" id="doneBtn" href="slots.html">Back to slots</a>
 
+  <!-- Owner only: the slot's price tier. -->
+  <form id="priceForm" class="hidden">
+    <h2>Slot price</h2>
+    <p class="sub">The price this slot expects from the next pack. A pack already in it keeps its own price.</p>
+    <label for="slotPrice">Price per ticket ($)</label>
+    <input id="slotPrice" type="number" inputmode="decimal" min="1" step="1" required>
+    <button type="submit">Save slot price</button>
+    <div id="priceMessage" class="message"></div>
+  </form>
+
   <!-- Owner only: the pack size of the game in this slot, to fix a mistake made at setup. -->
   <form id="sizeForm" class="hidden">
     <h2>Pack size</h2>
@@ -101,16 +111,6 @@
     <p class="slot-detail" id="swapPreview"></p>
     <button type="submit">Swap</button>
     <div id="swapMessage" class="message"></div>
-  </form>
-
-  <!-- Owner only: the slot's price tier. -->
-  <form id="priceForm" class="hidden">
-    <h2>Slot price</h2>
-    <p class="sub">The price this slot expects from the next pack. A pack already in it keeps its own price.</p>
-    <label for="slotPrice">Price per ticket ($)</label>
-    <input id="slotPrice" type="number" inputmode="decimal" min="1" step="1" required>
-    <button type="submit">Save slot price</button>
-    <div id="priceMessage" class="message"></div>
   </form>
 
   <script src="config.js"></script>
