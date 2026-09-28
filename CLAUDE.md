@@ -41,8 +41,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`) a yellow `!`
   shows before the slot name: CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
-- Back stock changes and where they're logged: Shipment and **Manage packs** (+) → `Shipments` (counts in the month's
-  "Shipments in"; these rows have source "add pack", owner approved 2026-09-27); Count and Manage packs (−)
+- Back stock changes and where they're logged: Shipment received (source "delivery") and **Manage packs** (+) (source
+  "add pack", owner approved 2026-09-27) → `Shipments` (both count in the month's "Shipments in"); Count and Manage packs (−)
   → `ReserveAdjustments` (reason count / returned, game expired, damaged, stolen, other; "adjust" only from the API).
 - A game's `ReserveInventory` row is also where its price and pack size are remembered, so rows are never deleted.
 - **Game ended** (CA Lottery stopped the game): the owner hides it with `endGame`, allowed only with 0 packs in the
@@ -169,7 +169,7 @@ node test/browser/offline-close.js        # Close Day with no connection, lost a
 node test/browser/backstock-search.js     # Find a game
 node test/browser/backstock-remove.js     # Manage packs, removing: why step, Back, Cancel, reasons, refusal (real backend code, fake sheet)
 node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cancel, Save as shipment (real backend code, fake sheet)
-node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 1, 0 greys Save, new game, ended game
+node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 1, 0 greys Save, new game, ended game, waits for scan release
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 
