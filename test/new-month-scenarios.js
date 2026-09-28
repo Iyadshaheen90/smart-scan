@@ -9,7 +9,7 @@ const dir = path.join(__dirname, '..', 'src', 'apps-script');
 const control = fakeSpreadsheet('control', { Months: fakeSheet(['month_label', 'spreadsheet_id', 'created_date', 'status']) });
 const google = fakeGoogle(control);
 const ctx = { console, ...google, Session: { getScriptTimeZone: () => 'x' },
-  Utilities: { formatDate: (d, tz) => tz === 'UTC' ? d.toISOString().slice(0, 10) : globalThis.TODAY },
+  Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : globalThis.TODAY },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
 for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js']) {

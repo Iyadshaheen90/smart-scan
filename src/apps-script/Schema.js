@@ -40,6 +40,8 @@ const MONTHLY_TABS = {
     'close_date', 'total_tickets_sold', 'total_dollars_sold', 'occupied_slot_count', 'total_inventory_value',
     // Made by the phone for each close it submits, so a close sent twice (after a dropped connection) is saved once.
     'close_id',
+    // Who submitted the close and when the server saved it (script time zone, e.g. "2026-09-27 22:52").
+    'closed_by', 'closed_at',
   ],
   PackHistory: [
     'game_number', 'pack_number', 'box', 'slot_number', 'price_per_ticket', 'activation_date',

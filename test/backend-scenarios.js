@@ -5,7 +5,7 @@ globalThis.TODAY = '2026-09-24';
 const fs = require('fs'); const vm = require('vm'); const path = require('path'); const assert = require('assert/strict');
 const dir = process.argv[2] || path.join(__dirname, '..', 'src', 'apps-script');
 const { fakeSheet } = require('./fakes');
-const ctx = { console, Utilities: { formatDate: (d, tz) => tz === 'UTC' ? d.toISOString().slice(0, 10) : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
+const ctx = { console, Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
 for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
@@ -150,10 +150,13 @@ const priorToday = S.DailyCloseLog.rows.slice(1).filter((r) => r[0] === '2026-09
 assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(good)}, 'c-old', '2026-09-23')`)), 'wrong_day');
 r = run(`submitClose(emp, ${JSON.stringify(good)}, 'c-1', '2026-09-24')`);
 assert.equal(r.ticketsSold, priorToday + 5 + soldOutRemaining); assert.equal(r.dollarsSold, undefined); assert.equal(r.alreadySent, undefined);
+// who submitted the close and when, shown on Close Day (the resend below by the owner keeps the employee's)
+assert.equal(r.closedBy, 'e'); assert.equal(r.closedAt, '10:52 PM');
 const summaryRows = S.DailySummary.rows.length, closeRows = S.DailyCloseLog.rows.length;
 // the phone lost the answer and sends the same close again: same result back, nothing written twice
 r = run(`submitClose(owner, ${JSON.stringify(good)}, 'c-1', '2026-09-24')`);
 assert.equal(r.alreadySent, true); assert.equal(r.ticketsSold, priorToday + 5 + soldOutRemaining); assert.ok(r.dollarsSold >= 0);
+assert.equal(r.closedBy, 'e'); assert.equal(r.closedAt, '10:52 PM');
 assert.equal(S.DailySummary.rows.length, summaryRows); assert.equal(S.DailyCloseLog.rows.length, closeRows);
 // a different close for the same day (another phone, or no id) is still refused
 assert.equal(code(() => run(`submitClose(emp, ${JSON.stringify(good)}, 'c-2', '2026-09-24')`)), 'already_closed');

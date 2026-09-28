@@ -14,7 +14,7 @@ let calls = 0;
 function handle(body) {
   if (body.action === 'closeStatus') {
     if (net === 'down') return ABORT;
-    const closed = saved.length ? { date: TODAY, ticketsSold: 7, liveSlots: 2 } : null;
+    const closed = saved.length ? { date: TODAY, ticketsSold: 7, liveSlots: 2, closedBy: 'e', closedAt: '10:52 PM' } : null;
     return { today: TODAY, largeSaleTickets: 50, closed, slots };
   }
   if (body.action === 'submitClose') {
@@ -24,7 +24,7 @@ function handle(body) {
     const dup = saved.find((s) => s.closeId === body.closeId);
     if (!dup) { assert.equal(saved.length, 0, 'a second, different close was saved'); saved.push(body); }
     if (net === 'lose-answer') return ABORT;
-    return { date: TODAY, ticketsSold: 7, liveSlots: 2, ...(dup ? { alreadySent: true } : {}) };
+    return { date: TODAY, ticketsSold: 7, liveSlots: 2, closedBy: 'e', closedAt: '10:52 PM', ...(dup ? { alreadySent: true } : {}) };
   }
   return {};
 }
@@ -55,6 +55,7 @@ function handle(body) {
   net = 'ok'; await page.click('#retryBtn'); await sleep(300);
   assert.equal(saved.length, 1); assert.ok(await visible('closedView'));
   console.log('closed view:', await text('summary'));
+  assert.ok((await text('summary')).includes('Submitted at 10:52 PM by e'));
   assert.equal(await page.evaluate(() => localStorage.getItem('smartScanPendingClose')), null);
   assert.equal(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('smartScanCloseDraft')).length), 0);
   assert.equal(saved[0].date, TODAY); assert.equal(saved[0].entries.length, 2); assert.equal(saved[0].entries[0].ticketNumber, 35);

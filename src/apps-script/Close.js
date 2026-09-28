@@ -134,7 +134,12 @@ function submitClose(user, entries, closeId, date) {
       });
     }
 
-    const summary = { ...buildSummary(today, user), close_id: closeId || '' };
+    const summary = {
+      ...buildSummary(today, user),
+      close_id: closeId || '',
+      closed_by: user.username,
+      closed_at: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'),
+    };
     appendObject(summarySheet, summary);
     return summaryFor(user, summary);
   });
@@ -158,18 +163,29 @@ function buildSummary(today, user) {
   };
 }
 
-// Employees don't see dollar totals.
+// Employees don't see dollar totals. closedBy/closedAt are missing for closes saved before they were kept.
 function summaryFor(user, summary) {
   const result = {
     date: dateLabel(summary.close_date),
     ticketsSold: Number(summary.total_tickets_sold),
     liveSlots: Number(summary.occupied_slot_count),
   };
+  if (summary.closed_by) result.closedBy = String(summary.closed_by);
+  if (summary.closed_at) result.closedAt = closedAtLabel(summary.closed_at);
   if (user.role === 'owner') {
     result.dollarsSold = Number(summary.total_dollars_sold);
     result.inventoryValue = Number(summary.total_inventory_value);
   }
   return result;
+}
+
+// "2026-09-27 22:52" -> "10:52 PM". Sheets may hand the cell back as a Date if it was retyped.
+function closedAtLabel(value) {
+  if (value instanceof Date) return Utilities.formatDate(value, Session.getScriptTimeZone(), 'h:mm a');
+  const m = String(value).match(/(\d{1,2}):(\d{2})/);
+  if (!m) return String(value);
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 // Owner only: undoes today's close so it can be done again.

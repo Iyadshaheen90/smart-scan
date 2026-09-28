@@ -239,7 +239,9 @@
       $('closeView').classList.add('hidden');
       $('pendingView').classList.add('hidden');
       $('closedView').classList.remove('hidden');
-      const lines = [`<strong>Closed for ${summary.date}</strong>`, `${summary.ticketsSold} tickets sold today`];
+      const lines = [`<strong>Closed for ${summary.date}</strong>`];
+      if (summary.closedAt) lines.push(`Submitted at ${summary.closedAt}${summary.closedBy ? ` by ${summary.closedBy}` : ''}`);
+      lines.push(`${summary.ticketsSold} tickets sold today`);
       if ('dollarsSold' in summary) {
         lines.push(`$${summary.dollarsSold.toLocaleString()} sold today`);
         lines.push(`Inventory value: $${summary.inventoryValue.toLocaleString()} (live slots + back stock)`);
