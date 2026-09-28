@@ -114,8 +114,10 @@ Frontend (`src/`, plain HTML + JS, no build):
   `DailySummary.closed_by`/`closed_at`, server time when saved; closes before 2026-09-27 have no line), and pending ("saved, not sent yet": Try sending now / Stop sending).
 - `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals
 - `backstock.html` (owner) **Find a game** search at the top (by game number as you type; packs in the back and the
-  slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it); Shipment (adds) or
-  Count (sets) by scanning one ticket per game and entering packs; one **Manage packs** dialog on every game (owner
+  slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment received**: a scanned/typed game opens a
+  pop-up (owner 2026-09-28): "Packs received" − count + starting at 1 (− stops at 0, Save greyed there), a new game also
+  asks price + pack size; Save sends `saveBackStock` shipment for that one game at once (source "delivery", no notes).
+  **Count the back** (sets) still uses the list: scan one ticket per game, enter packs, Save count; one **Manage packs** dialog on every game (owner
   2026-09-27: replaced Add pack + Remove packs): − count + with red Cancel / green Save. Save with more packs sends
   them as a shipment; with fewer it shows "Remove N packs (a → b). Why?" with reason buttons (returned, game expired,
   damaged, stolen, other), red Cancel and Back, and nothing changes until a reason is tapped; Game ended / Ended games list
@@ -165,6 +167,7 @@ node test/browser/offline-close.js        # Close Day with no connection, lost a
 node test/browser/backstock-search.js     # Find a game
 node test/browser/backstock-remove.js     # Manage packs, removing: why step, Back, Cancel, reasons, refusal (real backend code, fake sheet)
 node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cancel, Save as shipment (real backend code, fake sheet)
+node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 1, 0 greys Save, new game, ended game
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 

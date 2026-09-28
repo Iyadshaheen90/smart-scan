@@ -61,10 +61,9 @@ function handle(body) {
   await page.click('#searchResults .card button:last-child'); await page.waitForFunction(() => /marked ended/.test(document.querySelector('#searchMessage').textContent));
   await search('');
   await page.type('#typed', '1718'); await page.click('#typedForm button');
-  console.log('shipment line:', JSON.stringify(await text('#lines')));
-  assert.match(await text('#lines'), /Marked ended on 2026-09-26\. Saving brings it back/);
-  await page.type('#lines input.packs', '2'); await page.click('#saveBtn'); await waitMsg('#saveMessage');
-  console.log('saved:', await text('#saveMessage'));
+  assert.match(await text('#shipInfo'), /Marked ended on 2026-09-26\. Saving brings it back/);
+  await page.click('#shipPlus'); await page.click('#shipSave');
+  await page.waitForFunction(() => /2 packs received/.test(document.querySelector('#flash').textContent));
   assert.equal(ended('1718'), ''); assert.deepEqual(await listGames(), ['1718', '1747', '1801']);
   await search('1718'); assert.match(await text('#searchResults'), /2 packs/);
 

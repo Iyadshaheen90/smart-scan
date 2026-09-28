@@ -95,6 +95,32 @@
     </div>
   </div>
 
+  <!-- Shipment received: scanning (or typing) a game opens this. It starts at 1 pack received; Save adds
+       them to what's in the back at once (a delivery). A new game also needs its price and pack size. -->
+  <div id="shipDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shipTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="shipTitle"></div>
+      <div class="slot-detail" id="shipInfo"></div>
+      <div id="shipNewGame" class="hidden" style="text-align: left;">
+        <label for="shipPrice">Price per ticket ($)</label>
+        <input id="shipPrice" type="number" min="0" step="1" inputmode="decimal" autocomplete="off">
+        <label for="shipSize">Tickets per pack</label>
+        <input id="shipSize" type="number" min="1" step="1" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="slot-detail">Packs received</div>
+      <div class="stepper">
+        <button type="button" id="shipMinus" aria-label="One pack less">−</button>
+        <div class="stepper-count" id="shipCount"></div>
+        <button type="button" id="shipPlus" aria-label="One pack more">+</button>
+      </div>
+      <div class="slot-detail" id="shipChange"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="cancel" id="shipCancel">Cancel</button>
+        <button type="button" class="save" id="shipSave">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
   <script src="barcode.js"></script>
@@ -109,7 +135,7 @@
     const money = (n) => `$${Number(n).toLocaleString()}`;
     const DRAFT_KEY = 'smartScanBackStockDraft';
     const HINTS = {
-      shipment: 'Scan one ticket from each game in the delivery and enter how many packs came. They are added to what is in the back.',
+      shipment: 'Scan one ticket from each game in the delivery, then tap + for how many packs came and Save. They are added to what is in the back.',
       count: 'Scan one ticket from each game on the shelf and enter how many packs you counted. That becomes the number in the back; any difference is logged. Games you don\'t scan are left as they are.',
     };
 
@@ -142,6 +168,11 @@
     function flash(text, kind = 'ok') { showMessage($('flash'), text, kind); }
 
     function addGame(gameNumber) {
+      if (mode === 'shipment') {
+        if (!stockLoaded) { flash('Still loading back stock. Try again in a moment.', 'error'); return; }
+        openShipDialog(gameNumber);
+        return;
+      }
       const existing = lines.find((l) => l.gameNumber === gameNumber);
       if (existing) {
         flash(`Game ${gameNumber} is already on the list — change its number of packs below.`);
@@ -470,6 +501,76 @@
       sendChange(b, 'Removing…', 'removeBackStock', { packs, reason },
         () => `Removed ${packs} pack${packs === 1 ? '' : 's'} of game ${g.gameNumber} (${reason}): ${g.packsInBack} → ${count} in the back.`);
     }));
+
+    // --- Shipment received dialog ---
+
+    let ship = null;   // { gameNumber, game, count } while open
+
+    function openShipDialog(gameNumber) {
+      const game = known(gameNumber);
+      ship = { gameNumber, game, count: 1 };
+      $('shipTitle').textContent = game ? `Game ${gameNumber} · $${game.price}` : `Game ${gameNumber} · new`;
+      $('shipInfo').textContent = !game ? 'Not in back stock yet. Enter its price; the pack size fills in.'
+        : game.endedDate ? `Marked ended on ${game.endedDate}. Saving brings it back.` : '';
+      $('shipNewGame').classList.toggle('hidden', !!game);
+      $('shipPrice').value = '';
+      $('shipSize').value = '';
+      renderShipDialog();
+      $('shipDialog').classList.remove('hidden');
+    }
+
+    function renderShipDialog() {
+      const before = ship.game ? ship.game.packsInBack : 0;
+      $('shipCount').textContent = ship.count;
+      $('shipMinus').disabled = ship.count === 0;
+      $('shipChange').textContent = ship.count === 0 ? 'No packs received'
+        : `Back will have ${before + ship.count} (now ${before})`;
+      const priced = ship.game || (Number($('shipPrice').value) > 0 && Number($('shipSize').value) > 0);
+      $('shipSave').disabled = ship.count === 0 || !priced;
+    }
+
+    function closeShipDialog() {
+      ship = null;
+      $('shipDialog').classList.add('hidden');
+    }
+
+    $('shipPlus').addEventListener('click', () => { if (ship.count < 999) ship.count += 1; renderShipDialog(); });
+    $('shipMinus').addEventListener('click', () => { if (ship.count > 0) ship.count -= 1; renderShipDialog(); });
+    $('shipCancel').addEventListener('click', closeShipDialog);
+    $('shipPrice').addEventListener('input', () => {
+      const standard = STANDARD_PACK_SIZES[Number($('shipPrice').value)];
+      if (standard) $('shipSize').value = standard;
+      renderShipDialog();
+    });
+    $('shipSize').addEventListener('input', renderShipDialog);
+
+    // Save: the packs are added to the back now, as a delivery.
+    $('shipSave').addEventListener('click', async () => {
+      const { gameNumber, game, count } = ship;
+      const line = { gameNumber, packs: count };
+      if (!game) {
+        line.gamePrice = $('shipPrice').value;
+        line.ticketsPerPack = $('shipSize').value;
+        const standard = STANDARD_PACK_SIZES[Number(line.gamePrice)];
+        if (standard && Number(line.ticketsPerPack) !== standard
+          && !confirm(`Game ${gameNumber}: $${line.gamePrice} packs usually have ${standard} tickets, not ${line.ticketsPerPack}. Save anyway?`)) return;
+      }
+      $('shipCancel').disabled = true;
+      try {
+        const result = await whileBusy($('shipSave'), 'Saving…', () =>
+          api('saveBackStock', { mode: 'shipment', lines: [line] }));
+        stock = result.backStock;
+        const r = result.results[0];
+        closeShipDialog();
+        renderStock();
+        flash(`Game ${gameNumber}: ${count} pack${count === 1 ? '' : 's'} received, ${r.before} → ${r.after} in the back.`);
+      } catch (err) {
+        closeShipDialog();
+        flash(err.message, 'error');
+      } finally {
+        $('shipCancel').disabled = false;
+      }
+    });
 
     // --- Actions ---
 
