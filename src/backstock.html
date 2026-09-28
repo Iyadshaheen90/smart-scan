@@ -170,7 +170,7 @@
     function addGame(gameNumber) {
       if (mode === 'shipment') {
         if (!stockLoaded) { flash('Still loading back stock. Try again in a moment.', 'error'); return; }
-        openShipDialog(gameNumber);
+        whenHandsFree(() => openShipDialog(gameNumber));
         return;
       }
       const existing = lines.find((l) => l.gameNumber === gameNumber);
@@ -505,6 +505,25 @@
     // --- Shipment received dialog ---
 
     let ship = null;   // { gameNumber, game, count } while open
+
+    // A scan lands while the finger is still on "Press and hold to scan". Opening the pop-up under that
+    // finger made iPhones swallow the first tap on +, so wait until it's lifted. A typed game closes the
+    // keyboard first, so the pop-up doesn't jump when it goes away.
+    function whenHandsFree(fn) {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      const hold = $('holdBtn');
+      if (!hold.classList.contains('holding')) { fn(); return; }
+      let opened = false;
+      const go = () => {
+        if (opened) return;
+        opened = true;
+        hold.removeEventListener('pointerup', go);
+        hold.removeEventListener('pointercancel', go);
+        setTimeout(fn, 100);
+      };
+      hold.addEventListener('pointerup', go);
+      hold.addEventListener('pointercancel', go);
+    }
 
     function openShipDialog(gameNumber) {
       const game = known(gameNumber);

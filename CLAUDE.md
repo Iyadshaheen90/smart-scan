@@ -117,6 +117,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment received**: a scanned/typed game opens a
   pop-up (owner 2026-09-28): "Packs received" − count + starting at 1 (− stops at 0, Save greyed there), a new game also
   asks price + pack size; Save sends `saveBackStock` shipment for that one game at once (source "delivery", no notes).
+  A scan opens it only after the finger leaves "Press and hold" (`whenHandsFree`): opened under the finger, iPhones
+  swallowed the first tap on +.
   **Count the back** (sets) still uses the list: scan one ticket per game, enter packs, Save count; one **Manage packs** dialog on every game (owner
   2026-09-27: replaced Add pack + Remove packs): − count + with red Cancel / green Save. Save with more packs sends
   them as a shipment; with fewer it shows "Remove N packs (a → b). Why?" with reason buttons (returned, game expired,

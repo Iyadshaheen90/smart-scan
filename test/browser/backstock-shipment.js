@@ -93,13 +93,27 @@ function handle(body) {
   assert.equal(reserve('1650').packs_in_reserve, 1);
   assert.equal(await page.$eval('#endedBox', (el) => el.classList.contains('hidden')), true);
 
-  // 6. Count the back still uses the list.
+  // 6. A scan while the finger is still on "Press and hold": the pop-up waits until it's lifted,
+  //    and the first + then counts (iPhones swallowed that tap when it opened under the finger).
+  await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, bubbles: true })));
+  assert.equal(await page.$eval('#holdBtn', (b) => b.classList.contains('holding')), true);
+  await page.$eval('#typed', (el) => { el.value = '1747'; });
+  await page.$eval('#typedForm', (f) => f.requestSubmit());
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(await open(), false);
+  await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true })));
+  await page.waitForFunction(() => !document.querySelector('#shipDialog').classList.contains('hidden'));
+  await page.click('#shipPlus');
+  assert.equal(await text('#shipCount'), '2');
+  await page.click('#shipCancel');
+
+  // 7. Count the back still uses the list.
   await page.click('#modeSwitch button[data-mode="count"]');
   await enter('1747');
   assert.equal(await open(), false);
   assert.equal(await page.$eval('#lines', (el) => el.children.length), 1);
 
-  // 7. Reload: the page shows what the sheet says.
+  // 8. Reload: the page shows what the sheet says.
   await page.reload(); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length === 3);
   assert.equal(await text('#totals'), '7 packs · $3,800 at ticket price');   // 5×30×$20 + 50×$10 + 60×$5
   console.log('SHIPMENT RECEIVED DIALOG CHECKS PASS'); await app.close();
