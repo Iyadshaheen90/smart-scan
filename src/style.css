@@ -143,3 +143,19 @@ table.days { width: 100%; border-collapse: collapse; margin-top: 12px; font-size
 table.days th { text-align: right; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 0; border-bottom: 1px solid var(--border); }
 table.days td { text-align: right; padding: 7px 0; border-bottom: 1px solid var(--border); }
 table.days th:first-child, table.days td:first-child { text-align: left; }
+
+/* Pop-up dialog (Back stock: Add pack). */
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(0, 0, 0, 0.5);
+}
+.dialog { width: 100%; max-width: 360px; background: var(--bg); border-radius: 14px; padding: 18px 16px 16px; text-align: center; }
+.dialog-title { font-size: 18px; font-weight: 700; }
+.stepper { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 18px 0 6px; }
+.stepper button { width: 64px; height: 64px; margin: 0; padding: 0; border-radius: 50%; font-size: 32px; line-height: 1; }
+.stepper-count { min-width: 80px; font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dialog-buttons { display: flex; gap: 10px; margin-top: 16px; }
+.dialog-buttons button { margin: 0; }
+button.cancel { background: #c62828; border-color: #c62828; color: #ffffff; }
+button.save { background: #1f7a4d; border-color: #1f7a4d; color: #ffffff; }

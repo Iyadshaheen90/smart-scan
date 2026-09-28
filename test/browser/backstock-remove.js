@@ -24,7 +24,7 @@ function handle(body) {
   const listCard = (g) => page.$$eval('#stock .card', (cards, g) => cards.find((c) => c.innerText.includes(`Game ${g}`)).innerText, g);
   const removeFromSearch = async (packs, reason) => {
     answers = [String(packs), reason];
-    await page.click('#searchResults .card button');
+    await page.click('#searchResults .card button:last-child');
     await page.waitForFunction(() => document.querySelector('#searchMessage').textContent !== '');
   };
   const show = async (label) => console.log(`\n[${label}]\n search: ${JSON.stringify(await text('#searchResults'))}\n list:   ${JSON.stringify(await listCard('1747'))}\n totals: ${await text('#totals')}\n msg:    ${await text('#searchMessage')}\n sheet:  1747 packs=${reserve('1747').packs_in_reserve} tickets=${reserve('1747').tickets_in_reserve}, adjustments=${S.ReserveAdjustments.rows.length - 1}`);
@@ -56,7 +56,7 @@ function handle(body) {
   await page.$eval('#searchMessage', (el) => { el.textContent = ''; });
   await removeFromSearch(2, 'returned'); await show('removed last 2');
   assert.deepEqual([reserve('1747').packs_in_reserve, reserve('1747').tickets_in_reserve], [0, 0]);
-  assert.match(await text('#searchResults'), /none in the back/); assert.equal(await page.$('#searchResults .card button'), null);
+  assert.match(await text('#searchResults'), /none in the back/); assert.deepEqual(await page.$$eval('#searchResults .card button', (b) => b.map((x) => x.textContent)), ['Add pack']);
   assert.match(await listCard('1747'), /none in the back/);
   assert.equal(await text('#totals'), '2 packs · $1,000 at ticket price');
   assert.equal(S.ReserveAdjustments.rows.length, 3);
@@ -65,7 +65,7 @@ function handle(body) {
   await page.reload(); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length === 2);
   assert.equal(await text('#totals'), '2 packs · $1,000 at ticket price');
   // 5. Removing from the full list still reports at the bottom, and the search box message stays clear.
-  answers = ['1', 'other']; await page.click('#stock .card button');
+  answers = ['1', 'other']; await page.$$eval('#stock .card button', (b) => b.find((x) => x.textContent === 'Remove packs…').click());
   await page.waitForFunction(() => document.querySelector('#stockMessage').textContent !== '');
   assert.match(await text('#stockMessage'), /Removed 1 pack of game 1801/); assert.equal(reserve('1801').packs_in_reserve, 1);
   console.log('\nREMOVE-FROM-SEARCH CHECKS PASS'); await app.close();

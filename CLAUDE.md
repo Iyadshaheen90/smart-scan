@@ -105,7 +105,8 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals
 - `backstock.html` (owner) **Find a game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it); Shipment (adds) or
-  Count (sets) by scanning one ticket per game and entering packs; Remove packs; Game ended / Ended games list
+  Count (sets) by scanning one ticket per game and entering packs; **Add pack** dialog on every game (− count +,
+  red Cancel / green Save; nothing is sent until Save); Remove packs; Game ended / Ended games list
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
   Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
@@ -123,7 +124,8 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `Close.js` `closeStatus`, `submitClose(user, entries, closeId, date)` (validates everything before writing),
   `buildSummary`, `reopenClose`, `salesDate`
 - `Backstock.js` `listBackStock` (every game, ended ones flagged `endedDate`), `saveBackStock(mode 'shipment'|'count')`,
-  `removeBackStock`, `endGame`, `bringBackGame`
+  `adjustBackStock` (Add pack: `change` packs; more → Shipments row, source "add pack"; fewer → ReserveAdjustments, reason
+  "adjust"), `removeBackStock`, `endGame`, `bringBackGame`
 
 Conventions: every write runs inside `withLock`; validate the whole request before writing anything;
 errors are `ApiError(code, message)` with a message the person at the counter can act on.
@@ -150,6 +152,7 @@ npm install                               # once: puppeteer-core, only for the b
 node test/browser/offline-close.js        # Close Day with no connection, lost answer, home resend, refusal
 node test/browser/backstock-search.js     # Find a game
 node test/browser/backstock-remove.js     # remove packs from a search result (real backend code, fake sheet)
+node test/browser/backstock-add-pack.js   # Add pack dialog: + / −, Cancel, Save (real backend code, fake sheet)
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)

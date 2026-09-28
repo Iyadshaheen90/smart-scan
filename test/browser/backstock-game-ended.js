@@ -36,14 +36,14 @@ function handle(body) {
   const ended = (g) => { const [h, ...rows] = S.ReserveInventory.rows; const i = h.indexOf('ended_date'); return i < 0 ? '' : rows.find((r) => r[0] === g)[i]; };
 
   // Only the game with nothing left (1718: 0 packs, no slot) offers Game ended.
-  await search('1718'); assert.deepEqual(await buttonsIn('#searchResults'), ['Game ended…']);
-  await search('1801'); assert.deepEqual(await buttonsIn('#searchResults'), ['Remove packs…']);
-  await search('1747'); assert.deepEqual(await buttonsIn('#searchResults'), ['Remove packs…']);
+  await search('1718'); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack', 'Game ended…']);
+  await search('1801'); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack', 'Remove packs…']);
+  await search('1747'); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack', 'Remove packs…']);
   assert.equal(await page.$eval('#endedBox', (el) => el.classList.contains('hidden')), true);
   const totalsBefore = await text('#totals');
 
   // 1. End 1718 from the search.
-  await search('1718'); await page.click('#searchResults .card button'); await waitMsg('#searchMessage');
+  await search('1718'); await page.click('#searchResults .card button:last-child'); await waitMsg('#searchMessage');
   console.log('ended msg:', await text('#searchMessage'));
   console.log('search now:', JSON.stringify(await text('#searchResults')));
   assert.equal(ended('1718'), '2026-09-26'); assert.ok(S.ReserveInventory.rows[0].includes('ended_date'));
@@ -53,12 +53,12 @@ function handle(body) {
   assert.equal(await text('#totals'), totalsBefore);
 
   // 2. Bring it back from the search.
-  await page.click('#searchResults .card button'); await page.waitForFunction(() => /back in back stock/.test(document.querySelector('#searchMessage').textContent));
+  await page.click('#searchResults .card button:last-child'); await page.waitForFunction(() => /back in back stock/.test(document.querySelector('#searchMessage').textContent));
   assert.equal(ended('1718'), ''); assert.deepEqual(await listGames(), ['1718', '1747', '1801']);
   assert.equal(await page.$eval('#endedBox', (el) => el.classList.contains('hidden')), true);
 
   // 3. End it again, then a delivery of it brings it back with its price remembered.
-  await page.click('#searchResults .card button'); await page.waitForFunction(() => /marked ended/.test(document.querySelector('#searchMessage').textContent));
+  await page.click('#searchResults .card button:last-child'); await page.waitForFunction(() => /marked ended/.test(document.querySelector('#searchMessage').textContent));
   await search('');
   await page.type('#typed', '1718'); await page.click('#typedForm button');
   console.log('shipment line:', JSON.stringify(await text('#lines')));
@@ -69,14 +69,14 @@ function handle(body) {
   await search('1718'); assert.match(await text('#searchResults'), /2 packs/);
 
   // 4. A game still in a slot never offers Game ended, even with the back empty; the server refuses it too.
-  answers = ['3', 'returned']; await search('1747'); await page.click('#searchResults .card button'); await waitMsg('#searchMessage');
-  assert.match(await text('#searchResults'), /none in the back/); assert.deepEqual(await buttonsIn('#searchResults'), []);
+  answers = ['3', 'returned']; await search('1747'); await page.click('#searchResults .card button:last-child'); await waitMsg('#searchMessage');
+  assert.match(await text('#searchResults'), /none in the back/); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack']);
   assert.throws(() => ctx.endGame('1747'), /still in box 1, slot 2/);
 
   // 5. Bring back from the Ended games list at the bottom.
-  await search('1718'); answers = ['2', 'returned']; await page.click('#searchResults .card button');
+  await search('1718'); answers = ['2', 'returned']; await page.click('#searchResults .card button:last-child');
   await page.waitForFunction(() => /Removed 2/.test(document.querySelector('#searchMessage').textContent));
-  await page.click('#searchResults .card button'); await page.waitForFunction(() => /marked ended/.test(document.querySelector('#searchMessage').textContent));
+  await page.click('#searchResults .card button:last-child'); await page.waitForFunction(() => /marked ended/.test(document.querySelector('#searchMessage').textContent));
   await page.$eval('#endedBox', (el) => { el.open = true; }); await page.click('#ended .card button');
   await page.waitForFunction(() => /back in back stock/.test(document.querySelector('#stockMessage').textContent));
   assert.equal(ended('1718'), '');

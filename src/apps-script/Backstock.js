@@ -5,6 +5,8 @@
 // - Count the back: sets the packs on hand to what was counted, and logs any difference in
 //   ReserveAdjustments (reason "count").
 // - Remove packs: takes packs out (returned, damaged…), logged in ReserveAdjustments.
+// - Add pack: the + / − dialog on a game. More packs is logged as a shipment (source "add pack"),
+//   fewer as an adjustment (reason "adjust").
 // A game's price and pack size are entered once; the pack size defaults to the standard one.
 // - Game ended: once CA Lottery stops a game and none is left (back or slots), the owner hides it.
 
@@ -131,6 +133,52 @@ function removeBackStock(user, req) {
       performed_by: user.username,
     });
     return listBackStock();
+  });
+}
+
+// The Add pack dialog: change = packs added (negative = taken off). Applied to what's in the back now,
+// so a pack activated meanwhile isn't lost; never below 0.
+function adjustBackStock(user, req) {
+  const gameNumber = String(req.gameNumber || '');
+  const change = Number(req.change);
+  if (!Number.isInteger(change) || change === 0 || Math.abs(change) > 999) throw new ApiError('bad_count', 'Nothing to save: the packs are unchanged.');
+  return withLock(() => {
+    const reserve = findReserve(gameNumber);
+    if (!reserve) throw new ApiError('unknown_game', `Game ${gameNumber} isn't in back stock.`);
+    if (reserve.ended_date) throw new ApiError('game_ended', `Game ${gameNumber} is marked ended. Bring it back first.`);
+    const before = packsInBack(reserve);
+    const after = before + change;
+    if (after < 0) throw new ApiError('bad_count', `There ${before === 1 ? 'is' : 'are'} only ${before} pack${before === 1 ? '' : 's'} of game ${gameNumber} in the back.`);
+    const size = Number(reserve.tickets_per_pack);
+    const price = Number(reserve.price_per_ticket);
+    updateRowsWhere(monthSheet('ReserveInventory'), (r) => String(r.game_number) === gameNumber, {
+      packs_in_reserve: after,
+      tickets_in_reserve: after * size,
+    });
+    if (change > 0) {
+      appendObject(monthSheet('Shipments'), {
+        shipment_date: todayLabel(),
+        game_number: gameNumber,
+        price_per_ticket: price,
+        tickets_per_pack: size,
+        packs_received: change,
+        tickets_received: change * size,
+        source: 'add pack',
+        notes: '',
+        performed_by: user.username,
+      });
+    } else {
+      appendObject(monthSheet('ReserveAdjustments'), {
+        adjustment_date: todayLabel(),
+        game_number: gameNumber,
+        packs_removed: -change,
+        tickets_removed: -change * size,
+        reason: 'adjust',
+        notes: '',
+        performed_by: user.username,
+      });
+    }
+    return { before, after, backStock: listBackStock() };
   });
 }
 

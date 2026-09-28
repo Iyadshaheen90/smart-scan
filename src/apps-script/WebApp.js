@@ -30,6 +30,7 @@ const SIGNED_IN_ACTIONS = {
   listBackStock: { owner: true, run: () => listBackStock() },
   saveBackStock: { owner: true, run: (req, user) => saveBackStock(user, req.mode, req.lines, req.notes) },
   removeBackStock: { owner: true, run: (req, user) => removeBackStock(user, req) },
+  adjustBackStock: { owner: true, run: (req, user) => adjustBackStock(user, req) },
   endGame: { owner: true, run: (req) => endGame(req.gameNumber) },
   bringBackGame: { owner: true, run: (req) => bringBackGame(req.gameNumber) },
   setSlotPrice: { owner: true, run: (req) => setSlotPrice(req) },

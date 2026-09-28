@@ -264,6 +264,21 @@ assert.equal(code(() => run(`removeBackStock(owner, { gameNumber: '1747', packs:
 assert.equal(code(() => run(`removeBackStock(owner, { gameNumber: '1747', packs: 1, reason: 'lost' })`)), 'bad_request');
 bs = run(`removeBackStock(owner, { gameNumber: '1747', packs: 1, reason: 'damaged', notes: 'wet' })`);
 assert.equal(bs.find((g) => g.gameNumber === '1747').packsInBack, 3);
+// Add pack dialog: + logs a shipment (counts in the month's Shipments in), − an adjustment
+const shipRows = S.Shipments.rows.length, adjRows = S.ReserveAdjustments.rows.length;
+r = run(`adjustBackStock(owner, { gameNumber: '1747', change: 2 })`);
+assert.deepEqual([r.before, r.after], [3, 5]); assert.equal(r.backStock.find((g) => g.gameNumber === '1747').packsInBack, 5);
+const addRes = run('findReserve("1747")'); assert.deepEqual([addRes.packs_in_reserve, addRes.tickets_in_reserve], [5, 150]);
+assert.equal(S.Shipments.rows.length, shipRows + 1);
+assert.deepEqual(S.Shipments.rows[shipRows].slice(1, 9), ['1747', 20, 30, 2, 60, 'add pack', '', 'o']);
+r = run(`adjustBackStock(owner, { gameNumber: '1747', change: -2 })`); assert.deepEqual([r.before, r.after], [5, 3]);
+assert.equal(S.ReserveAdjustments.rows.length, adjRows + 1);
+assert.deepEqual(S.ReserveAdjustments.rows[adjRows].slice(1, 7), ['1747', 2, 60, 'adjust', '', 'o']);
+assert.equal(code(() => run(`adjustBackStock(owner, { gameNumber: '1747', change: -4 })`)), 'bad_count');   // only 3
+assert.equal(code(() => run(`adjustBackStock(owner, { gameNumber: '1747', change: 0 })`)), 'bad_count');
+assert.equal(code(() => run(`adjustBackStock(owner, { gameNumber: '1747', change: 1.5 })`)), 'bad_count');
+assert.equal(code(() => run(`adjustBackStock(owner, { gameNumber: '9999', change: 1 })`)), 'unknown_game');
+assert.equal(run('findReserve("1747")').packs_in_reserve, 3); assert.equal(S.Shipments.rows.length, shipRows + 1);
 // activating then takes from these counts
 S.SlotConfig.rows.push([4, 1, 1]); S.SlotState.rows.push([4, 1]);
 r = run(`activatePack(owner, { box: 4, slot: 1, gameNumber: '2001', packNumber: '0000009', ticketNumber: 239 })`);

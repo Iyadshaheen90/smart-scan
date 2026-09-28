@@ -60,6 +60,24 @@
     <div id="ended"></div>
   </details>
 
+  <!-- Add pack: + / − the packs of one game in the back; nothing changes until Save. -->
+  <div id="packDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="packTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="packTitle"></div>
+      <div class="slot-detail">Packs in the back</div>
+      <div class="stepper">
+        <button type="button" id="packMinus" aria-label="One pack less">−</button>
+        <div class="stepper-count" id="packCount"></div>
+        <button type="button" id="packPlus" aria-label="One pack more">+</button>
+      </div>
+      <div class="slot-detail" id="packChange"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="cancel" id="packCancel">Cancel</button>
+        <button type="button" class="save" id="packSave">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
   <script src="barcode.js"></script>
@@ -269,8 +287,10 @@
       }
       // Buttons on a search result report up here, next to it, not at the bottom of the page.
       const messageEl = withSlots ? $('searchMessage') : $('stockMessage');
-      if (g.packsInBack > 0) card.append(removeControls(g, messageEl));
-      else if (!g.liveSlots) card.append(actionRow(endGameButton(g, messageEl)));
+      const buttons = [addPackButton(g, messageEl)];
+      if (g.packsInBack > 0) buttons.push(removeButton(g, messageEl));
+      else if (!g.liveSlots) buttons.push(endGameButton(g, messageEl));
+      card.append(actionRow(...buttons));
       return card;
     }
 
@@ -344,11 +364,7 @@
       renderSearch();
     }
 
-    function removeControls(g, messageEl) {
-      const row = document.createElement('div');
-      row.className = 'row';
-      row.style.marginTop = '8px';
-      row.style.justifyContent = 'flex-start';
+    function removeButton(g, messageEl) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'small';
@@ -367,9 +383,64 @@
           showMessage(messageEl, err.message);
         }
       });
-      row.append(button);
-      return row;
+      return button;
     }
+
+    // --- Add pack dialog ---
+
+    let dialog = null;   // { g, count, messageEl } while open
+
+    function addPackButton(g, messageEl) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'small';
+      button.textContent = 'Add pack';
+      button.addEventListener('click', () => openPackDialog(g, messageEl));
+      return button;
+    }
+
+    function openPackDialog(g, messageEl) {
+      dialog = { g, count: g.packsInBack, messageEl };
+      $('packTitle').textContent = `Game ${g.gameNumber} · $${g.price}`;
+      renderPackDialog();
+      $('packDialog').classList.remove('hidden');
+    }
+
+    function renderPackDialog() {
+      const change = dialog.count - dialog.g.packsInBack;
+      $('packCount').textContent = dialog.count;
+      $('packMinus').disabled = dialog.count === 0;
+      $('packChange').textContent = change === 0 ? 'No change'
+        : `${change > 0 ? '+' : '−'}${Math.abs(change)} pack${Math.abs(change) === 1 ? '' : 's'} (was ${dialog.g.packsInBack})`;
+    }
+
+    function closePackDialog() {
+      dialog = null;
+      $('packDialog').classList.add('hidden');
+    }
+
+    $('packPlus').addEventListener('click', () => { if (dialog.count < 999) dialog.count += 1; renderPackDialog(); });
+    $('packMinus').addEventListener('click', () => { if (dialog.count > 0) dialog.count -= 1; renderPackDialog(); });
+    $('packCancel').addEventListener('click', closePackDialog);
+    $('packSave').addEventListener('click', async () => {
+      const { g, count, messageEl } = dialog;
+      const change = count - g.packsInBack;
+      if (change === 0) { closePackDialog(); return; }
+      $('packCancel').disabled = $('packPlus').disabled = $('packMinus').disabled = true;
+      try {
+        const result = await whileBusy($('packSave'), 'Saving…', () =>
+          api('adjustBackStock', { gameNumber: g.gameNumber, change }));
+        stock = result.backStock;
+        closePackDialog();
+        renderStock();
+        showMessage(messageEl, `Game ${g.gameNumber}: ${result.before} → ${result.after} pack${result.after === 1 ? '' : 's'} in the back.`, 'ok');
+      } catch (err) {
+        closePackDialog();
+        showMessage(messageEl, err.message);
+      } finally {
+        $('packCancel').disabled = $('packPlus').disabled = $('packMinus').disabled = false;
+      }
+    });
 
     // --- Actions ---
 
