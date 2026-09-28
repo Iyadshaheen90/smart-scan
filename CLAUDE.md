@@ -36,6 +36,9 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Empty slot = "out of stock": adds nothing to sales or inventory; back stock untouched. It shows the packs in back
   of the game last in it (`SlotState.last_game_number`, set when a pack sells out or is returned; falls back to this
   month's PackHistory) on Slots and the slot page (not in Close Day), unless that game has ended.
+- Back stock changes and where they're logged: Shipment and **Add pack** (+) → `Shipments` (counts in the month's
+  "Shipments in"; Add pack rows have source "add pack", owner approved 2026-09-27); Count, Add pack (−) and Remove packs
+  → `ReserveAdjustments` (reason count / adjust / returned, game expired, damaged, stolen, other).
 - A game's `ReserveInventory` row is also where its price and pack size are remembered, so rows are never deleted.
 - **Game ended** (CA Lottery stopped the game): the owner hides it with `endGame`, allowed only with 0 packs in the
   back and none in a slot. It sets `ReserveInventory.ended_date`; the row stays, carries into each new month, and
@@ -95,7 +98,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   one per phone in `smartScanPendingClose`)
 - `barcode.js` `parseTicketBarcode`, `parsePrintedTicket`, `STANDARD_PACK_SIZES` · `scanner.js` shared camera
   (zxing-wasm, `startScanner({... mode})` → `{ setMode }`) · `style.css` shared styles
-- `index.html` home (also sends an unsent close, with a banner) · `login.html` · `setup-owner.html` · `account.html` ·
+- `index.html` home (also sends an unsent close, with a banner; button order is the owner's: Close Day, Slots, Back stock &
+  shipments, Months & totals, Scanner test, Manage employees, Change my password) · `login.html` · `setup-owner.html` · `account.html` ·
   `users.html` (owner)
 - `slots.html` both boxes · `activate.html?box=&slot=` one slot: end pack, activate, undo, swap, prices, pack size
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
