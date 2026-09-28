@@ -106,7 +106,7 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `index.html` home (also sends an unsent close, with a banner; button order is the owner's: Close Day, Slots, Back stock &
   shipments, Months & totals, Scanner test, Manage employees, Change my password) · `login.html` · `setup-owner.html` · `account.html` ·
   `users.html` (owner)
-- `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo, swap, prices, pack size
+- `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo; then (owner's order) slot price, pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
