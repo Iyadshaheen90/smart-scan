@@ -110,7 +110,8 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
-  close). Views: scanning, closed (summary), and pending ("saved, not sent yet": Try sending now / Stop sending).
+  close). Views: scanning, closed (summary, with "Submitted at 10:52 PM by <username>" from
+  `DailySummary.closed_by`/`closed_at`, server time when saved; closes before 2026-09-27 have no line), and pending ("saved, not sent yet": Try sending now / Stop sending).
 - `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals
 - `backstock.html` (owner) **Find a game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it); Shipment (adds) or
@@ -143,7 +144,7 @@ errors are `ApiError(code, message)` with a message the person at the counter ca
 New columns go at the **end** of a tab. Existing month sheets don't have them yet: call `ensureHeaders` before
 writing one, and read them defensively (a missing column reads as `undefined`, and `dateLabel(undefined)` is the
 string "undefined", so check the value first). `SlotState.remaining_count` is a formula column that must not move.
-Recent columns: `DailySummary.close_id`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
+Recent columns: `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
 `SlotState.last_game_number`.
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", same Drive folder as Control)
