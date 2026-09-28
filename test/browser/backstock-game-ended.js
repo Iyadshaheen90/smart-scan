@@ -36,9 +36,9 @@ function handle(body) {
   const ended = (g) => { const [h, ...rows] = S.ReserveInventory.rows; const i = h.indexOf('ended_date'); return i < 0 ? '' : rows.find((r) => r[0] === g)[i]; };
 
   // Only the game with nothing left (1718: 0 packs, no slot) offers Game ended.
-  await search('1718'); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack', 'Game ended…']);
-  await search('1801'); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack', 'Remove packs…']);
-  await search('1747'); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack', 'Remove packs…']);
+  await search('1718'); assert.deepEqual(await buttonsIn('#searchResults'), ['Manage packs', 'Game ended…']);
+  await search('1801'); assert.deepEqual(await buttonsIn('#searchResults'), ['Manage packs']);
+  await search('1747'); assert.deepEqual(await buttonsIn('#searchResults'), ['Manage packs']);
   assert.equal(await page.$eval('#endedBox', (el) => el.classList.contains('hidden')), true);
   const totalsBefore = await text('#totals');
 
@@ -70,7 +70,7 @@ function handle(body) {
 
   // 4. A game still in a slot never offers Game ended, even with the back empty; the server refuses it too.
   await search('1747'); await page.click('#searchResults .card button:last-child'); await removeInDialog(page, 3, 'returned'); await waitMsg('#searchMessage');
-  assert.match(await text('#searchResults'), /none in the back/); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack']);
+  assert.match(await text('#searchResults'), /none in the back/); assert.deepEqual(await buttonsIn('#searchResults'), ['Manage packs']);
   assert.throws(() => ctx.endGame('1747'), /still in box 1, slot 2/);
 
   // 5. Bring back from the Ended games list at the bottom.

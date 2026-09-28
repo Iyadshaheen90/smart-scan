@@ -60,46 +60,37 @@
     <div id="ended"></div>
   </details>
 
-  <!-- Add pack: + / − the packs of one game in the back; nothing changes until Save. -->
+  <!-- Manage packs: + / − the packs of one game in the back, then Save. More packs are saved at once
+       (as a shipment); fewer first asks why, and nothing changes until a reason is tapped. -->
   <div id="packDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="packTitle">
     <div class="dialog">
       <div class="dialog-title" id="packTitle"></div>
-      <div class="slot-detail">Packs in the back</div>
-      <div class="stepper">
-        <button type="button" id="packMinus" aria-label="One pack less">−</button>
-        <div class="stepper-count" id="packCount"></div>
-        <button type="button" id="packPlus" aria-label="One pack more">+</button>
+      <div id="packCountStep">
+        <div class="slot-detail">Packs in the back</div>
+        <div class="stepper">
+          <button type="button" id="packMinus" aria-label="One pack less">−</button>
+          <div class="stepper-count" id="packCount"></div>
+          <button type="button" id="packPlus" aria-label="One pack more">+</button>
+        </div>
+        <div class="slot-detail" id="packChange"></div>
+        <div class="dialog-buttons">
+          <button type="button" class="cancel" id="packCancel">Cancel</button>
+          <button type="button" class="save" id="packSave">Save</button>
+        </div>
       </div>
-      <div class="slot-detail" id="packChange"></div>
-      <div class="dialog-buttons">
-        <button type="button" class="cancel" id="packCancel">Cancel</button>
-        <button type="button" class="save" id="packSave">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Remove packs: how many (− count +) and why (tap a reason); nothing changes until Remove. -->
-  <div id="removeDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="removeTitle">
-    <div class="dialog">
-      <div class="dialog-title" id="removeTitle"></div>
-      <div class="dialog-label">Packs to remove</div>
-      <div class="stepper">
-        <button type="button" id="removeMinus" aria-label="One pack less">−</button>
-        <div class="stepper-count" id="removeCount"></div>
-        <button type="button" id="removePlus" aria-label="One pack more">+</button>
-      </div>
-      <div class="slot-detail" id="removeLeft"></div>
-      <div class="dialog-label">Why?</div>
-      <div class="reasons" id="removeReasons">
-        <button type="button" data-reason="returned">Returned</button>
-        <button type="button" data-reason="game expired">Game expired</button>
-        <button type="button" data-reason="damaged">Damaged</button>
-        <button type="button" data-reason="stolen">Stolen</button>
-        <button type="button" data-reason="other">Other</button>
-      </div>
-      <div class="dialog-buttons">
-        <button type="button" class="cancel" id="removeCancel">Cancel</button>
-        <button type="button" class="save" id="removeSave">Remove</button>
+      <div id="packReasonStep" class="hidden">
+        <div class="dialog-label" id="packReasonTitle"></div>
+        <div class="reasons" id="removeReasons">
+          <button type="button" data-reason="returned">Returned</button>
+          <button type="button" data-reason="game expired">Game expired</button>
+          <button type="button" data-reason="damaged">Damaged</button>
+          <button type="button" data-reason="stolen">Stolen</button>
+          <button type="button" data-reason="other">Other</button>
+        </div>
+        <div class="dialog-buttons">
+          <button type="button" class="cancel" id="reasonCancel">Cancel</button>
+          <button type="button" id="reasonBack">Back</button>
+        </div>
       </div>
     </div>
   </div>
@@ -313,9 +304,8 @@
       }
       // Buttons on a search result report up here, next to it, not at the bottom of the page.
       const messageEl = withSlots ? $('searchMessage') : $('stockMessage');
-      const buttons = [addPackButton(g, messageEl)];
-      if (g.packsInBack > 0) buttons.push(removeButton(g, messageEl));
-      else if (!g.liveSlots) buttons.push(endGameButton(g, messageEl));
+      const buttons = [managePacksButton(g, messageEl)];
+      if (g.packsInBack === 0 && !g.liveSlots) buttons.push(endGameButton(g, messageEl));
       card.append(actionRow(...buttons));
       return card;
     }
@@ -390,78 +380,15 @@
       renderSearch();
     }
 
-    function removeButton(g, messageEl) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'small';
-      button.textContent = 'Remove packs…';
-      button.addEventListener('click', () => openRemoveDialog(g, messageEl));
-      return button;
-    }
-
-    // --- Remove packs dialog ---
-
-    let removing = null;   // { g, count, reason, messageEl } while open
-
-    function openRemoveDialog(g, messageEl) {
-      removing = { g, count: 1, reason: null, messageEl };
-      $('removeTitle').textContent = `Game ${g.gameNumber} · $${g.price}`;
-      renderRemoveDialog();
-      $('removeDialog').classList.remove('hidden');
-    }
-
-    function renderRemoveDialog() {
-      const { g, count, reason } = removing;
-      const left = g.packsInBack - count;
-      $('removeCount').textContent = count;
-      $('removeMinus').disabled = count <= 1;
-      $('removePlus').disabled = count >= g.packsInBack;
-      $('removeLeft').textContent = `${g.packsInBack} in the back now · ${left} left after`;
-      document.querySelectorAll('#removeReasons button').forEach((b) => b.classList.toggle('active', b.dataset.reason === reason));
-      $('removeSave').disabled = !reason;
-      $('removeSave').textContent = reason ? `Remove ${count}` : 'Pick a reason';
-    }
-
-    function closeRemoveDialog() {
-      removing = null;
-      $('removeDialog').classList.add('hidden');
-    }
-
-    $('removePlus').addEventListener('click', () => { if (removing.count < removing.g.packsInBack) removing.count += 1; renderRemoveDialog(); });
-    $('removeMinus').addEventListener('click', () => { if (removing.count > 1) removing.count -= 1; renderRemoveDialog(); });
-    document.querySelectorAll('#removeReasons button').forEach((b) => b.addEventListener('click', () => {
-      removing.reason = b.dataset.reason;
-      renderRemoveDialog();
-    }));
-    $('removeCancel').addEventListener('click', closeRemoveDialog);
-    $('removeSave').addEventListener('click', async () => {
-      const { g, count, reason, messageEl } = removing;
-      if (!reason) return;
-      const locked = [$('removeCancel'), $('removePlus'), $('removeMinus'), ...document.querySelectorAll('#removeReasons button')];
-      locked.forEach((b) => { b.disabled = true; });
-      try {
-        stock = await whileBusy($('removeSave'), 'Removing…', () =>
-          api('removeBackStock', { gameNumber: g.gameNumber, packs: count, reason }));
-        closeRemoveDialog();
-        renderStock();
-        showMessage(messageEl, `Removed ${count} pack${count === 1 ? '' : 's'} of game ${g.gameNumber} (${reason}).`, 'ok');
-      } catch (err) {
-        closeRemoveDialog();
-        showMessage(messageEl, err.message);
-      } finally {
-        locked.forEach((b) => { b.disabled = false; });
-      }
-    });
-
-    // --- Add pack dialog ---
+    // --- Manage packs dialog ---
 
     let dialog = null;   // { g, count, messageEl } while open
 
-    function addPackButton(g, messageEl) {
+    function managePacksButton(g, messageEl) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'small';
-      button.textContent = 'Add pack';
+      button.textContent = 'Manage packs';
       button.addEventListener('click', () => openPackDialog(g, messageEl));
       return button;
     }
@@ -469,8 +396,14 @@
     function openPackDialog(g, messageEl) {
       dialog = { g, count: g.packsInBack, messageEl };
       $('packTitle').textContent = `Game ${g.gameNumber} · $${g.price}`;
-      renderPackDialog();
+      showCountStep();
       $('packDialog').classList.remove('hidden');
+    }
+
+    function showCountStep() {
+      $('packReasonStep').classList.add('hidden');
+      $('packCountStep').classList.remove('hidden');
+      renderPackDialog();
     }
 
     function renderPackDialog() {
@@ -486,28 +419,57 @@
       $('packDialog').classList.add('hidden');
     }
 
-    $('packPlus').addEventListener('click', () => { if (dialog.count < 999) dialog.count += 1; renderPackDialog(); });
-    $('packMinus').addEventListener('click', () => { if (dialog.count > 0) dialog.count -= 1; renderPackDialog(); });
-    $('packCancel').addEventListener('click', closePackDialog);
-    $('packSave').addEventListener('click', async () => {
-      const { g, count, messageEl } = dialog;
-      const change = count - g.packsInBack;
-      if (change === 0) { closePackDialog(); return; }
-      $('packCancel').disabled = $('packPlus').disabled = $('packMinus').disabled = true;
+    // Buttons locked while a change is being sent.
+    const dialogButtons = () => [...document.querySelectorAll('#packDialog button')];
+
+    async function sendChange(busyButton, busyText, action, params, done) {
+      const { g, messageEl } = dialog;
+      const locked = dialogButtons().filter((b) => b !== busyButton);
+      locked.forEach((b) => { b.disabled = true; });
       try {
-        const result = await whileBusy($('packSave'), 'Saving…', () =>
-          api('adjustBackStock', { gameNumber: g.gameNumber, change }));
-        stock = result.backStock;
+        const result = await whileBusy(busyButton, busyText, () => api(action, { gameNumber: g.gameNumber, ...params }));
+        stock = result.backStock || result;
         closePackDialog();
         renderStock();
-        showMessage(messageEl, `Game ${g.gameNumber}: ${result.before} → ${result.after} pack${result.after === 1 ? '' : 's'} in the back.`, 'ok');
+        showMessage(messageEl, done(result), 'ok');
       } catch (err) {
         closePackDialog();
         showMessage(messageEl, err.message);
       } finally {
-        $('packCancel').disabled = $('packPlus').disabled = $('packMinus').disabled = false;
+        locked.forEach((b) => { b.disabled = false; });
       }
+    }
+
+    $('packPlus').addEventListener('click', () => { if (dialog.count < 999) dialog.count += 1; renderPackDialog(); });
+    $('packMinus').addEventListener('click', () => { if (dialog.count > 0) dialog.count -= 1; renderPackDialog(); });
+    $('packCancel').addEventListener('click', closePackDialog);
+    $('reasonCancel').addEventListener('click', closePackDialog);
+    $('reasonBack').addEventListener('click', showCountStep);
+
+    // Save: more packs are received as a shipment now; fewer packs go to the "why" step first.
+    $('packSave').addEventListener('click', () => {
+      const { g, count } = dialog;
+      const change = count - g.packsInBack;
+      if (change === 0) { closePackDialog(); return; }
+      if (change > 0) {
+        sendChange($('packSave'), 'Saving…', 'adjustBackStock', { change },
+          (r) => `Game ${g.gameNumber}: ${r.before} → ${r.after} pack${r.after === 1 ? '' : 's'} in the back.`);
+        return;
+      }
+      const packs = -change;
+      $('packReasonTitle').textContent = `Remove ${packs} pack${packs === 1 ? '' : 's'} (${g.packsInBack} → ${count} in the back). Why?`;
+      $('packCountStep').classList.add('hidden');
+      $('packReasonStep').classList.remove('hidden');
     });
+
+    // Tapping a reason is what removes the packs.
+    document.querySelectorAll('#removeReasons button').forEach((b) => b.addEventListener('click', () => {
+      const { g, count } = dialog;
+      const packs = g.packsInBack - count;
+      const reason = b.dataset.reason;
+      sendChange(b, 'Removing…', 'removeBackStock', { packs, reason },
+        () => `Removed ${packs} pack${packs === 1 ? '' : 's'} of game ${g.gameNumber} (${reason}): ${g.packsInBack} → ${count} in the back.`);
+    }));
 
     // --- Actions ---
 

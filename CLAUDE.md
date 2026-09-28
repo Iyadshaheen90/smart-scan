@@ -41,9 +41,9 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`) a yellow `!`
   shows before the slot name: CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
-- Back stock changes and where they're logged: Shipment and **Add pack** (+) → `Shipments` (counts in the month's
-  "Shipments in"; Add pack rows have source "add pack", owner approved 2026-09-27); Count, Add pack (−) and Remove packs
-  → `ReserveAdjustments` (reason count / adjust / returned, game expired, damaged, stolen, other).
+- Back stock changes and where they're logged: Shipment and **Manage packs** (+) → `Shipments` (counts in the month's
+  "Shipments in"; these rows have source "add pack", owner approved 2026-09-27); Count and Manage packs (−)
+  → `ReserveAdjustments` (reason count / returned, game expired, damaged, stolen, other; "adjust" only from the API).
 - A game's `ReserveInventory` row is also where its price and pack size are remembered, so rows are never deleted.
 - **Game ended** (CA Lottery stopped the game): the owner hides it with `endGame`, allowed only with 0 packs in the
   back and none in a slot. It sets `ReserveInventory.ended_date`; the row stays, carries into each new month, and
@@ -114,9 +114,10 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals
 - `backstock.html` (owner) **Find a game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it); Shipment (adds) or
-  Count (sets) by scanning one ticket per game and entering packs; **Add pack** dialog on every game (− count +,
-  red Cancel / green Save; nothing is sent until Save); **Remove packs** dialog (− count +, reason buttons: returned,
-  game expired, damaged, stolen, other; Remove stays off until a reason is tapped); Game ended / Ended games list
+  Count (sets) by scanning one ticket per game and entering packs; one **Manage packs** dialog on every game (owner
+  2026-09-27: replaced Add pack + Remove packs): − count + with red Cancel / green Save. Save with more packs sends
+  them as a shipment; with fewer it shows "Remove N packs (a → b). Why?" with reason buttons (returned, game expired,
+  damaged, stolen, other), red Cancel and Back, and nothing changes until a reason is tapped; Game ended / Ended games list
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
   Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
@@ -161,8 +162,8 @@ node test/new-month-scenarios.js          # Start New Month against fake Drive/S
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
 node test/browser/offline-close.js        # Close Day with no connection, lost answer, home resend, refusal
 node test/browser/backstock-search.js     # Find a game
-node test/browser/backstock-remove.js     # Remove packs dialog: count, reasons, Cancel, refusal (real backend code, fake sheet)
-node test/browser/backstock-add-pack.js   # Add pack dialog: + / −, Cancel, Save (real backend code, fake sheet)
+node test/browser/backstock-remove.js     # Manage packs, removing: why step, Back, Cancel, reasons, refusal (real backend code, fake sheet)
+node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cancel, Save as shipment (real backend code, fake sheet)
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 
