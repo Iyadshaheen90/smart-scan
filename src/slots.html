@@ -36,6 +36,15 @@
         : 'View only. Packs that sold out are marked during Close Day. Tell the owner when a slot needs a new pack.';
     }
 
+    // CA Lottery settles (charges the store for) a pack 50–60 days after it's activated, sold or not.
+    // From this many days on, the owner sees a yellow mark on the slot so the pack gets pushed.
+    const OLD_PACK_DAYS = 50;
+
+    function daysText(days) {
+      if (days === 0) return 'Activated today';
+      return days === 1 ? '1 day' : `${days} days`;
+    }
+
     const listEl = document.getElementById('list');
     const summaryEl = document.getElementById('summary');
     const boxButtons = document.querySelectorAll('#boxSwitch button');
@@ -63,7 +72,25 @@
         const tag = document.createElement('span');
         tag.className = s.pack ? 'tag live' : 'tag warn';
         tag.textContent = s.pack ? `${s.pack.remaining} left` : 'Out of stock';
-        top.append(name, tag);
+        // Owner only: days since activation in yellow under the tickets left, and a mark on old packs.
+        if (session.role === 'owner' && s.pack && s.pack.daysActive != null) {
+          const stack = document.createElement('div');
+          stack.className = 'tag-stack';
+          const days = document.createElement('span');
+          days.className = 'tag days';
+          days.textContent = daysText(s.pack.daysActive);
+          stack.append(tag, days);
+          if (s.pack.daysActive >= OLD_PACK_DAYS) {
+            const mark = document.createElement('span');
+            mark.className = 'old-mark';
+            mark.textContent = '!';
+            name.prepend(mark);
+            card.title = `Pack out ${s.pack.daysActive} days. CA Lottery settles packs at 50–60 days.`;
+          }
+          top.append(name, stack);
+        } else {
+          top.append(name, tag);
+        }
         card.append(top);
 
         if (s.pack) {

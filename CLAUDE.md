@@ -36,6 +36,11 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Empty slot = "out of stock": adds nothing to sales or inventory; back stock untouched. It shows the packs in back
   of the game last in it (`SlotState.last_game_number`, set when a pack sells out or is returned; falls back to this
   month's PackHistory) on Slots and the slot page (not in Close Day), unless that game has ended.
+- **Days since activation** (owner only, Slots page only; owner's choice 2026-09-27): each live slot shows a yellow
+  "Activated today" / "N days" under its green "N left" (`listSlots` → `pack.daysActive`, from
+  `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`) a yellow `!`
+  shows before the slot name: CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
+  slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
 - Back stock changes and where they're logged: Shipment and **Add pack** (+) → `Shipments` (counts in the month's
   "Shipments in"; Add pack rows have source "add pack", owner approved 2026-09-27); Count, Add pack (−) and Remove packs
   → `ReserveAdjustments` (reason count / adjust / returned, game expired, damaged, stolen, other).
@@ -101,7 +106,7 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `index.html` home (also sends an unsent close, with a banner; button order is the owner's: Close Day, Slots, Back stock &
   shipments, Months & totals, Scanner test, Manage employees, Change my password) · `login.html` · `setup-owner.html` · `account.html` ·
   `users.html` (owner)
-- `slots.html` both boxes · `activate.html?box=&slot=` one slot: end pack, activate, undo, swap, prices, pack size
+- `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo, swap, prices, pack size
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
@@ -159,6 +164,7 @@ node test/browser/backstock-search.js     # Find a game
 node test/browser/backstock-remove.js     # Remove packs dialog: count, reasons, Cancel, refusal (real backend code, fake sheet)
 node test/browser/backstock-add-pack.js   # Add pack dialog: + / −, Cancel, Save (real backend code, fake sheet)
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
+node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"

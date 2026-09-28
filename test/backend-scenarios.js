@@ -321,5 +321,22 @@ run(`removeBackStock(owner, { gameNumber: '2001', packs: 2, reason: 'returned' }
 run(`activatePack(owner, { box: 4, slot: 1, gameNumber: '2001', packNumber: '0000010', ticketNumber: 239 })`);
 assert.equal(run('listBackStock()').find((x) => x.gameNumber === '2001').endedDate, null);
 console.log('game ended scenarios pass');
+
+// ---- Days since activation (CA Lottery settles packs 50–60 days after activation) ----
+{
+  const saved = globalThis.TODAY; const days = () => run('listSlots()').find((x) => x.box === 4 && x.slot === 1).pack.daysActive;
+  const activated = run('listSlots()').find((x) => x.box === 4 && x.slot === 1).pack.activationDate;
+  assert.equal(activated, saved); assert.equal(days(), 0);
+  const plus = (n) => new Date(Date.parse(`${saved}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+  globalThis.TODAY = plus(1); assert.equal(days(), 1);
+  globalThis.TODAY = plus(50); assert.equal(days(), 50);
+  globalThis.TODAY = '2026-11-02'; S.SlotState.rows.find((row) => row[0] === 4 && row[1] === 1)[S.SlotState.rows[0].indexOf('activation_date')] = '2026-10-31';
+  assert.equal(days(), 2); // across the Nov 1 daylight-saving change
+  S.SlotState.rows.find((row) => row[0] === 4 && row[1] === 1)[S.SlotState.rows[0].indexOf('activation_date')] = '';
+  assert.equal(days(), null);
+  assert.equal(run(`daysBetween('2026-09-01', '2026-10-21')`), 50);
+  globalThis.TODAY = saved;
+  console.log('days since activation scenarios pass');
+}
 console.log('back stock scenarios pass');
 console.log('all slot, close and pack-size scenarios pass');

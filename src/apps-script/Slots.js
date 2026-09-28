@@ -27,6 +27,14 @@ function dateLabel(value) {
   return value === '' ? null : String(value);
 }
 
+// Whole days from one yyyy-MM-dd label to another (both read as UTC, so daylight saving can't shift it).
+// null when either label isn't a date, e.g. a slot whose activation_date is empty.
+function daysBetween(fromLabel, toLabel) {
+  const day = (label) => (/^\d{4}-\d{2}-\d{2}$/.test(String(label)) ? Date.parse(`${label}T00:00:00Z`) : NaN);
+  const days = (day(toLabel) - day(fromLabel)) / 86400000;
+  return Number.isFinite(days) ? Math.round(days) : null;
+}
+
 function isSlot(box, slot) {
   return (row) => Number(row.box) === Number(box) && Number(row.slot_number) === Number(slot);
 }
@@ -78,6 +86,8 @@ function listSlots() {
         remaining: Number(s.current_exposed_ticket_number) + 1,
         activationDate: dateLabel(s.activation_date),
         lastCloseDate: dateLabel(s.last_close_date),
+        // Days since activation (0 on the activation day). CA Lottery settles a pack 50–60 days after it.
+        daysActive: daysBetween(dateLabel(s.activation_date), today),
         packsInBack: packsInBack(inBack),
         ticketsPerPack: inBack ? Number(inBack.tickets_per_pack) : null,
         standardPackSize: STANDARD_PACK_SIZES[Number(s.price_per_ticket)] || null,
