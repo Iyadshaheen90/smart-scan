@@ -372,7 +372,7 @@
       button.addEventListener('click', async () => {
         const packs = prompt(`How many packs of game ${g.gameNumber} are leaving the back? (${g.packsInBack} there now)`);
         if (!packs) return;
-        const reason = prompt('Why? Type: returned, damaged, stolen, or other', 'returned');
+        const reason = prompt('Why? Type: returned, game expired, damaged, stolen, or other', 'returned');
         if (!reason) return;
         try {
           stock = await whileBusy(button, '…', () =>

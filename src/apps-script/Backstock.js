@@ -10,7 +10,7 @@
 // A game's price and pack size are entered once; the pack size defaults to the standard one.
 // - Game ended: once CA Lottery stops a game and none is left (back or slots), the owner hides it.
 
-const REMOVE_REASONS = ['returned', 'damaged', 'stolen', 'other'];
+const REMOVE_REASONS = ['returned', 'game expired', 'damaged', 'stolen', 'other'];
 
 // Every game, ended ones included (flagged `ended`, shown apart on the page).
 function listBackStock() {
@@ -111,7 +111,8 @@ function saveBackStock(user, mode, lines, notes) {
 function removeBackStock(user, req) {
   const gameNumber = String(req.gameNumber || '');
   const packs = Number(req.packs);
-  if (!REMOVE_REASONS.includes(req.reason)) throw new ApiError('bad_request', 'Pick a reason.');
+  const reason = req.reason === 'expired' ? 'game expired' : req.reason;
+  if (!REMOVE_REASONS.includes(reason)) throw new ApiError('bad_request', `Pick a reason: ${REMOVE_REASONS.join(', ')}.`);
   if (!Number.isInteger(packs) || packs <= 0) throw new ApiError('bad_count', 'Enter how many packs to remove.');
   return withLock(() => {
     const reserve = findReserve(gameNumber);
@@ -128,7 +129,7 @@ function removeBackStock(user, req) {
       game_number: gameNumber,
       packs_removed: packs,
       tickets_removed: packs * size,
-      reason: req.reason,
+      reason,
       notes: String(req.notes || ''),
       performed_by: user.username,
     });

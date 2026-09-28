@@ -65,8 +65,9 @@ function handle(body) {
   await page.reload(); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length === 2);
   assert.equal(await text('#totals'), '2 packs · $1,000 at ticket price');
   // 5. Removing from the full list still reports at the bottom, and the search box message stays clear.
-  answers = ['1', 'other']; await page.$$eval('#stock .card button', (b) => b.find((x) => x.textContent === 'Remove packs…').click());
+  answers = ['1', 'game expired']; await page.$$eval('#stock .card button', (b) => b.find((x) => x.textContent === 'Remove packs…').click());
   await page.waitForFunction(() => document.querySelector('#stockMessage').textContent !== '');
   assert.match(await text('#stockMessage'), /Removed 1 pack of game 1801/); assert.equal(reserve('1801').packs_in_reserve, 1);
+  assert.equal(S.ReserveAdjustments.rows[S.ReserveAdjustments.rows.length - 1][4], 'game expired');
   console.log('\nREMOVE-FROM-SEARCH CHECKS PASS'); await app.close();
 })().catch((e) => { console.error(e); process.exit(1); });

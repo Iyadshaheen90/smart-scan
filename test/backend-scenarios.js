@@ -264,6 +264,13 @@ assert.equal(code(() => run(`removeBackStock(owner, { gameNumber: '1747', packs:
 assert.equal(code(() => run(`removeBackStock(owner, { gameNumber: '1747', packs: 1, reason: 'lost' })`)), 'bad_request');
 bs = run(`removeBackStock(owner, { gameNumber: '1747', packs: 1, reason: 'damaged', notes: 'wet' })`);
 assert.equal(bs.find((g) => g.gameNumber === '1747').packsInBack, 3);
+// game expired (typed in full or as "expired"), logged as "game expired"
+run(`removeBackStock(owner, { gameNumber: '1747', packs: 1, reason: 'game expired' })`);
+assert.equal(S.ReserveAdjustments.rows[S.ReserveAdjustments.rows.length - 1][4], 'game expired');
+bs = run(`removeBackStock(owner, { gameNumber: '1747', packs: 1, reason: 'expired' })`);
+assert.equal(S.ReserveAdjustments.rows[S.ReserveAdjustments.rows.length - 1][4], 'game expired');
+assert.equal(bs.find((g) => g.gameNumber === '1747').packsInBack, 1);
+run(`saveBackStock(owner, 'shipment', [{ gameNumber: '1747', packs: 2 }])`);   // back to 3 for what follows
 // Add pack dialog: + logs a shipment (counts in the month's Shipments in), − an adjustment
 const shipRows = S.Shipments.rows.length, adjRows = S.ReserveAdjustments.rows.length;
 r = run(`adjustBackStock(owner, { gameNumber: '1747', change: 2 })`);
