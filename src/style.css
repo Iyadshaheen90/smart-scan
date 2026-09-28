@@ -159,3 +159,7 @@ table.days th:first-child, table.days td:first-child { text-align: left; }
 .dialog-buttons button { margin: 0; }
 button.cancel { background: #c62828; border-color: #c62828; color: #ffffff; }
 button.save { background: #1f7a4d; border-color: #1f7a4d; color: #ffffff; }
+.reasons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.reasons button { margin: 0; padding: 12px 8px; font-size: 15px; }
+.reasons button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.dialog-label { font-size: 14px; font-weight: 600; margin-top: 16px; }

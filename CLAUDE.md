@@ -106,7 +106,8 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `backstock.html` (owner) **Find a game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it); Shipment (adds) or
   Count (sets) by scanning one ticket per game and entering packs; **Add pack** dialog on every game (− count +,
-  red Cancel / green Save; nothing is sent until Save); Remove packs; Game ended / Ended games list
+  red Cancel / green Save; nothing is sent until Save); **Remove packs** dialog (− count +, reason buttons: returned,
+  game expired, damaged, stolen, other; Remove stays off until a reason is tapped); Game ended / Ended games list
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
   Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
@@ -151,7 +152,7 @@ node test/new-month-scenarios.js          # Start New Month against fake Drive/S
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
 node test/browser/offline-close.js        # Close Day with no connection, lost answer, home resend, refusal
 node test/browser/backstock-search.js     # Find a game
-node test/browser/backstock-remove.js     # remove packs from a search result (real backend code, fake sheet)
+node test/browser/backstock-remove.js     # Remove packs dialog: count, reasons, Cancel, refusal (real backend code, fake sheet)
 node test/browser/backstock-add-pack.js   # Add pack dialog: + / −, Cancel, Save (real backend code, fake sheet)
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 

@@ -2,7 +2,7 @@
 // nothing left can be ended; Bring back, a delivery or a slot activation brings it back.
 // Run: node test/browser/backstock-game-ended.js
 const assert = require('assert/strict');
-const { openApp, backendInVm } = require('./harness');
+const { openApp, backendInVm, removeInDialog } = require('./harness');
 
 const { ctx, sheets: S, addRow, call } = backendInVm('2026-09-26');
 addRow('ReserveInventory', { game_number: '1747', price_per_ticket: 20, tickets_per_pack: 30, packs_in_reserve: 3, tickets_in_reserve: 90 });
@@ -69,12 +69,12 @@ function handle(body) {
   await search('1718'); assert.match(await text('#searchResults'), /2 packs/);
 
   // 4. A game still in a slot never offers Game ended, even with the back empty; the server refuses it too.
-  answers = ['3', 'returned']; await search('1747'); await page.click('#searchResults .card button:last-child'); await waitMsg('#searchMessage');
+  await search('1747'); await page.click('#searchResults .card button:last-child'); await removeInDialog(page, 3, 'returned'); await waitMsg('#searchMessage');
   assert.match(await text('#searchResults'), /none in the back/); assert.deepEqual(await buttonsIn('#searchResults'), ['Add pack']);
   assert.throws(() => ctx.endGame('1747'), /still in box 1, slot 2/);
 
   // 5. Bring back from the Ended games list at the bottom.
-  await search('1718'); answers = ['2', 'returned']; await page.click('#searchResults .card button:last-child');
+  await search('1718'); await page.click('#searchResults .card button:last-child'); await removeInDialog(page, 2, 'returned');
   await page.waitForFunction(() => /Removed 2/.test(document.querySelector('#searchMessage').textContent));
   await page.click('#searchResults .card button:last-child'); await page.waitForFunction(() => /marked ended/.test(document.querySelector('#searchMessage').textContent));
   await page.$eval('#endedBox', (el) => { el.open = true; }); await page.click('#ended .card button');

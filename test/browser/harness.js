@@ -79,4 +79,12 @@ function backendInVm(today) {
   return { ctx, sheets, addRow, call };
 }
 
-module.exports = { openApp, backendInVm, ABORT, sleep };
+// Back stock's Remove packs dialog, once open: + up to `packs`, tap the reason, tap Remove.
+async function removeInDialog(page, packs, reason) {
+  await page.waitForFunction(() => !document.querySelector('#removeDialog').classList.contains('hidden'));
+  for (let i = 1; i < packs; i += 1) await page.click('#removePlus');
+  await page.click(`#removeReasons button[data-reason="${reason}"]`);
+  await page.click('#removeSave');
+}
+
+module.exports = { openApp, backendInVm, removeInDialog, ABORT, sleep };

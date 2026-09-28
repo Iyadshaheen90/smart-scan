@@ -78,6 +78,32 @@
     </div>
   </div>
 
+  <!-- Remove packs: how many (− count +) and why (tap a reason); nothing changes until Remove. -->
+  <div id="removeDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="removeTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="removeTitle"></div>
+      <div class="dialog-label">Packs to remove</div>
+      <div class="stepper">
+        <button type="button" id="removeMinus" aria-label="One pack less">−</button>
+        <div class="stepper-count" id="removeCount"></div>
+        <button type="button" id="removePlus" aria-label="One pack more">+</button>
+      </div>
+      <div class="slot-detail" id="removeLeft"></div>
+      <div class="dialog-label">Why?</div>
+      <div class="reasons" id="removeReasons">
+        <button type="button" data-reason="returned">Returned</button>
+        <button type="button" data-reason="game expired">Game expired</button>
+        <button type="button" data-reason="damaged">Damaged</button>
+        <button type="button" data-reason="stolen">Stolen</button>
+        <button type="button" data-reason="other">Other</button>
+      </div>
+      <div class="dialog-buttons">
+        <button type="button" class="cancel" id="removeCancel">Cancel</button>
+        <button type="button" class="save" id="removeSave">Remove</button>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
   <script src="barcode.js"></script>
@@ -369,22 +395,63 @@
       button.type = 'button';
       button.className = 'small';
       button.textContent = 'Remove packs…';
-      button.addEventListener('click', async () => {
-        const packs = prompt(`How many packs of game ${g.gameNumber} are leaving the back? (${g.packsInBack} there now)`);
-        if (!packs) return;
-        const reason = prompt('Why? Type: returned, game expired, damaged, stolen, or other', 'returned');
-        if (!reason) return;
-        try {
-          stock = await whileBusy(button, '…', () =>
-            api('removeBackStock', { gameNumber: g.gameNumber, packs: Number(packs), reason: reason.trim().toLowerCase() }));
-          renderStock();
-          showMessage(messageEl, `Removed ${packs} pack${Number(packs) === 1 ? '' : 's'} of game ${g.gameNumber}.`, 'ok');
-        } catch (err) {
-          showMessage(messageEl, err.message);
-        }
-      });
+      button.addEventListener('click', () => openRemoveDialog(g, messageEl));
       return button;
     }
+
+    // --- Remove packs dialog ---
+
+    let removing = null;   // { g, count, reason, messageEl } while open
+
+    function openRemoveDialog(g, messageEl) {
+      removing = { g, count: 1, reason: null, messageEl };
+      $('removeTitle').textContent = `Game ${g.gameNumber} · $${g.price}`;
+      renderRemoveDialog();
+      $('removeDialog').classList.remove('hidden');
+    }
+
+    function renderRemoveDialog() {
+      const { g, count, reason } = removing;
+      const left = g.packsInBack - count;
+      $('removeCount').textContent = count;
+      $('removeMinus').disabled = count <= 1;
+      $('removePlus').disabled = count >= g.packsInBack;
+      $('removeLeft').textContent = `${g.packsInBack} in the back now · ${left} left after`;
+      document.querySelectorAll('#removeReasons button').forEach((b) => b.classList.toggle('active', b.dataset.reason === reason));
+      $('removeSave').disabled = !reason;
+      $('removeSave').textContent = reason ? `Remove ${count}` : 'Pick a reason';
+    }
+
+    function closeRemoveDialog() {
+      removing = null;
+      $('removeDialog').classList.add('hidden');
+    }
+
+    $('removePlus').addEventListener('click', () => { if (removing.count < removing.g.packsInBack) removing.count += 1; renderRemoveDialog(); });
+    $('removeMinus').addEventListener('click', () => { if (removing.count > 1) removing.count -= 1; renderRemoveDialog(); });
+    document.querySelectorAll('#removeReasons button').forEach((b) => b.addEventListener('click', () => {
+      removing.reason = b.dataset.reason;
+      renderRemoveDialog();
+    }));
+    $('removeCancel').addEventListener('click', closeRemoveDialog);
+    $('removeSave').addEventListener('click', async () => {
+      const { g, count, reason, messageEl } = removing;
+      if (!reason) return;
+      const locked = [$('removeCancel'), $('removePlus'), $('removeMinus'), ...document.querySelectorAll('#removeReasons button')];
+      locked.forEach((b) => { b.disabled = true; });
+      try {
+        stock = await whileBusy($('removeSave'), 'Removing…', () =>
+          api('removeBackStock', { gameNumber: g.gameNumber, packs: count, reason }));
+        closeRemoveDialog();
+        renderStock();
+        showMessage(messageEl, `Removed ${count} pack${count === 1 ? '' : 's'} of game ${g.gameNumber} (${reason}).`, 'ok');
+      } catch (err) {
+        closeRemoveDialog();
+        showMessage(messageEl, err.message);
+      } finally {
+        locked.forEach((b) => { b.disabled = false; });
+      }
+    });
 
     // --- Add pack dialog ---
 
