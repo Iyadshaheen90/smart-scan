@@ -99,8 +99,10 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Scan feedback (`haptic()` in scanner.js): Android vibrates (double for a scan that wasn't saved). **iPhone** Safari has no
   `navigator.vibrate` and buzzes only when a *finger* flips an `<input type=checkbox switch>`: the app clicking one does
   nothing (owner's iPhone, iOS 18, tested 2026-09-29 in Safari and the home-screen app). So every Press and hold button is
-  `<label class="button hold-button">`; `prepareHoldButton` puts a hidden, disabled switch in it (text in a span — never set
-  the label's textContent). A scan during the hold enables it, and the finger lifting flips it = the buzz; no scan, no buzz.
+  `<label class="button hold-button">`; `prepareHoldButton` puts a hidden switch in it (text in a span — never set the
+  label's textContent). The finger lifting flips it = the buzz. It must be enabled when the finger goes down: enabling it
+  mid-hold, or a click handler on the label, killed the buzz (owner's Scanner test A–G, 2026-09-29). So a release with no
+  scan disables it for that one click (re-enabled 100 ms later); no scan, no buzz.
   A refused scan also plays two low beeps; with no held button (Auto scan, typed number) iPhone gets beeps (Web Audio,
   unlocked on the first press, `audioSession.type = 'playback'` so the silent switch doesn't mute it).
 - Close Day's camera and Press and hold button never move between scans, and the progress bar, slot card with Sold out /

@@ -69,6 +69,7 @@
     <label class="hold-button switch-button" data-test="text"><input type="checkbox" switch class="finger-switch"><span>D. Text changes while held</span></label>
     <label class="hold-button switch-button" data-test="all"><input type="checkbox" switch class="finger-switch"><span>E. All of A–D (like the scan button)</span></label>
     <label class="hold-button switch-button" data-test="block"><input type="checkbox" switch class="finger-switch">F. Only buzzes if held 1 second (tap: no buzz)</label>
+    <label class="hold-button switch-button" data-test="final"><input type="checkbox" switch class="finger-switch"><span>G. Like the scan button now: hold 1 second = buzz, quick tap = none</span></label>
     <button type="button" id="beepOk">Beep: scan saved</button>
     <button type="button" id="beepError">Beep: scan not saved</button>
   </div>
@@ -124,7 +125,7 @@
       let heldLongEnough = false;
       if (test === 'enable' || test === 'all') input.disabled = true;
       btn.addEventListener('pointerdown', (e) => {
-        if (test === 'capture' || test === 'all') btn.setPointerCapture(e.pointerId);
+        if (test === 'capture' || test === 'all' || test === 'final') btn.setPointerCapture(e.pointerId);
         if (test === 'enable' || test === 'all') input.disabled = true;
         if (text) text.textContent = 'Scanning…';
         heldLongEnough = false;
@@ -135,10 +136,15 @@
           if (text) text.textContent = 'Got it — release';
         }, 1000);
       });
-      const up = () => { clearTimeout(timer); if (text) setTimeout(() => { text.textContent = original; }, 50); };
+      const up = () => {
+        clearTimeout(timer);
+        if (text) setTimeout(() => { text.textContent = original; }, 50);
+        // G: the scan button's way (scanner.js) — off only for a lift without a "scan".
+        if (test === 'final' && !heldLongEnough) { input.disabled = true; setTimeout(() => { input.disabled = false; }, 100); }
+      };
       btn.addEventListener('pointerup', up);
       btn.addEventListener('pointercancel', up);
-      if (test === 'menu' || test === 'all') btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      if (test === 'menu' || test === 'all' || test === 'final') btn.addEventListener('contextmenu', (e) => e.preventDefault());
       if (test === 'block') btn.addEventListener('click', (e) => { if (!heldLongEnough) e.preventDefault(); });
     });
     document.getElementById('beepOk').addEventListener('click', () => beep(1800, 90));

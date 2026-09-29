@@ -21,9 +21,11 @@ const SAME_TICKET_GONE_MS = 1000;
 //
 // iPhones have no navigator.vibrate, and Safari buzzes only when a finger itself flips a switch-style
 // checkbox (the app flipping one does nothing; tested on the owner's iPhone, iOS 18, 2026-09-29). So the
-// "Press and hold" button is a <label> around a hidden switch: a scan while it's held turns the switch on
-// (enabled), and the finger lifting then flips it — that's the buzz. With no scan it stays disabled, so
-// letting go buzzes nothing. Where there's no held button (Auto scan, a typed number) an iPhone gets beeps.
+// "Press and hold" button is a <label> around a hidden switch, and the finger lifting flips it — that's the
+// buzz. The switch must already be on (enabled) when the finger goes down: turning it on mid-hold, or a click
+// handler on the label, stopped the buzz (owner's tests A–F). So it stays enabled, and a release with no scan
+// turns it off just for that lift, so nothing flips. Where there's no held button (Auto scan, a typed number)
+// an iPhone gets beeps.
 let holdSwitch = null;     // the hidden switch in the button being held, or null
 let pendingKind = null;    // 'ok' / 'error' from a scan during this hold
 
@@ -33,15 +35,20 @@ export function haptic(kind = 'ok') {
     return;
   }
   if (holdSwitch) {
-    holdSwitch.disabled = false;
     if (kind === 'error' || !pendingKind) pendingKind = kind;
     return;
   }
   beep(kind);
 }
 
-// Runs as the finger lifts (a touch, so iOS lets sound start); the buzz itself comes from the switch flipping.
+// Runs as the finger lifts, just before the label's click flips the switch (the buzz). No scan: the switch is
+// off for this click and back on right after, well before the next press.
 function finishHold() {
+  if (holdSwitch && !pendingKind) {
+    const input = holdSwitch;
+    input.disabled = true;
+    setTimeout(() => { input.disabled = false; }, 100);
+  }
   if (pendingKind === 'error') beep('error');
   pendingKind = null;
   holdSwitch = null;
@@ -91,7 +98,6 @@ function prepareHoldButton(holdBtn) {
   input.setAttribute('switch', '');
   input.className = 'hold-switch';
   input.tabIndex = -1;
-  input.disabled = true;
   input.setAttribute('aria-hidden', 'true');
   holdBtn.replaceChildren(input, text);
   return { setText: (t) => { text.textContent = t; }, input };
@@ -123,8 +129,6 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     holdBtn.setPointerCapture(e.pointerId);
     holding = true;
     done = false;
-    // Off until a scan lands, so letting go without one doesn't buzz.
-    if (hold.input) hold.input.disabled = true;
     holdSwitch = hold.input;
     pendingKind = null;
     holdBtn.classList.add('holding');

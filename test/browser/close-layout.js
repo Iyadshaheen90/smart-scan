@@ -95,6 +95,8 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
   const btn = await app.page.$eval('#holdBtn', (b) => { b.scrollIntoView(); const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const flips = () => app.page.$eval('#holdBtn .hold-switch', (i) => i.checked);
   const press = async (during) => {
+    // iOS buzzes only if the switch is already on when the finger goes down (owner's test C).
+    assert.equal(await app.page.$eval('#holdBtn .hold-switch', (i) => i.disabled), false, 'switch on at press start');
     await app.page.mouse.move(btn.x, btn.y);
     await app.page.mouse.down();
     if (during) await app.page.evaluate(during);
