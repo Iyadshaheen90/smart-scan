@@ -26,7 +26,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   outside Close Day is owner-only (owner's choice 2026-09-25: one place to mark sold out, fewer mis-taps).
 - Owner: activate packs, returns, all undos, slot prices, pack sizes, move/swap, back stock (including its
   **Find a game** search and **Game ended**; owner's choice 2026-09-26: no employee version), reopen a close,
-  months, employees.
+  months, employees, the Settling list.
 - Employees never see dollar totals (`summaryFor` strips them).
 
 **Inventory**
@@ -41,6 +41,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`, api.js) a yellow `!`
   shows before the slot name: CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
+  The same packs (50+ days) are listed on the owner's **Settling** page, red from day 60 (owner approved 2026-09-29).
 - Back stock changes and where they're logged: Shipment received (source "delivery") and **Manage packs** (+) (source
   "add pack", owner approved 2026-09-27) → `Shipments` (both count in the month's "Shipments in"); Count and Manage packs (−)
   → `ReserveAdjustments` (reason count / returned, game expired, damaged, stolen, other; "adjust" only from the API).
@@ -108,7 +109,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports · More; employee Home · Slots · More.
   The slot page (`activate.html`) has a back link instead of the tab bar; login/setup have no tab bar. `icons.js` inline
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
-  `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`.
+  `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
+  `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
 - `index.html` home (also sends an unsent close, with a banner). Owner: status card (Not closed / Closed chip, big number = last
   close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), Close Day
   button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
