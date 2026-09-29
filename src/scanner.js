@@ -196,8 +196,8 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     requestAnimationFrame(loop);
   }
 
-  try {
-    await prepareZXingModule({ fireImmediately: true });
+  // Opens the camera into the video (again, if iOS has stopped it).
+  async function openCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -210,7 +210,39 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     if (caps.focusMode && caps.focusMode.includes('continuous')) {
       track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
     }
+  }
+
+  // iOS pauses the camera video while a pop-up (confirm, e.g. "Clear all scans?" or Sold out) is open or the
+  // app is in the background, and doesn't start it again, so the picture froze. This restarts it — or reopens
+  // the camera if it was shut — whenever the scanner is on screen. A page that closes the camera for good hides
+  // it first (e.g. Close Day once closed), so it isn't reopened.
+  let reviving = false;
+  async function keepCameraRunning() {
+    if (reviving || document.hidden || !video.isConnected || !video.offsetParent) return;
+    const stream = video.srcObject;
+    const live = stream && stream.getVideoTracks().some((t) => t.readyState === 'live');
+    if (live && !video.paused) return;
+    reviving = true;
+    try {
+      if (live) await video.play();
+      else await openCamera();
+    } catch (e) {
+      // Tried again on the next check or tap.
+    } finally {
+      reviving = false;
+    }
+  }
+
+  try {
+    await prepareZXingModule({ fireImmediately: true });
+    await openCamera();
     onStatus('');
+    video.addEventListener('pause', () => setTimeout(keepCameraRunning, 300));
+    document.addEventListener('visibilitychange', keepCameraRunning);
+    window.addEventListener('focus', keepCameraRunning);
+    window.addEventListener('pageshow', keepCameraRunning);
+    holdBtn.addEventListener('pointerdown', keepCameraRunning);
+    setInterval(keepCameraRunning, 1000);
     loop();
   } catch (err) {
     onStatus('Camera not available (' + err + '). Type the ticket number instead.');

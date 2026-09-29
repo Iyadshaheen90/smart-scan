@@ -96,6 +96,10 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 **Scanning**
 - Press-and-hold is the default everywhere; Auto scan is an opt-in toggle (Close Day remembers it per phone).
 - Every scan screen also accepts the typed printed number (`parsePrintedTicket`).
+- The camera restarts itself (`keepCameraRunning` in scanner.js): iOS pauses the video while a confirm pop-up is open
+  (e.g. Clear all scans, Sold out) or the app is in the background and never resumes it, which froze the picture (owner's
+  bug 2026-09-29). Checked every second and on pause/focus/visibility/press: paused → `play()`, camera shut → reopened.
+  It only acts while the video is on screen, so a page that hides it after `stopCamera()` (Close Day once closed) stays off.
 - Scan feedback (`haptic()` in scanner.js; owner 2026-09-29): every saved scan buzzes + one short high beep; a scan that
   wasn't saved buzzes (Android: double) + two low beeps. The scanner reports each read as ok and the page may then report
   'error' for it, so reports are merged into one (played on the finger lift while held, else on a 0 ms timer). **iPhone** Safari has no
@@ -217,6 +221,7 @@ node test/browser/slots-days.js           # Slots: days since activation + day-5
 node test/browser/home.js                 # home for both roles: one request, saved numbers first, tiles, chips, Start month, huge numbers fit
 node test/browser/saved-pages.js          # Slots, Settling, Back stock, Months: saved answer first (dimmed, locked), then fresh
 node test/browser/close-layout.js         # Close Day: button stays put and progress→button fit on screen through every kind of scan; buzzes
+node test/browser/camera-revive.js        # camera un-freezes after Clear all / a pause / being shut off; stays off once closed
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
