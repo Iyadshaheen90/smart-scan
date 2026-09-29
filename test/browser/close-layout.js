@@ -99,6 +99,21 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
     return { clicks: window.switchClicks, left: document.querySelectorAll('input[switch]').length };
   });
   assert.deepEqual(clicks, { clicks: 3, left: 0 }, 'iPhone taps, nothing left behind');
+  // During Press and hold the tap waits for the finger to lift (iOS only allows it as part of a touch).
+  const box = await app.page.$eval('#holdBtn', (b) => { b.scrollIntoView(); const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await app.page.evaluate(() => { window.switchClicks = 0; });
+  await app.page.mouse.move(box.x, box.y);
+  await app.page.mouse.down();
+  const whileHeld = await app.page.evaluate(async () => {
+    const { haptic } = await import('./scanner.js');
+    haptic(); haptic('error');
+    return window.switchClicks;
+  });
+  await app.page.mouse.up(); await sleep(300);
+  assert.equal(whileHeld, 0, 'no tap while the finger is down');
+  assert.equal(await app.page.evaluate(() => window.switchClicks), 2, 'two taps (scan not saved) when it lifts');
+  await app.page.mouse.down(); await app.page.mouse.up(); await sleep(300);
+  assert.equal(await app.page.evaluate(() => window.switchClicks), 2, 'nothing left over for the next press');
   await app.close();
   console.log('CLOSE LAYOUT CHECKS PASS');
 })().catch((e) => { console.error(e); process.exit(1); });

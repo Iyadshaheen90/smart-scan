@@ -97,7 +97,9 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Press-and-hold is the default everywhere; Auto scan is an opt-in toggle (Close Day remembers it per phone).
 - Every scan screen also accepts the typed printed number (`parsePrintedTicket`).
 - A scan buzzes (`haptic()` in scanner.js; two buzzes for a Close Day scan that wasn't saved). iPhones have no
-  `navigator.vibrate`, so it clicks a hidden `<input type=checkbox switch>` instead (Safari haptic, iOS 18+).
+  `navigator.vibrate`, so it clicks a hidden `<input type=checkbox switch>` instead (Safari haptic, iOS 18+). iOS allows that
+  only as part of a touch, so while Press and hold is down the taps wait and play on the finger lift (`release`). The first
+  version (tap right at the scan) gave the owner nothing (2026-09-29). Scanner test has Test vibration buttons + iOS version.
 - Close Day's camera and Press and hold button never move between scans, and the progress bar, slot card with Sold out /
   Skip, camera and button all fit on an iPhone screen at once (owner 2026-09-29). So the scan message sits on the camera
   picture above the guide box (`.scan-flash`, text shrinks to fit), the current-slot card lines have fixed heights (the

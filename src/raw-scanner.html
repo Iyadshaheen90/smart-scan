@@ -53,6 +53,10 @@
   <button id="scanPhotoBtn">Scan from photo</button>
   <input type="file" id="fileInput" accept="image/*" style="display:none;">
   <button id="clearBtn">Clear log</button>
+  <!-- Checks the scan buzz on this phone: one tap, then two (a scan that wasn't saved). -->
+  <button id="buzzBtn">Test vibration</button>
+  <button id="buzzTwiceBtn">Test vibration: scan not saved</button>
+  <div id="buzzInfo" class="sub"></div>
 
   <div id="log"></div>
 
@@ -68,6 +72,14 @@
     // zxing-wasm is the ZXing C++ engine compiled to WebAssembly. It decodes these tickets'
     // ITF barcodes reliably; html5-qrcode (ZXing-js) never managed to, even on sharp photos.
     import { readBarcodes, prepareZXingModule } from 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/es/reader/index.js';
+    import { haptic } from './scanner.js';
+
+    // What this phone offers for the scan buzz, so a missing buzz can be told apart from a phone that has none.
+    document.getElementById('buzzInfo').textContent = navigator.vibrate
+      ? 'This phone vibrates (Android-style).'
+      : `No standard vibration here (iPhone): using the iOS switch tap, which needs iOS 18 or later. ${navigator.userAgent.match(/OS (\d+)[_\d]* like Mac OS X/) ? `This phone: iOS ${navigator.userAgent.match(/OS (\d+)[_\d]* like Mac OS X/)[1]}.` : ''}`;
+    document.getElementById('buzzBtn').addEventListener('click', () => haptic());
+    document.getElementById('buzzTwiceBtn').addEventListener('click', () => haptic('error'));
 
     const statusEl = document.getElementById('status');
     const logEl = document.getElementById('log');
@@ -116,7 +128,7 @@
 
       viewport.classList.add('hit');
       setTimeout(() => viewport.classList.remove('hit'), 400);
-      if (navigator.vibrate) navigator.vibrate(80);
+      haptic();
     }
 
     function escapeHtml(str) {

@@ -18,14 +18,35 @@ const SAME_TICKET_GONE_MS = 1000;
 
 // A buzz when a ticket is scanned: one short one, or two for a scan that wasn't saved ('error').
 // iPhones don't support navigator.vibrate, but Safari (iOS 18 and later) gives a haptic tap when
-// a switch-style checkbox is toggled, so a hidden one is clicked there instead.
+// a switch-style checkbox is toggled, so a hidden one is clicked there instead. iOS only allows that
+// as the direct result of a touch, and a Press and hold scan lands while the finger is still down,
+// so while the button is held the taps wait and play when the finger lifts (still that touch).
+let holdingAny = false;
+let waitingTaps = 0;
+
 export function haptic(kind = 'ok') {
+  const taps = kind === 'error' ? 2 : 1;
   if (navigator.vibrate) {
-    navigator.vibrate(kind === 'error' ? [120, 60, 120] : 80);
+    navigator.vibrate(taps === 2 ? [120, 60, 120] : 80);
     return;
   }
+  if (holdingAny) {
+    waitingTaps = Math.max(waitingTaps, taps);
+    return;
+  }
+  playTaps(taps);
+}
+
+// Called from the finger-lift handler, which iOS counts as the touch.
+function playWaitingTaps() {
+  const taps = waitingTaps;
+  waitingTaps = 0;
+  if (taps) playTaps(taps);
+}
+
+function playTaps(taps) {
   iosTap();
-  if (kind === 'error') setTimeout(iosTap, 180);
+  if (taps === 2) setTimeout(iosTap, 180);
 }
 
 function iosTap() {
@@ -66,12 +87,16 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   holdBtn.addEventListener('pointerdown', (e) => {
     holdBtn.setPointerCapture(e.pointerId);
     holding = true;
+    holdingAny = true;
+    waitingTaps = 0;
     done = false;
     holdBtn.classList.add('holding');
     holdBtn.textContent = 'Scanning…';
   });
   const release = () => {
     holding = false;
+    holdingAny = false;
+    playWaitingTaps();
     holdBtn.classList.remove('holding');
     holdBtn.textContent = 'Press and hold to scan';
   };
