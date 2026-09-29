@@ -105,10 +105,11 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   'error' for it, so reports are merged into one (played on the finger lift while held, else on a 0 ms timer). **iPhone** Safari has no
   `navigator.vibrate` and buzzes only when a *finger* flips an `<input type=checkbox switch>`: the app clicking one does
   nothing (owner's iPhone, iOS 18, tested 2026-09-29 in Safari and the home-screen app). So every Press and hold button is
-  `<label class="button hold-button">`; `prepareHoldButton` puts a hidden switch in it (text in a span — never set the
+  `<label class="button hold-button">`; `holdFeedback` → `prepareHoldButton` puts a hidden switch in it (text in a span — never set the
   label's textContent). The finger lifting flips it = the buzz. It must be enabled when the finger goes down: enabling it
   mid-hold, or a click handler on the label, killed the buzz (owner's Scanner test A–G, 2026-09-29). So a release with no
-  scan disables it for that one click (re-enabled 100 ms later); no scan, no buzz.
+  scan disables it for that one click (re-enabled 100 ms later); no scan, no buzz. The beep's sound setting doesn't
+  affect the buzz (tests H–J).
   Pages must not change the screen while Press and hold is down: Close Day redrawing mid-hold stopped the buzz (Back
   stock, which waits, buzzed). So scan results decide saved/refused (`haptic`) at once but draw via `afterLift(holdBtn, fn)`
   (scanner.js), just after the finger lifts (Close Day, slot page; Back stock has its own `whenHandsFree`).
@@ -171,7 +172,8 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
   Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
-- `raw-scanner.html`, `backend-test.html` dev/test pages
+- `raw-scanner.html` Scanner test (dev) plus the iPhone vibration/sound test buttons 5–8 and A–K (K = the real
+  `holdFeedback` code); owner wants them kept for now · `backend-test.html` dev page
 
 Backend (`src/apps-script/`, pushed with clasp; all files share one global scope):
 - `WebApp.js` `doPost` router: `PUBLIC_ACTIONS`, `SIGNED_IN_ACTIONS` (`owner: true` = owner only); `doGet` health check
