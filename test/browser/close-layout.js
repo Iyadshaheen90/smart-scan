@@ -133,6 +133,19 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
   await app.page.type('#typed', '9999-0000001-6-010'); await app.page.click('#typedForm button'); await sleep(200);
   assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300]);
   assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and hold to scan', 'text kept, switch not wiped');
+  // A scan while the button is held: saved at once, but the screen changes only after the finger lifts (changing the
+  // page during the hold stopped the buzz on the owner's iPhone).
+  await app.page.evaluate(() => { window.tones = []; });
+  const progress = () => app.page.$eval('#progressText', (e) => e.textContent);
+  const beforeScan = await progress();
+  await app.page.mouse.move(btn.x, btn.y);
+  await app.page.mouse.down();
+  await app.page.evaluate(() => { document.getElementById('typed').value = '1747-1263622-4-035'; document.getElementById('typedForm').requestSubmit(); });
+  await sleep(300);
+  assert.equal(await progress(), beforeScan, 'no screen change while held');
+  await app.page.mouse.up(); await sleep(400);
+  assert.notEqual(await progress(), beforeScan, 'screen updated after the lift');
+  assert.match(await app.page.$eval('#flash', (e) => e.textContent), /Box 1 · Slot 1: 5 sold/);
   assert.equal(await app.page.$$eval('#holdBtn .hold-switch', (e) => e.length), 1);
   await app.close();
   console.log('CLOSE LAYOUT CHECKS PASS');

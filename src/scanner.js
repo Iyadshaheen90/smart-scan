@@ -106,6 +106,24 @@ function prepareHoldButton(holdBtn) {
   return { setText: (t) => { text.textContent = t; }, input };
 }
 
+// A Press and hold scan lands while the finger is still on the button. On the owner's iPhone, changing the page
+// then (Close Day's slot card, progress, list, message) stopped the buzz the finger lifting plays, while Back
+// stock, which waits for the lift, buzzed (2026-09-29). So pages run their screen changes through this: at once
+// when the button isn't held, else just after the lift (after the buzz). Decide saved/refused (haptic) at once.
+export function afterLift(holdBtn, fn) {
+  if (!holdBtn || !holdBtn.classList.contains('holding')) { fn(); return; }
+  let ran = false;
+  const go = () => {
+    if (ran) return;
+    ran = true;
+    holdBtn.removeEventListener('pointerup', go);
+    holdBtn.removeEventListener('pointercancel', go);
+    setTimeout(fn, 150);
+  };
+  holdBtn.addEventListener('pointerup', go);
+  holdBtn.addEventListener('pointercancel', go);
+}
+
 // The buzz wiring for a Press and hold <label> (hidden switch, and which scan the lift plays). Used by
 // startScanner, and by Scanner test's K button so the phone can check this exact code on its own.
 export function holdFeedback(holdBtn) {

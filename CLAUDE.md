@@ -109,6 +109,9 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   label's textContent). The finger lifting flips it = the buzz. It must be enabled when the finger goes down: enabling it
   mid-hold, or a click handler on the label, killed the buzz (owner's Scanner test A–G, 2026-09-29). So a release with no
   scan disables it for that one click (re-enabled 100 ms later); no scan, no buzz.
+  Pages must not change the screen while Press and hold is down: Close Day redrawing mid-hold stopped the buzz (Back
+  stock, which waits, buzzed). So scan results decide saved/refused (`haptic`) at once but draw via `afterLift(holdBtn, fn)`
+  (scanner.js), just after the finger lifts (Close Day, slot page; Back stock has its own `whenHandsFree`).
   With no held button (Auto scan, typed number) an iPhone gets the beeps only (Web Audio, unlocked on the first press,
   `audioSession.type = 'playback'` so the silent switch doesn't mute it).
 - Close Day's camera and Press and hold button never move between scans, and the progress bar, slot card with Sold out /

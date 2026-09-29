@@ -87,7 +87,7 @@
   <script src="nav.js"></script>
   <script src="barcode.js"></script>
   <script type="module">
-    import { startScanner, haptic } from './scanner.js';
+    import { startScanner, haptic, afterLift } from './scanner.js';
 
     // Scans are kept on this phone until Submit, so they're instant and survive a reload or a
     // dropped connection. The server checks everything again when the close is submitted.
@@ -154,6 +154,9 @@
       return null;
     }
 
+    // Screen changes from a Press and hold scan wait for the finger to lift (see afterLift in scanner.js).
+    const afterRelease = (fn) => afterLift($('holdBtn'), fn);
+
     function record(slot, entry, note) {
       entries[keyOf(slot)] = { packKey: packKeyOf(slot), ...entry };
       saveDraft();
@@ -161,9 +164,11 @@
       const what = entry.type === 'sold_out' ? `sold out (${entry.sold} sold)`
         : `${entry.sold} sold`;
       const large = entry.sold >= status.largeSaleTickets ? ' — that is a lot, double-check it' : '';
-      flash(`${where}: ${what} ✓${note || ''}${large}`, large ? 'error' : 'ok');
       currentKey = nextOpen(keyOf(slot));
-      render();
+      afterRelease(() => {
+        flash(`${where}: ${what} ✓${note || ''}${large}`, large ? 'error' : 'ok');
+        render();
+      });
     }
 
     // Shown on the camera picture; a message too long for its space gets smaller text instead of being cut off.
@@ -179,13 +184,13 @@
       const slot = live.find((s) => s.pack.gameNumber === ticket.gameNumber && s.pack.packNumber === ticket.packNumber);
       if (!slot) {
         haptic('error');
-        flash(`Pack ${ticket.gameNumber}-${ticket.packNumber} isn't in any slot. Not saved.`, 'error');
+        afterRelease(() => flash(`Pack ${ticket.gameNumber}-${ticket.packNumber} isn't in any slot. Not saved.`, 'error'));
         return;
       }
       const exposed = slot.pack.exposedTicket;
       if (ticket.ticketNumber > exposed) {
         haptic('error');
-        flash(`Ticket ${pad3(ticket.ticketNumber)} is above the last top ticket (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error');
+        afterRelease(() => flash(`Ticket ${pad3(ticket.ticketNumber)} is above the last top ticket (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error'));
         return;
       }
       const elsewhere = currentKey && keyOf(slot) !== currentKey ? ` (it belongs to box ${slot.box} · slot ${slot.slot})` : '';
@@ -454,7 +459,7 @@
         viewport: $('viewport'),
         holdBtn: $('holdBtn'),
         mode,
-        onStatus: (text) => (text ? flash(text, 'error') : null),
+        onStatus: (text) => (text ? afterRelease(() => flash(text, 'error')) : null),
         onScan: useTicket,
       });
       setMode(mode);
