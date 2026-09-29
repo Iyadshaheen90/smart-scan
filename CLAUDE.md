@@ -38,7 +38,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   month's PackHistory) on Slots and the slot page (not in Close Day), unless that game has ended.
 - **Days since activation** (owner only, Slots page only; owner's choice 2026-09-27): each live slot shows a yellow
   "Activated today" / "N days" under its green "N left" (`listSlots` → `pack.daysActive`, from
-  `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`) a yellow `!`
+  `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`, api.js) a yellow `!`
   shows before the slot name: CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
 - Back stock changes and where they're logged: Shipment received (source "delivery") and **Manage packs** (+) (source
@@ -112,9 +112,13 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `index.html` home (also sends an unsent close, with a banner). Owner: status card (Not closed / Closed chip, big number = last
   close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), Close Day
   button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
-  month), Scanner test, Manage employees row. Employee: status card (Ready to scan / Day closed + submitted by) and a big
+  month), Settling (packs live 50+ days, amber when any), Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
   Scan tickets button → Close Day; no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
+- `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
+  from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
+  `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page.
+  Icon `settle` (handshake under a $ coin) in icons.js.
 - `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo; then (owner's order) slot price, pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
@@ -182,6 +186,7 @@ node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 node test/browser/home.js                 # home for both roles: last close, tiles, chips, tab bars, huge numbers fit
+node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"

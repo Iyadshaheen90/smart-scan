@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Settling</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Settling"></header>
+  <p class="sub">Packs live in a slot 50 days or more. CA Lottery settles (charges the store for) a pack 50–60 days after
+    it's activated, sold or not, so these are worth pushing. A pack leaves this list when it sells out or is returned.</p>
+
+  <div class="status-card" id="totals">
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs</div></div>
+      <div class="stat"><div class="stat-value fit" id="ticketCount">…</div><div class="stat-label">Tickets left</div></div>
+      <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Value left</div></div>
+    </div>
+    <div class="legend">
+      <span><span class="chip amber">50–59 days</span> settles soon</span>
+      <span><span class="chip red">60+ days</span> most likely settled</span>
+    </div>
+  </div>
+
+  <div id="list"></div>
+  <div id="message" class="message"></div>
+
+  <nav class="tabbar" data-active=""></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin('owner');
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+
+    // "2026-08-01" -> "Aug 1"; nothing for a missing date.
+    function shortDate(label) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(label || '');
+      if (!m) return '';
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function el(tag, className, text) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+
+    function stat(value, label) {
+      const box = el('div', 'stat');
+      box.append(el('div', 'stat-value fit', value), el('div', 'stat-label', label));
+      return box;
+    }
+
+    // One card per pack; tapping it opens that slot (to mark it sold out or returned, for example).
+    function packCard(s) {
+      const p = s.pack;
+      const card = el('a', 'card settle-card');
+      card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
+      const top = el('div', 'row');
+      top.append(el('span', 'slot-num', `Box ${s.box} · Slot ${s.slot}`),
+        el('span', `chip ${p.daysActive >= SETTLED_PACK_DAYS ? 'red' : 'amber'}`, `${p.daysActive} days`));
+      const ids = el('div', 'slot-detail mono', `Game ${p.gameNumber} · Pack ${p.packNumber}`);
+      const stats = el('div', 'stat-grid');
+      stats.append(stat(money(p.price), 'Ticket price'), stat(String(p.remaining), 'Tickets left'),
+        stat(money(p.remaining * p.price), 'Value left'));
+      const dates = [`Activated ${shortDate(p.activationDate)}`];
+      if (shortDate(p.lastCloseDate)) dates.push(`left as of the ${shortDate(p.lastCloseDate)} close`);
+      card.append(top, ids, stats, el('div', 'slot-detail', dates.join(' · ')));
+      return card;
+    }
+
+    async function load() {
+      try {
+        const packs = settlingPacks(await api('listSlots'));
+        $('packCount').textContent = String(packs.length);
+        $('ticketCount').textContent = packs.reduce((sum, s) => sum + s.pack.remaining, 0).toLocaleString('en-US');
+        $('dollarCount').textContent = money(packs.reduce((sum, s) => sum + s.pack.remaining * s.pack.price, 0));
+        const list = $('list');
+        list.innerHTML = '';
+        if (packs.length === 0) list.append(el('p', 'sub', 'No pack has been live 50 days or more.'));
+        packs.forEach((s) => list.append(packCard(s)));
+        fitNumbers();
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    }
+    if (session) load();
+  </script>
+</body>
+</html>

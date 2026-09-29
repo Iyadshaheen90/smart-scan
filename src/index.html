@@ -50,7 +50,8 @@
         <span>Back stock &amp; shipments<span class="tile-stat"><span class="tile-num fit" id="backValue">…</span><span class="tile-sub">in the back</span></span></span></a>
       <a class="tile-card" href="month.html"><span class="icon-box" data-icon="chart"></span>
         <span>Months &amp; totals<span class="tile-stat"><span class="tile-num fit" id="monthDollars">…</span><span class="tile-sub">sold this month</span></span></span></a>
-      <a class="tile-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span>Scanner test</a>
+      <a class="tile-card" href="settling.html"><span class="icon-box" data-icon="settle"></span>
+        <span>Settling<span class="tile-stat"><span class="tile-num fit" id="settlingCount">…</span><span class="tile-sub">live 50+ days</span></span></span></a>
     </div>
     <a class="list-card" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage employees</span><span class="chev" data-icon="chevronRight"></span></a>
   </div>
@@ -135,12 +136,16 @@
           setNumber('liveSlots', String(live.length));
           // Tickets left in the slots × price: what's on display as of the last close (plus packs put in since).
           setNumber('liveValue', money(live.reduce((sum, s) => sum + (Number(s.pack.remaining) || 0) * (Number(s.pack.price) || 0), 0)));
+          // Packs CA Lottery settles soon or already has (Settling page); amber when there are any.
+          const settling = settlingPacks(status.slots).length;
+          setNumber('settlingCount', `${settling} ${settling === 1 ? 'pack' : 'packs'}`);
+          $('settlingCount').classList.toggle('amber', settling > 0);
           if (status.closed) {
             showLastClose(status.closed, true);
             return;
           }
         } catch (err) {
-          setNumber('liveSlots', '—'); setNumber('liveValue', '—');
+          setNumber('liveSlots', '—'); setNumber('liveValue', '—'); setNumber('settlingCount', '—');
         }
         try {
           const day = await lastCall;

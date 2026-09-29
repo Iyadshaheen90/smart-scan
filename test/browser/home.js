@@ -4,8 +4,9 @@
 const assert = require('assert/strict');
 const { openApp, sleep } = require('./harness');
 
-const live = (slot, remaining = 10) => ({ box: 1, slot, slotPrice: 20, pack: { gameNumber: '1747', packNumber: String(1000000 + slot), price: 20, remaining } });
-const slots = [live(1), live(2), live(3), { box: 1, slot: 4, slotPrice: 10, pack: null }];
+const live = (slot, remaining = 10, daysActive = 3) => ({ box: 1, slot, slotPrice: 20,
+  pack: { gameNumber: '1747', packNumber: String(1000000 + slot), price: 20, remaining, daysActive } });
+const slots = [live(1), live(2, 10, 50), live(3, 10, 70), { box: 1, slot: 4, slotPrice: 10, pack: null }];
 let backStock = [{ gameNumber: '1747', valueInBack: 1200 }, { gameNumber: '1800', valueInBack: 450.5 }];
 
 // closed: today's summary or null. months: { label: days[] }.
@@ -50,13 +51,16 @@ async function home(app) {
   assert.equal(await text(app.page, 'backValue'), '$1,651');      // on the Back stock tile
   assert.equal(await text(app.page, 'liveValue'), '$600');        // 3 packs × 10 left × $20, on the Slots tile
   assert.equal(await text(app.page, 'monthDollars'), '$1,284');   // this month so far, on the Months tile
+  assert.equal(await text(app.page, 'settlingCount'), '2 packs');   // live 50+ days, on the Settling tile
+  assert.ok(await app.page.$eval('#settlingCount', (e) => e.classList.contains('amber')));
+  assert.equal(await app.page.$$eval('.owner-only a[href="raw-scanner.html"]', (els) => els.length), 0, 'Scanner test is in More only');
   assert.ok(await app.page.$eval('#statusCard', (el) => !el.textContent.includes('Back stock')), 'back stock is not in the top card');
   assert.deepEqual((await tabs(app.page)).map((t) => t[0]), ['Home', 'Scan', 'Stock', 'Reports', 'More']);
   assert.deepEqual((await tabs(app.page))[1], ['Scan', 'close.html', false]);
   assert.ok((await tabs(app.page))[0][2]);
   assert.ok(await app.page.$eval('.user-pill', (el) => el.textContent.includes('ishaheen') && el.textContent.includes('IS')));
   const ownerText = await visibleText(app.page);
-  for (const label of ['Close Day', 'Slots', 'Back stock & shipments', 'Months & totals', 'Scanner test', 'Manage employees']) {
+  for (const label of ['Close Day', 'Slots', 'Back stock & shipments', 'Months & totals', 'Settling', 'Manage employees']) {
     assert.ok(ownerText.includes(label), label);
   }
   if (shots) await app.page.screenshot({ path: `${shots}/home-owner.png`, fullPage: true });

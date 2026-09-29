@@ -128,6 +128,19 @@ function showMessage(el, text, kind = 'error') {
   el.textContent = text;
 }
 
+// CA Lottery settles (charges the store for) a pack 50–60 days after it's activated, sold or not.
+// From this many days live, a pack is marked on Slots and listed on the Settling page.
+const OLD_PACK_DAYS = 50;
+// From this many days, it has most likely been settled already.
+const SETTLED_PACK_DAYS = 60;
+
+// Live packs at OLD_PACK_DAYS or more, longest-live first. From listSlots (or closeStatus.slots), so a
+// pack that sells out or is returned drops off by itself.
+function settlingPacks(slots) {
+  return slots.filter((s) => s.pack && s.pack.daysActive != null && s.pack.daysActive >= OLD_PACK_DAYS)
+    .sort((a, b) => b.pack.daysActive - a.pack.daysActive || a.box - b.box || a.slot - b.slot);
+}
+
 // "Game 1747: 2 packs in back stock" — shown where a slot is (or is about to be) out of stock,
 // for the game most likely to go back in it.
 function backStockText(gameNumber, packs) {
