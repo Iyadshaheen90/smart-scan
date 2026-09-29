@@ -58,6 +58,18 @@
   <button id="buzzTwiceBtn">Test vibration: scan not saved</button>
   <div id="buzzInfo" class="sub"></div>
 
+  <!-- iPhone vibration tests (2026-09-29): different ways of toggling a switch, to find the one this iPhone buzzes for. -->
+  <div class="card" style="margin-top: 14px;">
+    <strong>iPhone vibration tests</strong>
+    <p class="sub">Tap each one and note which ones you feel.</p>
+    <label style="display: flex; align-items: center; gap: 12px; margin-top: 10px; font-weight: 700;">
+      <input type="checkbox" switch id="realSwitch" style="width: auto; transform: scale(1.4);"> 1. Flip this switch with your finger
+    </label>
+    <button type="button" id="buzzB" style="margin-top: 10px;">2. Hidden switch on the page</button>
+    <button type="button" id="buzzC">3. Hidden switch, clicked directly</button>
+    <button type="button" id="buzzD">4. The switch above, flipped by the app</button>
+  </div>
+
   <div id="log"></div>
 
   <nav class="tabbar" data-active="more"></nav>
@@ -80,6 +92,30 @@
       : `No standard vibration here (iPhone): using the iOS switch tap, which needs iOS 18 or later. ${navigator.userAgent.match(/OS (\d+)[_\d]* like Mac OS X/) ? `This phone: iOS ${navigator.userAgent.match(/OS (\d+)[_\d]* like Mac OS X/)[1]}.` : ''}`;
     document.getElementById('buzzBtn').addEventListener('click', () => haptic());
     document.getElementById('buzzTwiceBtn').addEventListener('click', () => haptic('error'));
+
+    // Test 2: a label + switch in the page (not hidden with display:none), clicked through the label.
+    // Test 3: the same, but the switch itself is clicked. Test 4: the visible switch, clicked by the app.
+    function offscreenSwitch(withLabel) {
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('switch', '');
+      const holder = withLabel ? document.createElement('label') : document.createElement('div');
+      holder.style.cssText = 'position: fixed; left: 0; bottom: 0; width: 40px; height: 30px; opacity: 0.01; pointer-events: none;';
+      holder.append(input);
+      document.body.append(holder);
+      return { holder, input };
+    }
+    document.getElementById('buzzB').addEventListener('click', () => {
+      const { holder } = offscreenSwitch(true);
+      holder.click();
+      setTimeout(() => holder.remove(), 500);
+    });
+    document.getElementById('buzzC').addEventListener('click', () => {
+      const { holder, input } = offscreenSwitch(false);
+      input.click();
+      setTimeout(() => holder.remove(), 500);
+    });
+    document.getElementById('buzzD').addEventListener('click', () => document.getElementById('realSwitch').click());
 
     const statusEl = document.getElementById('status');
     const logEl = document.getElementById('log');
