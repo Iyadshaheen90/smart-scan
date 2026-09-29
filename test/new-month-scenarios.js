@@ -139,6 +139,9 @@ assert.deepEqual([...octTotals.days].map((d) => d.date), ['2026-10-01', '2026-10
 assert.equal(octTotals.ticketsSold, 35 + 5);
 assert.equal(run(`monthSummary('2026-11')`).endingInventoryValue, null); // reopened, so no closed day yet
 assert.equal(code(() => run(`monthSummary('2025-01')`)), 'no_month');
+const page = run('monthsPage()');
+assert.equal(page.status.current, '2026-11'); assert.equal(page.summary.label, '2026-11');
+assert.deepEqual([...page.months].map((m) => m.label), ['2026-11', '2026-10', '2026-09']);
 console.log('monthly totals pass');
 
 // Owner home with no close yet this month (November's was reopened): last month's last close.

@@ -49,12 +49,12 @@
   <div id="saveMessage" class="message"></div>
 
   <h2>In the back now</h2>
-  <p class="sub" id="totals"></p>
-  <div id="stock">Loading…</div>
+  <p class="sub saved-dim" id="totals"></p>
+  <div id="stock" class="saved-dim saved-lock">Loading…</div>
   <div id="stockMessage" class="message"></div>
 
   <!-- Games CA Lottery has stopped, hidden from the list above. -->
-  <details id="endedBox" class="hidden" style="margin-top: 18px;">
+  <details id="endedBox" class="hidden saved-dim saved-lock" style="margin-top: 18px;">
     <summary id="endedTitle"></summary>
     <p class="sub">Hidden from back stock. Receiving a pack of one, or putting one in a slot, brings it back by itself.</p>
     <div id="ended"></div>
@@ -662,10 +662,14 @@
     async function start() {
       loadDraft();
       render();
-      stock = await api('listBackStock');
-      stockLoaded = true;
-      render();
-      renderStock();
+      // Last load first (dimmed, buttons off), then the fresh one. Scans and search wait for the fresh one,
+      // since they decide from it whether a game is new.
+      await loadSaved('backstock', () => api('listBackStock'), (data, fresh) => {
+        stock = data;
+        stockLoaded = fresh;
+        render();
+        renderStock();
+      });
       await startScanner({
         video: $('video'),
         viewport: $('viewport'),
@@ -675,7 +679,8 @@
       });
     }
 
-    if (session) start().catch((err) => { $('stock').textContent = ''; showMessage($('stockMessage'), err.message); });
+    // A failed load keeps the saved list on screen (dimmed, buttons off) above the reason.
+    if (session) start().catch((err) => { if (!stockLoaded && !document.body.classList.contains('showing-saved')) $('stock').textContent = ''; showMessage($('stockMessage'), err.message); });
   </script>
 </body>
 </html>

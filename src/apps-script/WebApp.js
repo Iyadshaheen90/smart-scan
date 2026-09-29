@@ -39,6 +39,7 @@ const SIGNED_IN_ACTIONS = {
   startNewMonth: { owner: true, run: (req) => startNewMonth(req) },
   listMonths: { owner: true, run: () => listMonths() },
   monthSummary: { owner: true, run: (req) => monthSummary(req.label) },
+  monthsPage: { owner: true, run: () => monthsPage() },
 };
 
 function doPost(e) {

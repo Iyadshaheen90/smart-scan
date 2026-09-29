@@ -29,6 +29,26 @@ function clearSession() {
   try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
 }
 
+// Each backend request takes about 2 seconds, so a page first shows its last answer saved on this phone,
+// then the fresh one. While the saved one shows, the body has class "showing-saved": elements marked
+// .saved-dim are dimmed and .saved-lock can't be tapped (their buttons would act on old numbers).
+// show(data, fresh) draws the page; it's called up to twice. Throws if the fresh answer fails.
+async function loadSaved(name, request, show) {
+  const session = getSession();
+  const key = `smartScanSaved:${session ? session.username : ''}:${name}`;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
+  if (saved) {
+    document.body.classList.add('showing-saved');
+    try { show(saved, false); } catch (e) {}
+  }
+  const data = await request();
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) {}
+  document.body.classList.remove('showing-saved');
+  show(data, true);
+  return data;
+}
+
 // Sent as text/plain so the browser doesn't need a CORS preflight, which Apps Script can't answer.
 async function api(action, params = {}) {
   const session = getSession();

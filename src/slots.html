@@ -21,8 +21,8 @@
     <button type="button" data-box="1">Box 1</button>
     <button type="button" data-box="2">Box 2</button>
   </div>
-  <div id="summary" class="sub"></div>
-  <div id="list">Loading…</div>
+  <div id="summary" class="sub saved-dim"></div>
+  <div id="list" class="saved-dim">Loading…</div>
   <div id="message" class="message"></div>
 
   <nav class="tabbar" data-active="slots"></nav>
@@ -146,9 +146,9 @@
     }));
 
     if (session) {
-      api('listSlots')
-        .then((data) => { slots = data; render(); })
-        .catch((err) => { listEl.textContent = ''; showMessage(document.getElementById('message'), err.message); });
+      // Last load first (dimmed), then the fresh one. A tapped slot's page loads its own fresh data.
+      loadSaved('slots', () => api('listSlots'), (data) => { slots = data; render(); })
+        .catch((err) => { if (!slots.length) listEl.textContent = ''; showMessage(document.getElementById('message'), err.message); });
     }
   </script>
 </body>

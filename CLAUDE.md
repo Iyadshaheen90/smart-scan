@@ -112,6 +112,10 @@ Frontend (`src/`, plain HTML + JS, no build):
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
   `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
+- **Saved answers** (`loadSaved(name, request, show)` in api.js): Slots, Settling (shares Slots' saved `listSlots`), Back stock
+  and Months & totals draw the last answer saved on the phone at once, then the fresh one. While it shows, `body.showing-saved`
+  dims `.saved-dim` and makes `.saved-lock` untappable (Back stock's list and ended games, Months' Start and past months), and
+  Back stock's scans/search wait for the fresh list. A failed refresh keeps the saved answer (still locked) with the error.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not closed / Closed chip, big number = last
@@ -150,7 +154,8 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `WebApp.js` `doPost` router: `PUBLIC_ACTIONS`, `SIGNED_IN_ACTIONS` (`owner: true` = owner only); `doGet` health check
 - `Schema.js` tabs/headers, `CARRIED_FORWARD_TABS`, `STANDARD_PACK_SIZES`, `INITIAL_SLOT_PRICES`
 - `Sheets.js` `readTable`, `appendObject`, `updateRowsWhere`, `deleteRowsWhere`, `ensureHeaders`, `withLock`, `setCell`
-- `Months.js` active month lookup (Control → Months tab), `monthStatus`, `startNewMonth`, `listMonths`, `monthSummary`
+- `Months.js` active month lookup (Control → Months tab), `monthStatus`, `startNewMonth`, `listMonths`, `monthSummary`,
+  `monthsPage` (Months & totals in one request: status + this month's summary + every month)
   (totals from that month's DailySummary) · `Setup.js` one-time `setup()` (safe to re-run; adds missing columns).
   `getCurrentMonth`/`openCurrentMonth` keep the month and its opened spreadsheet for the rest of a request (reset in `doPost`).
 - `Home.js` `ownerHome`: everything on the owner's home in one request (closeStatus + monthStatus + this month's $ + last
@@ -194,6 +199,7 @@ node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 node test/browser/home.js                 # home for both roles: one request, saved numbers first, tiles, chips, Start month, huge numbers fit
+node test/browser/saved-pages.js          # Slots, Settling, Back stock, Months: saved answer first (dimmed, locked), then fresh
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)

@@ -17,10 +17,10 @@
   <header class="app-header" data-title="Months &amp; totals"></header>
   <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook. Totals come from each day's close.</p>
 
-  <div id="current">Loading…</div>
+  <div id="current" class="saved-dim">Loading…</div>
   <p id="notYet" class="sub hidden" style="margin-top: 12px"></p>
 
-  <div id="startBox" class="hidden">
+  <div id="startBox" class="hidden saved-lock">
     <h2 id="startHeading"></h2>
     <div class="card">
       <strong>Carries over</strong>
@@ -35,7 +35,7 @@
   </div>
   <div id="message" class="message"></div>
 
-  <div id="pastBox" class="hidden">
+  <div id="pastBox" class="hidden saved-dim saved-lock">
     <h2>Past months</h2>
     <div id="past"></div>
   </div>
@@ -127,21 +127,15 @@
       return top;
     }
 
-    async function showCurrent() {
+    function showCurrent(summary) {
       const current = $('current');
       current.innerHTML = '';
       const card = el('div', 'card');
       card.append(monthHeader(status.current, status.currentUrl, 'This month: '));
-      const body = el('div', 'slot-detail', 'Loading totals…');
-      card.append(body);
+      const view = summaryView(summary);
+      card.append(view);
       current.append(card);
-      try {
-        const view = summaryView(await api('monthSummary', { label: status.current }));
-        body.replaceWith(view);
-        fitNumbers(view);
-      } catch (err) {
-        body.textContent = err.message;
-      }
+      fitNumbers(view);
     }
 
     function showStart() {
@@ -157,8 +151,8 @@
     }
 
     // Past months load their totals when tapped (each is a separate spreadsheet).
-    async function showPast() {
-      const months = (await api('listMonths')).filter((m) => m.label !== status.current);
+    function showPast(allMonths) {
+      const months = allMonths.filter((m) => m.label !== status.current);
       const past = $('past');
       past.innerHTML = '';
       $('pastBox').classList.toggle('hidden', months.length === 0);
@@ -184,11 +178,15 @@
 
     async function load() {
       try {
-        status = await api('monthStatus');
-        showStart();
-        await Promise.all([showCurrent(), showPast()]);
+        // One request for the whole page; the last answer shows first (dimmed, Start and past months off).
+        await loadSaved('months', () => api('monthsPage'), (data) => {
+          status = data.status;
+          showStart();
+          showCurrent(data.summary);
+          showPast(data.months);
+        });
       } catch (err) {
-        $('current').textContent = '';
+        if (!status) $('current').textContent = '';
         showMessage(message, err.message);
       }
     }

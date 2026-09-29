@@ -154,6 +154,12 @@ function startNewMonth(req) {
 
 // --- Monthly totals (owner only) ---
 
+// The Months & totals page in one request: monthStatus, this month's totals, and every month.
+function monthsPage() {
+  const status = monthStatus();
+  return { status, summary: monthSummary(status.current), months: listMonths() };
+}
+
 // Every month, newest first.
 function listMonths() {
   return readTable(getControlSpreadsheet().getSheetByName('Months'))

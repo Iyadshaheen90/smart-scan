@@ -18,7 +18,7 @@
   <p class="sub">Packs live in a slot 50 days or more. CA Lottery settles (charges the store for) a pack 50–60 days after
     it's activated, sold or not, so these are worth pushing. A pack leaves this list when it sells out or is returned.</p>
 
-  <div class="status-card" id="totals">
+  <div class="status-card saved-dim" id="totals">
     <div class="stat-grid">
       <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs</div></div>
       <div class="stat"><div class="stat-value fit" id="ticketCount">…</div><div class="stat-label">Tickets left</div></div>
@@ -30,7 +30,7 @@
     </div>
   </div>
 
-  <div id="list"></div>
+  <div id="list" class="saved-dim"></div>
   <div id="message" class="message"></div>
 
   <nav class="tabbar" data-active=""></nav>
@@ -84,18 +84,22 @@
 
     async function load() {
       try {
-        const packs = settlingPacks(await api('listSlots'));
-        $('packCount').textContent = String(packs.length);
-        $('ticketCount').textContent = packs.reduce((sum, s) => sum + s.pack.remaining, 0).toLocaleString('en-US');
-        $('dollarCount').textContent = money(packs.reduce((sum, s) => sum + s.pack.remaining * s.pack.price, 0));
-        const list = $('list');
-        list.innerHTML = '';
-        if (packs.length === 0) list.append(el('p', 'sub', 'No pack has been live 50 days or more.'));
-        packs.forEach((s) => list.append(packCard(s)));
-        fitNumbers();
+        // Same saved answer as Slots (both show listSlots), so either page fills the other at once.
+        await loadSaved('slots', () => api('listSlots'), (slots) => showPacks(settlingPacks(slots)));
       } catch (err) {
         showMessage($('message'), err.message);
       }
+    }
+
+    function showPacks(packs) {
+      $('packCount').textContent = String(packs.length);
+      $('ticketCount').textContent = packs.reduce((sum, s) => sum + s.pack.remaining, 0).toLocaleString('en-US');
+      $('dollarCount').textContent = money(packs.reduce((sum, s) => sum + s.pack.remaining * s.pack.price, 0));
+      const list = $('list');
+      list.innerHTML = '';
+      if (packs.length === 0) list.append(el('p', 'sub', 'No pack has been live 50 days or more.'));
+      packs.forEach((s) => list.append(packCard(s)));
+      fitNumbers();
     }
     if (session) load();
   </script>
