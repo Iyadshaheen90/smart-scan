@@ -17,7 +17,6 @@
   <header class="app-header" data-title="Smart Scan"></header>
 
   <a id="pendingClose" class="message banner hidden" href="close.html"></a>
-  <a id="newMonthDue" class="message error banner hidden" href="month.html"></a>
 
   <!-- Today's status. The owner also sees the last close's totals (sales are only counted at the close). -->
   <div class="status-card" id="statusCard">
@@ -41,6 +40,9 @@
 
   <!-- Owner -->
   <div class="owner-only hidden">
+    <!-- From the 1st until the owner starts the new month's spreadsheet; gone once it's started. -->
+    <button type="button" id="startMonthBtn" class="action-main action-month hidden"></button>
+    <div id="monthMessage" class="message"></div>
     <a class="action-main" href="close.html"><span data-icon="check"></span>Close Day</a>
     <div class="section-label">Manage</div>
     <div class="tile-grid">
@@ -71,8 +73,8 @@
     const session = requireLogin();
     const isOwner = session && session.role === 'owner';
     const $ = (id) => document.getElementById(id);
-    // Asked once: both the last close and the new-month reminder need it.
-    const monthStatusCall = isOwner ? api('monthStatus') : null;
+    // Asked once: both the last close and the Start month button need it (asked again after a start).
+    let monthStatusCall = isOwner ? api('monthStatus') : null;
     if (monthStatusCall) monthStatusCall.catch(() => {});
 
     // "2026-09-28" -> "Mon, Sep 28"
@@ -93,7 +95,7 @@
       document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
       $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
       loadStatus();
-      if (isOwner) showNewMonthReminder();
+      if (isOwner) showStartMonth();
     }
 
     function todayOnPhone() {
@@ -199,18 +201,48 @@
       window.addEventListener('online', sendSavedClose);
     }
 
-    // From the 1st, until the owner starts the new month.
-    async function showNewMonthReminder() {
-      try {
-        const status = await monthStatusCall;
-        if (!status.canStart) return;
-        const [year, month] = status.next.split('-').map(Number);
-        const name = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long' });
-        const el = $('newMonthDue');
-        el.textContent = `It's ${name} — tap here to start the new month's spreadsheet.`;
-        el.classList.remove('hidden');
-      } catch (e) {}
+    // "2026-10" -> "October 2026"
+    function monthName(label) {
+      const [year, month] = label.split('-').map(Number);
+      return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
     }
+
+    // From the 1st, until the owner starts the new month (same as Start on Months & totals).
+    let monthStatus = null;
+    async function showStartMonth() {
+      const btn = $('startMonthBtn');
+      try {
+        monthStatus = await monthStatusCall;
+        btn.textContent = `Start ${monthName(monthStatus.next)}`;
+        btn.classList.toggle('hidden', !monthStatus.canStart);
+      } catch (e) {
+        btn.classList.add('hidden');
+      }
+    }
+
+    $('startMonthBtn').addEventListener('click', () => {
+      const btn = $('startMonthBtn');
+      const current = monthName(monthStatus.current);
+      const next = monthName(monthStatus.next);
+      if (!confirm(`Start ${next}? ${current} will be archived, and from now on everything is recorded in ${next}'s spreadsheet.`)) return;
+      whileBusy(btn, 'Starting… (this can take a minute)', async () => {
+        try {
+          const result = await api('startNewMonth', { label: monthStatus.next });
+          const moved = Object.values(result.moved || {}).reduce((a, b) => a + b, 0);
+          showMessage($('monthMessage'), `${monthName(result.label)} started.` +
+            (moved ? ` ${moved} ${moved === 1 ? 'entry' : 'entries'} moved over from ${monthName(result.previous)}.` : ''), 'ok');
+          btn.classList.add('hidden');
+          // The tiles now read the new month (its sales so far, and the last close from the month before).
+          monthStatusCall = api('monthStatus');
+          monthStatusCall.catch(() => {});
+          loadStatus();
+        } catch (err) {
+          // Someone already started it (e.g. on another phone): nothing left to do here.
+          if (err.code === 'already_started') btn.classList.add('hidden');
+          showMessage($('monthMessage'), err.message);
+        }
+      });
+    });
   </script>
 </body>
 </html>

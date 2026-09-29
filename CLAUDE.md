@@ -84,7 +84,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Game ended by mistake → Bring back (or it comes back by itself when received).
 
 **Months** (one spreadsheet per month, like the owner's monthly Excel workbook)
-- The owner starts each month on `month.html`, on or after the 1st (never automatic; home shows a reminder from the 1st).
+- The owner starts each month on or after the 1st (never automatic): the amber **Start <Month> <Year>** button on the owner
+  home (between the status card and Close Day, shown from the 1st until started, owner's request 2026-09-29) or on `month.html`.
 - `startNewMonth` copies the current month's whole spreadsheet, so `CARRIED_FORWARD_TABS` (Users, Sessions, SlotConfig,
   SlotState, ReserveInventory) carry over exactly, then empties the log tabs except rows already dated in the new
   month (`MONTHLY_LOG_DATE_COLUMNS`). Those rows move out of the old spreadsheet, so starting late loses nothing.
@@ -112,8 +113,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
   `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
 - `index.html` home (also sends an unsent close, with a banner). Owner: status card (Not closed / Closed chip, big number = last
-  close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), Close Day
-  button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
+  close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), amber Start <Month>
+  button (from the 1st until the month is started; confirm, then `startNewMonth`, then it hides), Close Day button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
   month), Settling (packs live 50+ days, amber when any), Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
   Scan tickets button → Close Day; no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)

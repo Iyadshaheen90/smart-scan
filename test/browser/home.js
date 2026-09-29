@@ -10,12 +10,17 @@ const slots = [live(1), live(2, 10, 50), live(3, 10, 70), { box: 1, slot: 4, slo
 let backStock = [{ gameNumber: '1747', valueInBack: 1200 }, { gameNumber: '1800', valueInBack: 450.5 }];
 
 // closed: today's summary or null. months: { label: days[] }.
-function backend({ closed = null, slotList = slots, months = { '2026-09': [{ date: '2026-09-27', ticketsSold: 214, dollarsSold: 1284 }] }, current = '2026-09' } = {}) {
+function backend({ closed = null, slotList = slots, months = { '2026-09': [{ date: '2026-09-27', ticketsSold: 214, dollarsSold: 1284 }] }, current = '2026-09', canStart = false } = {}) {
   return (body) => {
     switch (body.action) {
+      case 'startNewMonth': {
+        const previous = current;
+        current = body.label; canStart = false; months[current] = [];
+        return { label: current, previous, moved: { DailyCloseLog: 0 } };
+      }
       case 'closeStatus': return { today: '2026-09-28', closed, slots: slotList };
       case 'listBackStock': return backStock;
-      case 'monthStatus': return { current, next: '2026-10', canStart: false };
+      case 'monthStatus': return { current, next: `${current.slice(0, 5)}${String(Number(current.slice(5)) + 1).padStart(2, '0')}`, canStart };
       case 'monthSummary': {
         const days = months[body.label] || [];
         return { label: body.label, days, dollarsSold: days.reduce((sum, d) => sum + d.dollarsSold, 0) };
@@ -63,7 +68,38 @@ async function home(app) {
   for (const label of ['Close Day', 'Slots', 'Back stock & shipments', 'Months & totals', 'Settling', 'Manage employees']) {
     assert.ok(ownerText.includes(label), label);
   }
+  assert.ok(await app.page.$eval('#startMonthBtn', (el) => el.classList.contains('hidden')), 'no Start month before the 1st');
   if (shots) await app.page.screenshot({ path: `${shots}/home-owner.png`, fullPage: true });
+  await app.close();
+
+  // From the 1st: Start October 2026 between the top card and Close Day; gone once started.
+  const monthCalls = [];
+  const rollover = backend({ canStart: true });
+  let answer = false; let dialog = null;
+  app = await openApp({ role: 'owner', handle: (body) => { monthCalls.push(body); return rollover(body); },
+    onDialog: (d) => { dialog = d.message(); return answer ? d.accept() : d.dismiss(); } });
+  await home(app);
+  await app.page.waitForFunction(() => !document.getElementById('startMonthBtn').classList.contains('hidden'));
+  assert.equal(await text(app.page, 'startMonthBtn'), 'Start October 2026');
+  const order = await app.page.evaluate(() => {
+    const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
+    return [top('#statusCard'), top('#startMonthBtn'), top('.owner-only a.action-main[href="close.html"]')];
+  });
+  assert.ok(order[0] < order[1] && order[1] < order[2], 'top card, then Start month, then Close Day');
+  if (shots) await app.page.screenshot({ path: `${shots}/home-owner-start-month.png`, fullPage: true });
+  await app.page.click('#startMonthBtn'); await sleep(200);
+  assert.ok(dialog.startsWith('Start October 2026? September 2026 will be archived'));
+  assert.ok(!monthCalls.some((b) => b.action === 'startNewMonth'), 'Cancel starts nothing');
+  answer = true;
+  await app.page.click('#startMonthBtn');
+  await app.page.waitForFunction(() => document.getElementById('startMonthBtn').classList.contains('hidden'));
+  assert.equal(monthCalls.find((b) => b.action === 'startNewMonth').label, '2026-10');
+  assert.equal(await text(app.page, 'monthMessage'), 'October 2026 started.');
+  await sleep(300);
+  assert.equal(await text(app.page, 'monthDollars'), '$0', 'Months tile shows October');
+  assert.equal(await text(app.page, 'lastLabel'), 'Last close · Sun, Sep 27');
+  await app.page.reload(); await sleep(500);
+  assert.ok(await app.page.$eval('#startMonthBtn', (el) => el.classList.contains('hidden')), 'stays gone until November 1');
   await app.close();
 
   // Very large numbers show whole (smaller text, never cut off).
@@ -122,6 +158,7 @@ async function home(app) {
   const hero = await app.page.$eval('.employee-only .action-hero', (a) => a.getAttribute('href'));
   assert.equal(hero, 'close.html');
   assert.deepEqual(calls.filter((c) => c !== 'closeStatus'), [], 'employee home asks only closeStatus');
+  assert.ok(await app.page.$eval('#startMonthBtn', (el) => !el.offsetParent), 'no Start month for employees');
   if (shots) await app.page.screenshot({ path: `${shots}/home-employee.png`, fullPage: true });
 
   // More page: no Manage employees for employees; Sign out there.
