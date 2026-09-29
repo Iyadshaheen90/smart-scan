@@ -70,6 +70,24 @@
     <button type="button" id="buzzD">4. The switch above, flipped by the app</button>
   </div>
 
+  <!-- Round 2 (2026-09-29): only a finger on the switch buzzed, so these let the finger flip a hidden switch
+       by pressing a big button (a label around the switch), like the scan button could. Plus a beep. -->
+  <div class="card" style="margin-top: 14px;">
+    <strong>iPhone vibration tests, round 2</strong>
+    <p class="sub">Note which ones you feel, and how the beeps sound.</p>
+    <label class="hold-button switch-button" id="labelHold" style="margin-top: 10px;">
+      <input type="checkbox" switch class="finger-switch">5. Press and hold for 2 seconds, then let go</label>
+    <label class="hold-button switch-button" id="labelTap">
+      <input type="checkbox" switch class="finger-switch">6. Tap quickly</label>
+    <button type="button" id="beepOk">7. Beep: scan saved</button>
+    <button type="button" id="beepError">8. Beep: scan not saved</button>
+  </div>
+  <style>
+    .switch-button { display: block; position: relative; text-align: center; font-weight: 700; margin-top: 8px; color: var(--text); font-size: 16px;
+      background: var(--card-2); border: 1px solid var(--border); }
+    .finger-switch { position: absolute; left: 0; top: 0; width: 40px; height: 30px; opacity: 0.01; margin: 0; pointer-events: none; }
+  </style>
+
   <div id="log"></div>
 
   <nav class="tabbar" data-active="more"></nav>
@@ -116,6 +134,28 @@
       setTimeout(() => holder.remove(), 500);
     });
     document.getElementById('buzzD').addEventListener('click', () => document.getElementById('realSwitch').click());
+
+    // Beeps from Web Audio. iOS starts sound only after a tap, and the silent switch mutes web sound unless the
+    // page says it's "playback" (Safari 16.4+).
+    let audio = null;
+    function beep(freq, ms, at = 0) {
+      if (!audio) {
+        audio = new (window.AudioContext || window.webkitAudioContext)();
+        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+      }
+      if (audio.state === 'suspended') audio.resume();
+      const t = audio.currentTime + at;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + ms / 1000);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(t);
+      osc.stop(t + ms / 1000);
+    }
+    document.getElementById('beepOk').addEventListener('click', () => beep(1800, 90));
+    document.getElementById('beepError').addEventListener('click', () => { beep(300, 160); beep(300, 160, 0.22); });
 
     const statusEl = document.getElementById('status');
     const logEl = document.getElementById('log');
