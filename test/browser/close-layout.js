@@ -1,5 +1,6 @@
 // Close Day: the camera and the Press and hold button stay in the same place from one scan to the next
-// (owner's request 2026-09-29), for the owner and employees: first scan, a long "belongs to" note, a big
+// (owner's request 2026-09-29), for the owner and employees, and the progress bar, the slot card with Sold out / Skip, the
+// camera and the button all fit on an iPhone screen above the tab bar at once (the scan message sits on the camera): first scan, a long "belongs to" note, a big
 // sale, a refused scan, Skip, Sold out, and every slot done. Also the buzz: two for a scan that wasn't saved,
 // and on an iPhone (no navigator.vibrate) a hidden switch is clicked instead.
 // Run: node test/browser/close-layout.js   (SHOTS=dir also saves screenshots)
@@ -19,6 +20,7 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
   for (const role of ['owner', 'employee']) {
     const app = await openApp({ role, handle });
     const { page, base } = app;
+    await page.setViewport({ width: 390, height: 844 });   // iPhone 12–16
     await page.evaluateOnNewDocument(() => {
       window.buzzes = [];
       navigator.vibrate = (p) => { window.buzzes.push(p); return true; };
@@ -36,6 +38,20 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
       const now = await where();
       steps.push([label, now.hold]);
       assert.deepEqual(now, start, `${role}: moved after ${label}`);
+      // Scrolled to the top: progress bar to scan button all on screen, above the tab bar.
+      const inView = await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        const r = (el) => el.getBoundingClientRect();
+        const bar = r(document.querySelector('nav.tabbar')).top;
+        return r(document.getElementById('progressText')).top >= 0 && r(document.getElementById('skipBtn')).bottom <= bar
+          && r(document.getElementById('holdBtn')).bottom <= bar;
+      });
+      assert.ok(inView, `${role}: progress, slot card and scan button not all in view after ${label}`);
+      const flash = await page.$eval('#flash', (e) => [e.scrollHeight <= e.clientHeight, e.getBoundingClientRect().bottom,
+        document.querySelector('#viewport .scan-guide').getBoundingClientRect().top]);
+      assert.ok(flash[0], `${role}: message cut off after ${label}`);
+      assert.ok(flash[1] <= flash[2], `${role}: message covers the guide box after ${label}`);
+      assert.ok(await page.$eval('#curDone', (e) => e.scrollWidth <= e.clientWidth), `${role}: slot card line cut off after ${label}`);
     };
 
     await typed('1718-1279742-6-018'); await check('a scan of another slot (long note)');

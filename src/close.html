@@ -51,12 +51,12 @@
       <button type="button" id="skipBtn">Skip</button>
     </div>
 
-    <!-- Always the same height, so the camera and the scan button never move from one scan to the next. -->
-    <div id="flash" class="message flash-fixed"></div>
-
     <div class="scan-viewport paused" id="viewport">
       <video id="video" playsinline muted autoplay></video>
       <div class="scan-guide"></div>
+      <!-- On top of the camera picture, above the guide box: it takes no room, so nothing moves between scans
+           and the progress bar, the slot card and the scan button all stay in view. -->
+      <div id="flash" class="message scan-flash"></div>
     </div>
     <button type="button" class="hold-button" id="holdBtn">Press and hold to scan</button>
     <div class="segmented" id="modeSwitch" style="margin-top: 10px;">
@@ -166,13 +166,13 @@
       render();
     }
 
-    // The box keeps its size (flash-fixed); a message too long for it gets smaller text instead.
+    // Shown on the camera picture; a message too long for its space gets smaller text instead of being cut off.
     function flash(text, kind) {
       const box = $('flash');
       showMessage(box, text, kind);
-      box.classList.add('flash-fixed');
+      box.classList.add('scan-flash');
       box.style.fontSize = '';
-      for (let size = 14; box.scrollHeight > box.clientHeight && size >= 11; size--) box.style.fontSize = `${size}px`;
+      for (let size = 13; box.scrollHeight > box.clientHeight && size >= 10; size--) box.style.fontSize = `${size}px`;
     }
 
     function useTicket(ticket) {
@@ -215,6 +215,7 @@
         $('curLast').textContent = `Last top ticket ${pad3(current.pack.exposedTicket)} (${current.pack.remaining} left)`;
         const entry = entries[currentKey];
         $('curDone').textContent = entry ? `Already done: ${describe(entry)}. Scan again to replace it.` : 'Scan the top ticket.';
+        fitText($('curDone')); // one line always, smaller text if it's long
       }
 
       const review = $('review');
@@ -353,7 +354,7 @@
     $('skipBtn').addEventListener('click', () => {
       const next = nextOpen(currentKey);
       currentKey = next && next !== currentKey ? next : currentKey;
-      $('flash').className = 'message flash-fixed';
+      $('flash').className = 'message scan-flash';
       $('flash').textContent = '';
       render();
     });

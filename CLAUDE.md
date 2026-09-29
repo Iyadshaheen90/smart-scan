@@ -98,9 +98,11 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Every scan screen also accepts the typed printed number (`parsePrintedTicket`).
 - A scan buzzes (`haptic()` in scanner.js; two buzzes for a Close Day scan that wasn't saved). iPhones have no
   `navigator.vibrate`, so it clicks a hidden `<input type=checkbox switch>` instead (Safari haptic, iOS 18+).
-- Close Day's camera and Press and hold button never move between scans (owner 2026-09-29): the message box above the
-  camera is a fixed 3-line height (`.flash-fixed`, text shrinks to fit), the current-slot card lines have fixed heights, and
-  the card stays ("All slots done") instead of hiding.
+- Close Day's camera and Press and hold button never move between scans, and the progress bar, slot card with Sold out /
+  Skip, camera and button all fit on an iPhone screen at once (owner 2026-09-29). So the scan message sits on the camera
+  picture above the guide box (`.scan-flash`, text shrinks to fit), the current-slot card lines have fixed heights (the
+  "Already done" line is one line, `fitText`), and the card stays ("All slots done") instead of hiding. A fixed-height
+  message box *above* the camera was tried first: stable, but it pushed the button off screen (owner didn't want that).
 
 ## Code map
 
@@ -205,7 +207,7 @@ node test/browser/backstock-game-ended.js # Game ended / Bring back (real backen
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 node test/browser/home.js                 # home for both roles: one request, saved numbers first, tiles, chips, Start month, huge numbers fit
 node test/browser/saved-pages.js          # Slots, Settling, Back stock, Months: saved answer first (dimmed, locked), then fresh
-node test/browser/close-layout.js         # Close Day: camera + scan button stay put through every kind of scan; buzzes
+node test/browser/close-layout.js         # Close Day: button stays put and progress→button fit on screen through every kind of scan; buzzes
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)

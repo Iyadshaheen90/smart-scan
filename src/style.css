@@ -155,9 +155,14 @@ a.card { display: block; color: inherit; text-decoration: none; }
 .current-where { font-size: 24px; font-weight: 800; }
 /* Close Day: fixed heights above the camera, so the scan button stays put from one scan to the next. */
 .card.current .slot-detail { min-height: 1.4em; line-height: 1.4; }
-.card.current .cur-done { height: 2.8em; overflow: hidden; }
-.message.flash-fixed { display: flex; align-items: center; height: 91px; overflow: hidden; } /* 3 lines of 15px text */
-.message.flash-fixed:empty { visibility: hidden; }
+.card.current .cur-done { white-space: nowrap; overflow: hidden; }
+/* The scan message sits on the camera picture, above the guide box (which starts 35% down). */
+.scan-flash {
+  position: absolute; top: 8px; left: 8px; right: 8px; margin: 0; max-height: calc(35% - 12px); overflow: hidden;
+  padding: 7px 10px; font-size: 14px; line-height: 1.3; border-radius: 10px; background: rgba(14, 16, 16, 0.85);
+}
+.scan-flash.ok { background: rgba(18, 48, 31, 0.92); }
+.scan-flash.error { background: rgba(58, 23, 23, 0.94); }
 .review-row {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
   margin: 6px 0 0; padding: 12px 14px; font-size: 15px; font-weight: 500; text-align: left;
