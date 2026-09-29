@@ -62,6 +62,13 @@
       <input type="checkbox" switch class="finger-switch">Press and hold for 2 seconds, then let go</label>
     <label class="hold-button switch-button" id="labelTap">
       <input type="checkbox" switch class="finger-switch">Tap quickly</label>
+    <div class="sub" style="margin-top: 12px;">Hold each one below for 2 seconds, then let go. Which ones buzz?</div>
+    <label class="hold-button switch-button" data-test="capture"><input type="checkbox" switch class="finger-switch">A. Holds on to the finger</label>
+    <label class="hold-button switch-button" data-test="menu"><input type="checkbox" switch class="finger-switch">B. Long-press menu blocked</label>
+    <label class="hold-button switch-button" data-test="enable"><input type="checkbox" switch class="finger-switch">C. Switch turned on after 1 second</label>
+    <label class="hold-button switch-button" data-test="text"><input type="checkbox" switch class="finger-switch"><span>D. Text changes while held</span></label>
+    <label class="hold-button switch-button" data-test="all"><input type="checkbox" switch class="finger-switch"><span>E. All of A–D (like the scan button)</span></label>
+    <label class="hold-button switch-button" data-test="block"><input type="checkbox" switch class="finger-switch">F. Only buzzes if held 1 second (tap: no buzz)</label>
     <button type="button" id="beepOk">Beep: scan saved</button>
     <button type="button" id="beepError">Beep: scan not saved</button>
   </div>
@@ -106,6 +113,34 @@
       osc.start(t);
       osc.stop(t + ms / 1000);
     }
+    // Test buttons A–F: each is test 5 plus one thing the real scan button does (E: all of them), and F is
+    // another way to buzz only after a scan: the switch stays on, and a release too early cancels the flip.
+    document.querySelectorAll('[data-test]').forEach((btn) => {
+      const test = btn.dataset.test;
+      const input = btn.querySelector('input');
+      const text = btn.querySelector('span');
+      const original = text ? text.textContent : '';
+      let timer = null;
+      let heldLongEnough = false;
+      if (test === 'enable' || test === 'all') input.disabled = true;
+      btn.addEventListener('pointerdown', (e) => {
+        if (test === 'capture' || test === 'all') btn.setPointerCapture(e.pointerId);
+        if (test === 'enable' || test === 'all') input.disabled = true;
+        if (text) text.textContent = 'Scanning…';
+        heldLongEnough = false;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          heldLongEnough = true;
+          if (test === 'enable' || test === 'all') input.disabled = false;
+          if (text) text.textContent = 'Got it — release';
+        }, 1000);
+      });
+      const up = () => { clearTimeout(timer); if (text) setTimeout(() => { text.textContent = original; }, 50); };
+      btn.addEventListener('pointerup', up);
+      btn.addEventListener('pointercancel', up);
+      if (test === 'menu' || test === 'all') btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      if (test === 'block') btn.addEventListener('click', (e) => { if (!heldLongEnough) e.preventDefault(); });
+    });
     document.getElementById('beepOk').addEventListener('click', () => beep(1800, 90));
     document.getElementById('beepError').addEventListener('click', () => { beep(300, 160); beep(300, 160, 0.22); });
 
