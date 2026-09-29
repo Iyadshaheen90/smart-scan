@@ -96,15 +96,17 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 **Scanning**
 - Press-and-hold is the default everywhere; Auto scan is an opt-in toggle (Close Day remembers it per phone).
 - Every scan screen also accepts the typed printed number (`parsePrintedTicket`).
-- Scan feedback (`haptic()` in scanner.js): Android vibrates (double for a scan that wasn't saved). **iPhone** Safari has no
+- Scan feedback (`haptic()` in scanner.js; owner 2026-09-29): every saved scan buzzes + one short high beep; a scan that
+  wasn't saved buzzes (Android: double) + two low beeps. The scanner reports each read as ok and the page may then report
+  'error' for it, so reports are merged into one (played on the finger lift while held, else on a 0 ms timer). **iPhone** Safari has no
   `navigator.vibrate` and buzzes only when a *finger* flips an `<input type=checkbox switch>`: the app clicking one does
   nothing (owner's iPhone, iOS 18, tested 2026-09-29 in Safari and the home-screen app). So every Press and hold button is
   `<label class="button hold-button">`; `prepareHoldButton` puts a hidden switch in it (text in a span — never set the
   label's textContent). The finger lifting flips it = the buzz. It must be enabled when the finger goes down: enabling it
   mid-hold, or a click handler on the label, killed the buzz (owner's Scanner test A–G, 2026-09-29). So a release with no
   scan disables it for that one click (re-enabled 100 ms later); no scan, no buzz.
-  A refused scan also plays two low beeps; with no held button (Auto scan, typed number) iPhone gets beeps (Web Audio,
-  unlocked on the first press, `audioSession.type = 'playback'` so the silent switch doesn't mute it).
+  With no held button (Auto scan, typed number) an iPhone gets the beeps only (Web Audio, unlocked on the first press,
+  `audioSession.type = 'playback'` so the silent switch doesn't mute it).
 - Close Day's camera and Press and hold button never move between scans, and the progress bar, slot card with Sold out /
   Skip, camera and button all fit on an iPhone screen at once (owner 2026-09-29). So the scan message sits on the camera
   picture above the guide box (`.scan-flash`, text shrinks to fit), the current-slot card lines have fixed heights (the

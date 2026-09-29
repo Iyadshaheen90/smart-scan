@@ -16,28 +16,32 @@ const READER_OPTIONS = { formats: ['ITF'], tryHarder: true, tryRotate: true, max
 const AUTO_COOLDOWN_MS = 1500;
 const SAME_TICKET_GONE_MS = 1000;
 
-// Feedback when a ticket is scanned: one buzz for a saved scan, and for one that wasn't saved ('error')
-// a double buzz (Android) or a buzz plus two low beeps (iPhone).
+// Feedback when a ticket is scanned (owner 2026-09-29): a saved scan buzzes and gives one short high beep; one
+// that wasn't saved ('error') buzzes and gives two low beeps (Android: a double buzz). The scanner reports every
+// read as 'ok' and the page may then report 'error' for the same scan, so the two are merged into one.
 //
 // iPhones have no navigator.vibrate, and Safari buzzes only when a finger itself flips a switch-style
 // checkbox (the app flipping one does nothing; tested on the owner's iPhone, iOS 18, 2026-09-29). So the
 // "Press and hold" button is a <label> around a hidden switch, and the finger lifting flips it — that's the
 // buzz. The switch must already be on (enabled) when the finger goes down: turning it on mid-hold, or a click
-// handler on the label, stopped the buzz (owner's tests A–F). So it stays enabled, and a release with no scan
-// turns it off just for that lift, so nothing flips. Where there's no held button (Auto scan, a typed number)
-// an iPhone gets beeps.
+// handler on the label, stopped the buzz (owner's tests A–G). So it stays enabled, and a release with no scan
+// turns it off just for that lift, so nothing flips. With no held button (Auto scan, a typed number) an iPhone
+// gets the beeps only.
 let holdSwitch = null;     // the hidden switch in the button being held, or null
-let pendingKind = null;    // 'ok' / 'error' from a scan during this hold
+let pendingKind = null;    // 'ok' / 'error' for the scan being reported (merged until played)
+let flushTimer = null;
 
 export function haptic(kind = 'ok') {
-  if (navigator.vibrate) {
-    navigator.vibrate(kind === 'error' ? [120, 60, 120] : 80);
-    return;
-  }
-  if (holdSwitch) {
-    if (kind === 'error' || !pendingKind) pendingKind = kind;
-    return;
-  }
+  if (kind === 'error' || !pendingKind) pendingKind = kind;
+  // While held, it plays when the finger lifts; otherwise once this scan's reports are all in.
+  if (!holdSwitch && !flushTimer) flushTimer = setTimeout(() => { flushTimer = null; playFeedback(); }, 0);
+}
+
+function playFeedback() {
+  const kind = pendingKind;
+  pendingKind = null;
+  if (!kind) return;
+  if (navigator.vibrate) navigator.vibrate(kind === 'error' ? [120, 60, 120] : 80);
   beep(kind);
 }
 
@@ -49,8 +53,7 @@ function finishHold() {
     input.disabled = true;
     setTimeout(() => { input.disabled = false; }, 100);
   }
-  if (pendingKind === 'error') beep('error');
-  pendingKind = null;
+  playFeedback();
   holdSwitch = null;
 }
 

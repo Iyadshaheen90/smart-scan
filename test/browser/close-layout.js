@@ -2,7 +2,8 @@
 // (owner's request 2026-09-29), for the owner and employees, and the progress bar, the slot card with Sold out / Skip, the
 // camera and the button all fit on an iPhone screen above the tab bar at once (the scan message sits on the camera): first scan, a long "belongs to" note, a big
 // sale, a refused scan, Skip, Sold out, and every slot done. Also the buzz: two on Android for a scan that wasn't
-// saved; on an iPhone the finger flips a hidden switch in the Press and hold label, plus low beeps for a refused scan.
+// saved; on an iPhone the finger flips a hidden switch in the Press and hold label. Every saved scan beeps once (high),
+// a refused one twice (low), never both.
 // Run: node test/browser/close-layout.js   (SHOTS=dir also saves screenshots)
 const assert = require('assert/strict');
 const { openApp, sleep } = require('./harness');
@@ -108,14 +109,25 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
   assert.equal(await flips(), before, 'letting go without a scan: no buzz');
   await press(async () => (await import('./scanner.js')).haptic());
   assert.notEqual(await flips(), before, 'a scan while held: the finger lifting flips the switch (buzz)');
-  assert.deepEqual(await app.page.evaluate(() => window.tones), [], 'a saved scan makes no sound');
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [1800], 'a saved scan: one high beep as the finger lifts');
+  await app.page.evaluate(() => { window.tones = []; });
   before = await flips();
-  await press(async () => (await import('./scanner.js')).haptic('error'));
+  // The scanner reports the read as ok, then Close Day refuses it: one refused-scan signal, not both.
+  await press(async () => { const { haptic } = await import('./scanner.js'); haptic(); haptic('error'); });
   assert.notEqual(await flips(), before, 'a refused scan buzzes too');
-  assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300], '...and beeps twice, low');
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300], '...and beeps twice, low (no high beep)');
+  await app.page.evaluate(() => { window.tones = []; });
   before = await flips();
   await press(null);
   assert.equal(await flips(), before, 'next press without a scan: no buzz');
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [], '...and no sound');
+  // Auto scan (no held button): read + refused in the same moment → only the two low beeps.
+  await app.page.evaluate(async () => { const { haptic } = await import('./scanner.js'); haptic(); haptic('error'); });
+  await sleep(200);
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300]);
+  await app.page.evaluate(async () => { window.tones = []; (await import('./scanner.js')).haptic(); });
+  await sleep(200);
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [1800], 'Auto scan saved: one high beep');
   // A typed number that isn't saved: no held button, so two low beeps.
   await app.page.evaluate(() => { window.tones = []; });
   await app.page.type('#typed', '9999-0000001-6-010'); await app.page.click('#typedForm button'); await sleep(200);
