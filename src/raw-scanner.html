@@ -70,6 +70,10 @@
     <label class="hold-button switch-button" data-test="all"><input type="checkbox" switch class="finger-switch"><span>E. All of A–D (like the scan button)</span></label>
     <label class="hold-button switch-button" data-test="block"><input type="checkbox" switch class="finger-switch">F. Only buzzes if held 1 second (tap: no buzz)</label>
     <label class="hold-button switch-button" data-test="final"><input type="checkbox" switch class="finger-switch"><span>G. Like the scan button now: hold 1 second = buzz, quick tap = none</span></label>
+    <div class="sub" style="margin-top: 12px;">Then these, in order (each is G plus a beep, with a different sound setting). Which buzz?</div>
+    <label class="hold-button switch-button" data-test="final" data-sound="playback"><input type="checkbox" switch class="finger-switch"><span>H. G + beep (sound setting the app uses now)</span></label>
+    <label class="hold-button switch-button" data-test="final" data-sound="transient"><input type="checkbox" switch class="finger-switch"><span>I. G + beep (setting 2)</span></label>
+    <label class="hold-button switch-button" data-test="final" data-sound="ambient"><input type="checkbox" switch class="finger-switch"><span>J. G + beep (setting 3, silent switch mutes it)</span></label>
     <button type="button" id="beepOk">Beep: scan saved</button>
     <button type="button" id="beepError">Beep: scan not saved</button>
   </div>
@@ -101,7 +105,8 @@
     function beep(freq, ms, at = 0) {
       if (!audio) {
         audio = new (window.AudioContext || window.webkitAudioContext)();
-        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+        // Only if a test (H–J) hasn't chosen a setting already.
+        try { if (navigator.audioSession && navigator.audioSession.type === 'auto') navigator.audioSession.type = 'playback'; } catch (e) {}
       }
       if (audio.state === 'suspended') audio.resume();
       const t = audio.currentTime + at;
@@ -141,6 +146,11 @@
         if (text) setTimeout(() => { text.textContent = original; }, 50);
         // G: the scan button's way (scanner.js) — off only for a lift without a "scan".
         if (test === 'final' && !heldLongEnough) { input.disabled = true; setTimeout(() => { input.disabled = false; }, 100); }
+        // H–J: the scan's beep on release, with this button's iOS sound setting (does sound stop the buzz?).
+        if (btn.dataset.sound && heldLongEnough) {
+          try { if (navigator.audioSession) navigator.audioSession.type = btn.dataset.sound; } catch (e) {}
+          beep(1800, 90);
+        }
       };
       btn.addEventListener('pointerup', up);
       btn.addEventListener('pointercancel', up);
