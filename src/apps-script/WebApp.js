@@ -24,6 +24,7 @@ const SIGNED_IN_ACTIONS = {
   undoEndPack: { owner: true, run: (req) => undoEndPack(req) },
   swapSlots: { owner: true, run: (req) => swapSlots(req) },
   closeStatus: { run: (req, user) => closeStatus(user) },
+  ownerHome: { owner: true, run: (req, user) => ownerHome(user) },
   submitClose: { run: (req, user) => submitClose(user, req.entries, req.closeId, req.date) },
   reopenClose: { owner: true, run: () => reopenClose() },
   setPackSize: { owner: true, run: (req) => setPackSize(req) },
@@ -41,6 +42,9 @@ const SIGNED_IN_ACTIONS = {
 };
 
 function doPost(e) {
+  // Nothing kept from an earlier request (the month may have been started since).
+  currentMonthMemo = null;
+  openedMonth = null;
   try {
     let req;
     try {

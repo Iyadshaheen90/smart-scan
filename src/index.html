@@ -73,9 +73,8 @@
     const session = requireLogin();
     const isOwner = session && session.role === 'owner';
     const $ = (id) => document.getElementById(id);
-    // Asked once: both the last close and the Start month button need it (asked again after a start).
-    let monthStatusCall = isOwner ? api('monthStatus') : null;
-    if (monthStatusCall) monthStatusCall.catch(() => {});
+    // The owner's home as last loaded on this phone, shown at once (dimmed) while it refreshes.
+    const HOME_CACHE_KEY = `smartScanOwnerHome:${session && session.username}`;
 
     // "2026-09-28" -> "Mon, Sep 28"
     function dayName(label) {
@@ -95,7 +94,6 @@
       document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
       $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
       loadStatus();
-      if (isOwner) showStartMonth();
     }
 
     function todayOnPhone() {
@@ -109,56 +107,27 @@
       chip.textContent = closed ? 'Closed' : 'Not closed';
     }
 
-    // The most recent close: this month's last closed day, or last month's if none yet this month.
-    async function lastClose() {
-      const status = await monthStatusCall;
-      const summary = await api('monthSummary', { label: status.current });
-      setNumber('monthDollars', money(summary.dollarsSold));
-      if (summary.days.length) return summary.days[summary.days.length - 1];
-      const earlier = (await api('listMonths')).find((m) => m.label < status.current);
-      if (!earlier) return null;
-      const before = await api('monthSummary', { label: earlier.label });
-      return before.days.length ? before.days[before.days.length - 1] : null;
+    function savedHome() {
+      try { return JSON.parse(localStorage.getItem(HOME_CACHE_KEY) || 'null'); } catch (e) { return null; }
     }
 
+    // Everything on the owner's home comes in one request (each one costs about 2 seconds).
     async function loadStatus() {
-      const statusCall = api('closeStatus');
       if (isOwner) {
-        // All at once, so home loads as fast as the slowest one. A failed number shows "—".
-        api('listBackStock')
-          .then((games) => setNumber('backValue', money(games.reduce((sum, g) => sum + (Number(g.valueInBack) || 0), 0))))
-          .catch(() => setNumber('backValue', '—'));
-        const lastCall = lastClose();
-        lastCall.catch(() => setNumber('monthDollars', '—'));
+        const saved = savedHome();
+        if (saved) showOwnerHome(saved, false);
         try {
-          const status = await statusCall;
-          $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
-          setChip(Boolean(status.closed));
-          const live = status.slots.filter((s) => s.pack);
-          setNumber('liveSlots', String(live.length));
-          // Tickets left in the slots × price: what's on display as of the last close (plus packs put in since).
-          setNumber('liveValue', money(live.reduce((sum, s) => sum + (Number(s.pack.remaining) || 0) * (Number(s.pack.price) || 0), 0)));
-          // Packs CA Lottery settles soon or already has (Settling page); amber when there are any.
-          const settling = settlingPacks(status.slots).length;
-          setNumber('settlingCount', `${settling} ${settling === 1 ? 'pack' : 'packs'}`);
-          $('settlingCount').classList.toggle('amber', settling > 0);
-          if (status.closed) {
-            showLastClose(status.closed, true);
-            return;
-          }
+          const home = await api('ownerHome');
+          try { localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(home)); } catch (e) {}
+          showOwnerHome(home, true);
         } catch (err) {
-          setNumber('liveSlots', '—'); setNumber('liveValue', '—'); setNumber('settlingCount', '—');
-        }
-        try {
-          const day = await lastCall;
-          if (day) showLastClose(day, false);
-          else { setNumber('lastDollars', '$0'); $('lastLabel').textContent = 'No close yet'; setNumber('lastTickets', '0'); }
-        } catch (err) {
-          setNumber('lastDollars', '—'); $('lastLabel').textContent = 'Last close'; setNumber('lastTickets', '—');
+          if (saved) return;
+          for (const id of ['liveSlots', 'liveValue', 'settlingCount', 'backValue', 'monthDollars', 'lastDollars', 'lastTickets']) setNumber(id, '—');
+          $('lastLabel').textContent = 'Last close';
         }
       } else {
         try {
-          const status = await statusCall;
+          const status = await api('closeStatus');
           $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
           setChip(Boolean(status.closed));
           if (status.closed) {
@@ -170,6 +139,36 @@
           }
         } catch (err) {}
       }
+    }
+
+    // fresh: just loaded. Otherwise it's the last load saved on this phone: dimmed until the fresh one
+    // arrives, and if it's from an earlier day, that day's close is now the last close.
+    function showOwnerHome(home, fresh) {
+      $('statusCard').classList.toggle('stale', !fresh);
+      document.querySelector('.tile-grid').classList.toggle('stale', !fresh);
+      let { closed, lastClose } = home;
+      if (!fresh && home.today !== todayOnPhone()) {
+        if (closed) lastClose = closed;
+        closed = null;
+      } else {
+        $('todayLabel').textContent = `Today · ${dayName(home.today)}`;
+      }
+      setChip(Boolean(closed));
+      const live = home.slots.filter((s) => s.pack);
+      setNumber('liveSlots', String(live.length));
+      // Tickets left in the slots × price: what's on display as of the last close (plus packs put in since).
+      setNumber('liveValue', money(live.reduce((sum, s) => sum + (Number(s.pack.remaining) || 0) * (Number(s.pack.price) || 0), 0)));
+      // Packs CA Lottery settles soon or already has (Settling page); amber when there are any.
+      const settling = settlingPacks(home.slots).length;
+      setNumber('settlingCount', `${settling} ${settling === 1 ? 'pack' : 'packs'}`);
+      $('settlingCount').classList.toggle('amber', settling > 0);
+      setNumber('backValue', money(home.backValue));
+      setNumber('monthDollars', money(home.monthDollars));
+      if (closed) showLastClose(closed, true);
+      else if (lastClose) showLastClose(lastClose, false);
+      else { setNumber('lastDollars', '$0'); $('lastLabel').textContent = 'No close yet'; setNumber('lastTickets', '0'); }
+      // Only a fresh answer decides the Start month button (a saved one may be from before the 1st).
+      if (fresh) showStartMonth(home.month);
     }
 
     function showLastClose(day, isToday) {
@@ -209,15 +208,11 @@
 
     // From the 1st, until the owner starts the new month (same as Start on Months & totals).
     let monthStatus = null;
-    async function showStartMonth() {
+    function showStartMonth(status) {
+      monthStatus = status;
       const btn = $('startMonthBtn');
-      try {
-        monthStatus = await monthStatusCall;
-        btn.textContent = `Start ${monthName(monthStatus.next)}`;
-        btn.classList.toggle('hidden', !monthStatus.canStart);
-      } catch (e) {
-        btn.classList.add('hidden');
-      }
+      btn.textContent = `Start ${monthName(status.next)}`;
+      btn.classList.toggle('hidden', !status.canStart);
     }
 
     $('startMonthBtn').addEventListener('click', () => {
@@ -233,8 +228,6 @@
             (moved ? ` ${moved} ${moved === 1 ? 'entry' : 'entries'} moved over from ${monthName(result.previous)}.` : ''), 'ok');
           btn.classList.add('hidden');
           // The tiles now read the new month (its sales so far, and the last close from the month before).
-          monthStatusCall = api('monthStatus');
-          monthStatusCall.catch(() => {});
           loadStatus();
         } catch (err) {
           // Someone already started it (e.g. on another phone): nothing left to do here.

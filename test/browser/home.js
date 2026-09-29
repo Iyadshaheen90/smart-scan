@@ -10,15 +10,26 @@ const slots = [live(1), live(2, 10, 50), live(3, 10, 70), { box: 1, slot: 4, slo
 let backStock = [{ gameNumber: '1747', valueInBack: 1200 }, { gameNumber: '1800', valueInBack: 450.5 }];
 
 // closed: today's summary or null. months: { label: days[] }.
-function backend({ closed = null, slotList = slots, months = { '2026-09': [{ date: '2026-09-27', ticketsSold: 214, dollarsSold: 1284 }] }, current = '2026-09', canStart = false } = {}) {
+function backend({ closed = null, slotList = slots, months = { '2026-09': [{ date: '2026-09-27', ticketsSold: 214, dollarsSold: 1284 }] }, current = '2026-09', canStart = false, today = '2026-09-28' } = {}) {
   return (body) => {
     switch (body.action) {
+      // What ownerHome in Home.js returns, built from the same pieces.
+      case 'ownerHome': {
+        const next = `${current.slice(0, 5)}${String(Number(current.slice(5)) + 1).padStart(2, '0')}`;
+        const days = months[current] || [];
+        const earlier = Object.keys(months).sort().reverse().find((l) => l < current);
+        const before = earlier ? months[earlier] : [];
+        return { today, closed, slots: slotList, month: { current, next, canStart },
+          monthDollars: days.reduce((sum, d) => sum + d.dollarsSold, 0),
+          lastClose: days.length ? days[days.length - 1] : before.length ? before[before.length - 1] : null,
+          backValue: backStock.reduce((sum, g) => sum + g.valueInBack, 0) };
+      }
       case 'startNewMonth': {
         const previous = current;
         current = body.label; canStart = false; months[current] = [];
         return { label: current, previous, moved: { DailyCloseLog: 0 } };
       }
-      case 'closeStatus': return { today: '2026-09-28', closed, slots: slotList };
+      case 'closeStatus': return { today, closed, slots: slotList };
       case 'listBackStock': return backStock;
       case 'monthStatus': return { current, next: `${current.slice(0, 5)}${String(Number(current.slice(5)) + 1).padStart(2, '0')}`, canStart };
       case 'monthSummary': {
@@ -45,8 +56,11 @@ async function home(app) {
   const shots = process.env.SHOTS;
 
   // Owner, not closed yet: yesterday's close.
-  let app = await openApp({ role: 'owner', username: 'ishaheen', handle: backend() });
+  const ownerCalls = [];
+  const ownerBackend = backend();
+  let app = await openApp({ role: 'owner', username: 'ishaheen', handle: (body) => { ownerCalls.push(body.action); return ownerBackend(body); } });
   await home(app);
+  assert.deepEqual(ownerCalls, ['ownerHome'], 'owner home is one request');
   assert.equal(await text(app.page, 'closedChip'), 'Not closed');
   assert.equal(await text(app.page, 'todayLabel'), 'Today · Mon, Sep 28');
   assert.equal(await text(app.page, 'lastDollars'), '$1,284');
@@ -70,6 +84,33 @@ async function home(app) {
   }
   assert.ok(await app.page.$eval('#startMonthBtn', (el) => el.classList.contains('hidden')), 'no Start month before the 1st');
   if (shots) await app.page.screenshot({ path: `${shots}/home-owner.png`, fullPage: true });
+  assert.ok(await app.page.$eval('#statusCard', (el) => !el.classList.contains('stale')), 'fresh numbers are not dimmed');
+
+  // Opened again: the saved numbers show at once, dimmed, before the (slow) answer arrives.
+  let release;
+  const slowAnswer = new Promise((r) => { release = r; });
+  const slowBackend = backend({ months: { '2026-09': [{ date: '2026-09-27', ticketsSold: 214, dollarsSold: 1284 }, { date: '2026-09-28', ticketsSold: 10, dollarsSold: 99 }] } });
+  app.setHandle(async (body) => { await slowAnswer; return slowBackend(body); });
+  await app.page.goto(app.base + 'index.html'); await sleep(300);
+  assert.equal(await text(app.page, 'lastDollars'), '$1,284', 'saved number shown before the answer');
+  assert.equal(await text(app.page, 'backValue'), '$1,651');
+  assert.ok(await app.page.$eval('#statusCard', (el) => el.classList.contains('stale')));
+  release();
+  await app.page.waitForFunction(() => !document.getElementById('statusCard').classList.contains('stale'));
+  assert.equal(await text(app.page, 'lastDollars'), '$99', 'then the fresh number');
+  assert.equal(await text(app.page, 'monthDollars'), '$1,383');
+  await app.close();
+
+  // A copy saved on an earlier day: that day's close shows as the last close, and today is Not closed.
+  app = await openApp({ role: 'owner', username: 'ishaheen', handle: () => new Promise(() => {}) });   // never answers
+  await app.page.evaluate(() => localStorage.setItem('smartScanOwnerHome:ishaheen', JSON.stringify({
+    today: '2020-01-01', closed: { date: '2020-01-01', ticketsSold: 5, dollarsSold: 50, liveSlots: 1 }, lastClose: null, slots: [],
+    month: { current: '2020-01', next: '2020-02', canStart: true }, monthDollars: 50, backValue: 7 })));
+  await app.page.goto(app.base + 'index.html'); await sleep(300);
+  assert.equal(await text(app.page, 'closedChip'), 'Not closed');
+  assert.equal(await text(app.page, 'lastDollars'), '$50');
+  assert.equal(await text(app.page, 'lastLabel'), 'Last close · Wed, Jan 1');
+  assert.ok(await app.page.$eval('#startMonthBtn', (el) => el.classList.contains('hidden')), 'a saved copy never shows Start month');
   await app.close();
 
   // From the 1st: Start October 2026 between the top card and Close Day; gone once started.

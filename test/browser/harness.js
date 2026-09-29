@@ -17,7 +17,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // handle(body) gets the request ({ action, ...params }) and returns the response data, throws
 // { code, message } for an error answer, or returns ABORT. onDialog answers alert/confirm/prompt
-// (default: accept).
+// (default: accept). setHandle swaps in a different handle for later requests.
 async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e', handle, onDialog }) {
   const server = http.createServer((req, res) => {
     const file = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]));
@@ -56,7 +56,7 @@ async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e'
     localStorage.setItem('smartScanSession', JSON.stringify(session));
   }, { token: 't', username, role, expiresAt: '2099-01-01' });
 
-  return { page, base, close: async () => { await browser.close(); server.close(); } };
+  return { page, base, setHandle: (h) => { handle = h; }, close: async () => { await browser.close(); server.close(); } };
 }
 
 // The real backend (src/apps-script) on an in-memory spreadsheet, for tests that should run the

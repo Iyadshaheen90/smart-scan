@@ -10,10 +10,13 @@ function getControlSpreadsheet() {
 
 // Returns { label, spreadsheetId } for the month whose status is "active". Start New Month marks
 // the new month active before archiving the old one, so for a moment two can be: the later wins.
+// Also kept for the rest of the request, since every tab read asks for it.
+let currentMonthMemo = null;
 function getCurrentMonth() {
+  if (currentMonthMemo) return currentMonthMemo;
   const cache = CacheService.getScriptCache();
   const cached = cache.get(CURRENT_MONTH_CACHE_KEY);
-  if (cached) return JSON.parse(cached);
+  if (cached) return (currentMonthMemo = JSON.parse(cached));
 
   const active = readTable(getControlSpreadsheet().getSheetByName('Months'))
     .filter((m) => m.status === 'active')
@@ -22,14 +25,19 @@ function getCurrentMonth() {
   if (active.length === 0) throw new Error('No active month in Months.');
   const month = active.pop();
   cache.put(CURRENT_MONTH_CACHE_KEY, JSON.stringify(month), CURRENT_MONTH_CACHE_SECONDS);
-  return month;
+  return (currentMonthMemo = month);
 }
 
+// Opened once per request: a request reads several tabs, and each openById takes a moment.
+let openedMonth = null;
 function openCurrentMonth() {
-  return SpreadsheetApp.openById(getCurrentMonth().spreadsheetId);
+  const id = getCurrentMonth().spreadsheetId;
+  if (!openedMonth || openedMonth.id !== id) openedMonth = { id, spreadsheet: SpreadsheetApp.openById(id) };
+  return openedMonth.spreadsheet;
 }
 
 function invalidateCurrentMonthCache() {
+  currentMonthMemo = null;
   CacheService.getScriptCache().remove(CURRENT_MONTH_CACHE_KEY);
 }
 

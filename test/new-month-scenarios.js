@@ -12,7 +12,7 @@ const ctx = { console, ...google, Session: { getScriptTimeZone: () => 'x' },
   Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : globalThis.TODAY },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js']) {
+for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'Home.js']) {
   vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 }
 const run = (code) => vm.runInContext(code, ctx);
@@ -82,6 +82,14 @@ assert.equal(sep.tabs.Shipments.rows.length, 2); assert.equal(sep.tabs.PackHisto
 assert.equal(code(() => run(`startNewMonth({ label: '2026-10' })`)), 'already_started');
 assert.equal(code(() => run(`startNewMonth({ label: '2026-09' })`)), 'already_started');
 assert.equal(run('monthStatus()').next, '2026-11');
+// Owner home right after starting October: October's sales so far and its last close (Oct 1).
+let home = run('ownerHome(owner)');
+assert.equal(home.month.current, '2026-10'); assert.equal(home.month.canStart, false);
+assert.equal(home.closed, null); assert.equal(home.lastClose.date, '2026-10-01');
+assert.equal(home.monthDollars, run(`monthSummary('2026-10')`).dollarsSold);
+assert.equal(home.slots.length, 3);
+assert.equal(home.backValue, run('listBackStock()').reduce((sum, g) => sum + g.valueInBack, 0));
+assert.ok(home.backValue > 0);
 console.log('late October start: moved 5 October rows out of September, store carried over — OK');
 
 // Oct 2 close, reopened: slot 2 goes back to its Oct 1 close, which was logged in September's sheet.
@@ -132,3 +140,9 @@ assert.equal(octTotals.ticketsSold, 35 + 5);
 assert.equal(run(`monthSummary('2026-11')`).endingInventoryValue, null); // reopened, so no closed day yet
 assert.equal(code(() => run(`monthSummary('2025-01')`)), 'no_month');
 console.log('monthly totals pass');
+
+// Owner home with no close yet this month (November's was reopened): last month's last close.
+home = run('ownerHome(owner)');
+assert.equal(home.month.current, '2026-11'); assert.equal(home.monthDollars, 0);
+assert.equal(home.lastClose.date, '2026-10-02'); assert.equal(home.today, '2026-11-01');
+console.log('owner home pass');

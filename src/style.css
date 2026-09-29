@@ -245,6 +245,8 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 button.action-main { width: 100%; border: 0; font-family: inherit; cursor: pointer; }
 .action-month { background: var(--amber); color: #241a05; }
 .action-month:disabled { opacity: 0.6; }
+/* Owner home: numbers from the last load on this phone, dimmed until the fresh ones arrive. */
+.stale .big-number, .stale .stat-value, .stale .tile-num { opacity: 0.55; transition: opacity 0.2s; }
 .action-hero { flex-direction: column; gap: 12px; min-height: 168px; font-size: 20px; }
 .action-hero svg { width: 40px; height: 40px; }
 .action-hero .hint { font-size: 14px; font-weight: 600; opacity: 0.75; margin-top: -6px; }

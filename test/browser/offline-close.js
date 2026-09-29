@@ -34,8 +34,17 @@ function handle(body) {
   const { page, base } = app;
   const visible = (id) => page.$eval('#' + id, (el) => !el.classList.contains('hidden'));
   const text = (id) => page.$eval('#' + id, (el) => el.textContent);
+  // Close Day reloads itself after a refusal, which can drop a wait that started just before it.
+  async function closeViewShown() {
+    for (let i = 0; ; i++) {
+      try { return await page.waitForSelector('#closeView:not(.hidden)'); } catch (e) {
+        if (i === 4 || !/context|document|detached/i.test(e.message)) throw e;
+        await sleep(200);
+      }
+    }
+  }
   async function scanBoth() {
-    await page.goto(base + 'close.html'); await page.waitForSelector('#closeView:not(.hidden)');
+    await page.goto(base + 'close.html'); await closeViewShown();
     for (const t of ['1747-1263622-4-035', '1718-1279742-6-018']) { await page.type('#typed', t); await page.click('#typedForm button'); }
   }
 
@@ -69,13 +78,13 @@ function handle(body) {
 
   // 5. Server refuses (slot changed): saved close dropped, back to scanning with the reason, draft kept.
   saved.length = 0; await scanBoth(); refuse = 'slots_changed';
-  await page.click('#submitBtn'); await page.waitForSelector('#closeView:not(.hidden)'); await sleep(200);
+  await page.click('#submitBtn'); await closeViewShown(); await sleep(200);
   console.log('refused:', await text('flash'));
   assert.match(await text('flash'), /wasn't saved/); assert.equal(await page.evaluate(() => localStorage.getItem('smartScanPendingClose')), null);
   assert.match(await text('progressText'), /2 of 2/);
   // 6. Stop sending: back to the scans.
   refuse = null; net = 'down'; await page.click('#submitBtn'); await sleep(300); assert.ok(await visible('pendingView'));
-  net = 'ok'; await page.click('#cancelPendingBtn'); await page.waitForSelector('#closeView:not(.hidden)');
+  net = 'ok'; await page.click('#cancelPendingBtn'); await closeViewShown();
   assert.match(await text('progressText'), /2 of 2/); assert.equal(saved.length, 0);
   console.log('ALL OFFLINE CLOSE CHECKS PASS; submit calls:', calls);
   await app.close();
