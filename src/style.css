@@ -221,9 +221,12 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 .big-number { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; margin-top: 14px; line-height: 1; font-variant-numeric: tabular-nums; }
 .big-label { font-size: 14px; color: var(--muted); margin-top: 6px; }
 .status-note { font-size: 14px; color: var(--muted); margin-top: 6px; }
-.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
 .stat { background: var(--card-2); border-radius: 12px; padding: 10px 12px; min-width: 0; }
-.stat-value { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stat-value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* A number that must show whole: one line, and home's fitText() makes it smaller if it doesn't fit. */
+.fit { display: block; white-space: nowrap; overflow: hidden; max-width: 100%; }
 .stat-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 /* Home action buttons. */
@@ -237,12 +240,16 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 .action-hero svg { width: 40px; height: 40px; }
 .action-hero .hint { font-size: 14px; font-weight: 600; opacity: 0.75; margin-top: -6px; }
 .section-label { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 24px 0 10px; }
-.tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.tile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .tile-card {
   display: flex; flex-direction: column; justify-content: space-between; gap: 18px; min-height: 100px;
   padding: 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--border);
   color: var(--text); text-decoration: none; font-size: 16px; font-weight: 700; line-height: 1.25;
 }
+.tile-stat { display: block; margin-top: 8px; }
+.tile-num { font-size: 20px; font-weight: 800; color: var(--accent-bright); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tile-sub { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 1px; }
+.tile-card > span:last-child { min-width: 0; }
 .icon-box {
   display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px;
   background: var(--accent-soft); color: var(--accent-bright);

@@ -30,12 +30,11 @@
       <div class="status-note hidden" id="employeeNote"></div>
     </div>
     <div class="owner-only hidden">
-      <div class="big-number" id="lastDollars">…</div>
+      <div class="big-number fit" id="lastDollars">…</div>
       <div class="big-label" id="lastLabel">Last close</div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-value" id="lastTickets">…</div><div class="stat-label">Tickets sold</div></div>
-        <div class="stat"><div class="stat-value" id="liveSlots">…</div><div class="stat-label">Slots active</div></div>
-        <div class="stat"><div class="stat-value" id="backValue">…</div><div class="stat-label">Back stock</div></div>
+      <div class="stat-grid two">
+        <div class="stat"><div class="stat-value fit" id="lastTickets">…</div><div class="stat-label">Tickets sold</div></div>
+        <div class="stat"><div class="stat-value fit" id="liveSlots">…</div><div class="stat-label">Slots active</div></div>
       </div>
     </div>
   </div>
@@ -45,9 +44,12 @@
     <a class="action-main" href="close.html"><span data-icon="check"></span>Close Day</a>
     <div class="section-label">Manage</div>
     <div class="tile-grid">
-      <a class="tile-card" href="slots.html"><span class="icon-box" data-icon="grid"></span>Slots</a>
-      <a class="tile-card" href="backstock.html"><span class="icon-box" data-icon="box"></span>Back stock &amp; shipments</a>
-      <a class="tile-card" href="month.html"><span class="icon-box" data-icon="chart"></span>Months &amp; totals</a>
+      <a class="tile-card" href="slots.html"><span class="icon-box" data-icon="grid"></span>
+        <span>Slots<span class="tile-stat"><span class="tile-num fit" id="liveValue">…</span><span class="tile-sub">on display</span></span></span></a>
+      <a class="tile-card" href="backstock.html"><span class="icon-box" data-icon="box"></span>
+        <span>Back stock &amp; shipments<span class="tile-stat"><span class="tile-num fit" id="backValue">…</span><span class="tile-sub">in the back</span></span></span></a>
+      <a class="tile-card" href="month.html"><span class="icon-box" data-icon="chart"></span>
+        <span>Months &amp; totals<span class="tile-stat"><span class="tile-num fit" id="monthDollars">…</span><span class="tile-sub">sold this month</span></span></span></a>
       <a class="tile-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span>Scanner test</a>
     </div>
     <a class="list-card" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage employees</span><span class="chev" data-icon="chevronRight"></span></a>
@@ -80,7 +82,23 @@
       const [y, m, d] = label.split('-').map(Number);
       return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
-    const money = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
+    const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+
+    // Shows a number whole: if it's too wide for its box, the text gets smaller instead of being cut off.
+    function fitText(el) {
+      el.style.fontSize = '';
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollWidth > el.clientWidth && size > 11) {
+        size -= 1;
+        el.style.fontSize = `${size}px`;
+      }
+    }
+    function setNumber(id, text) {
+      const el = $(id);
+      el.textContent = text;
+      fitText(el);
+    }
+    window.addEventListener('resize', () => document.querySelectorAll('.fit').forEach(fitText));
 
     if (session) {
       document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
@@ -104,6 +122,7 @@
     async function lastClose() {
       const status = await monthStatusCall;
       const summary = await api('monthSummary', { label: status.current });
+      setNumber('monthDollars', money(summary.dollarsSold));
       if (summary.days.length) return summary.days[summary.days.length - 1];
       const earlier = (await api('listMonths')).find((m) => m.label < status.current);
       if (!earlier) return null;
@@ -116,27 +135,31 @@
       if (isOwner) {
         // All at once, so home loads as fast as the slowest one. A failed number shows "—".
         api('listBackStock')
-          .then((games) => { $('backValue').textContent = money(games.reduce((sum, g) => sum + (Number(g.valueInBack) || 0), 0)); })
-          .catch(() => { $('backValue').textContent = '—'; });
+          .then((games) => setNumber('backValue', money(games.reduce((sum, g) => sum + (Number(g.valueInBack) || 0), 0))))
+          .catch(() => setNumber('backValue', '—'));
         const lastCall = lastClose();
+        lastCall.catch(() => setNumber('monthDollars', '—'));
         try {
           const status = await statusCall;
           $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
           setChip(Boolean(status.closed));
-          $('liveSlots').textContent = status.slots.filter((s) => s.pack).length;
+          const live = status.slots.filter((s) => s.pack);
+          setNumber('liveSlots', String(live.length));
+          // Tickets left in the slots × price: what's on display as of the last close (plus packs put in since).
+          setNumber('liveValue', money(live.reduce((sum, s) => sum + (Number(s.pack.remaining) || 0) * (Number(s.pack.price) || 0), 0)));
           if (status.closed) {
             showLastClose(status.closed, true);
             return;
           }
         } catch (err) {
-          $('liveSlots').textContent = '—';
+          setNumber('liveSlots', '—'); setNumber('liveValue', '—');
         }
         try {
           const day = await lastCall;
           if (day) showLastClose(day, false);
-          else { $('lastDollars').textContent = '$0'; $('lastLabel').textContent = 'No close yet'; $('lastTickets').textContent = '0'; }
+          else { setNumber('lastDollars', '$0'); $('lastLabel').textContent = 'No close yet'; setNumber('lastTickets', '0'); }
         } catch (err) {
-          $('lastDollars').textContent = '—'; $('lastLabel').textContent = 'Last close'; $('lastTickets').textContent = '—';
+          setNumber('lastDollars', '—'); $('lastLabel').textContent = 'Last close'; setNumber('lastTickets', '—');
         }
       } else {
         try {
@@ -155,9 +178,9 @@
     }
 
     function showLastClose(day, isToday) {
-      $('lastDollars').textContent = money(day.dollarsSold);
+      setNumber('lastDollars', money(day.dollarsSold));
       $('lastLabel').textContent = isToday ? "Today's close" : `Last close · ${dayName(day.date)}`;
-      $('lastTickets').textContent = Number(day.ticketsSold).toLocaleString('en-US');
+      setNumber('lastTickets', Number(day.ticketsSold).toLocaleString('en-US'));
     }
 
     // A close submitted with no connection is sent from here too, so it goes as soon as the app is opened online.
