@@ -45,7 +45,7 @@ function handle(body) {
   assert.ok(await x('#shipCancel') < await x('#shipSave'));
   const bg = (sel) => page.$eval(sel, (el) => getComputedStyle(el).backgroundColor);
   assert.equal(await bg('#shipCancel'), 'rgb(198, 40, 40)');
-  assert.equal(await bg('#shipSave'), 'rgb(31, 122, 77)');
+  assert.equal(await bg('#shipSave'), 'rgb(47, 158, 103)');
   assert.equal(await page.$eval('#lines', (el) => el.children.length), 0);   // nothing goes on a list
 
   // 2. − stops at 0 and greys out Save; Cancel saves nothing.

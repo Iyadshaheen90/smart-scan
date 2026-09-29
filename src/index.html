@@ -2,57 +2,176 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1f7a4d">
+<meta name="theme-color" content="#0e1010">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Smart Scan">
 <title>Smart Scan</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="topbar">
-    <span id="who"></span>
-    <a href="#" id="signOut">Sign out</a>
+  <header class="app-header" data-title="Smart Scan"></header>
+
+  <a id="pendingClose" class="message banner hidden" href="close.html"></a>
+  <a id="newMonthDue" class="message error banner hidden" href="month.html"></a>
+
+  <!-- Today's status. The owner also sees the last close's totals (sales are only counted at the close). -->
+  <div class="status-card" id="statusCard">
+    <div class="status-top">
+      <span id="todayLabel">Today</span>
+      <span id="closedChip" class="chip hidden"></span>
+    </div>
+    <div class="employee-only hidden">
+      <div class="status-title" id="employeeTitle">Ready to scan</div>
+      <div class="status-note hidden" id="employeeNote"></div>
+    </div>
+    <div class="owner-only hidden">
+      <div class="big-number" id="lastDollars">…</div>
+      <div class="big-label" id="lastLabel">Last close</div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-value" id="lastTickets">…</div><div class="stat-label">Tickets sold</div></div>
+        <div class="stat"><div class="stat-value" id="liveSlots">…</div><div class="stat-label">Slots active</div></div>
+        <div class="stat"><div class="stat-value" id="backValue">…</div><div class="stat-label">Back stock</div></div>
+      </div>
+    </div>
   </div>
-  <h1>Smart Scan</h1>
-  <p class="sub">Route 66 Liquor — scratcher tracking</p>
-  <a id="pendingClose" class="message hidden" href="close.html" style="display: block; color: inherit"></a>
-  <a id="newMonthDue" class="message error hidden" href="month.html" style="display: block; color: inherit"></a>
 
-  <a class="button primary" href="close.html">Close Day</a>
-  <a class="button" href="slots.html">Slots</a>
-  <a class="button owner-only hidden" href="backstock.html">Back stock &amp; shipments</a>
-  <a class="button owner-only hidden" href="month.html">Months &amp; totals</a>
-  <a class="button" href="raw-scanner.html">Scanner test</a>
-  <a class="button owner-only hidden" href="users.html">Manage employees</a>
-  <a class="button" href="account.html">Change my password</a>
+  <!-- Owner -->
+  <div class="owner-only hidden">
+    <a class="action-main" href="close.html"><span data-icon="check"></span>Close Day</a>
+    <div class="section-label">Manage</div>
+    <div class="tile-grid">
+      <a class="tile-card" href="slots.html"><span class="icon-box" data-icon="grid"></span>Slots</a>
+      <a class="tile-card" href="backstock.html"><span class="icon-box" data-icon="box"></span>Back stock &amp; shipments</a>
+      <a class="tile-card" href="month.html"><span class="icon-box" data-icon="chart"></span>Months &amp; totals</a>
+      <a class="tile-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span>Scanner test</a>
+    </div>
+    <a class="list-card" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage employees</span><span class="chev" data-icon="chevronRight"></span></a>
+  </div>
 
+  <!-- Employee: scanning happens in Close Day, so the big button opens it. -->
+  <div class="employee-only hidden">
+    <a class="action-main action-hero" href="close.html"><span data-icon="scan"></span>Scan tickets<span class="hint">Close Day</span></a>
+    <div class="tile-grid">
+      <a class="tile-card" href="slots.html"><span class="icon-box" data-icon="grid"></span>Slots</a>
+    </div>
+  </div>
+
+  <nav class="tabbar" data-active="home"></nav>
 
   <script src="config.js"></script>
   <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
   <script>
     const session = requireLogin();
+    const isOwner = session && session.role === 'owner';
+    const $ = (id) => document.getElementById(id);
+    // Asked once: both the last close and the new-month reminder need it.
+    const monthStatusCall = isOwner ? api('monthStatus') : null;
+    if (monthStatusCall) monthStatusCall.catch(() => {});
+
+    // "2026-09-28" -> "Mon, Sep 28"
+    function dayName(label) {
+      const [y, m, d] = label.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+    const money = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
+
     if (session) {
-      document.getElementById('who').textContent = `${session.username} · ${session.role}`;
-      if (session.role === 'owner') {
-        document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
-        showNewMonthReminder();
+      document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
+      $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
+      loadStatus();
+      if (isOwner) showNewMonthReminder();
+    }
+
+    function todayOnPhone() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function setChip(closed) {
+      const chip = $('closedChip');
+      chip.className = `chip ${closed ? 'green' : 'amber'}`;
+      chip.textContent = closed ? 'Closed' : 'Not closed';
+    }
+
+    // The most recent close: this month's last closed day, or last month's if none yet this month.
+    async function lastClose() {
+      const status = await monthStatusCall;
+      const summary = await api('monthSummary', { label: status.current });
+      if (summary.days.length) return summary.days[summary.days.length - 1];
+      const earlier = (await api('listMonths')).find((m) => m.label < status.current);
+      if (!earlier) return null;
+      const before = await api('monthSummary', { label: earlier.label });
+      return before.days.length ? before.days[before.days.length - 1] : null;
+    }
+
+    async function loadStatus() {
+      const statusCall = api('closeStatus');
+      if (isOwner) {
+        // All at once, so home loads as fast as the slowest one. A failed number shows "—".
+        api('listBackStock')
+          .then((games) => { $('backValue').textContent = money(games.reduce((sum, g) => sum + (Number(g.valueInBack) || 0), 0)); })
+          .catch(() => { $('backValue').textContent = '—'; });
+        const lastCall = lastClose();
+        try {
+          const status = await statusCall;
+          $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
+          setChip(Boolean(status.closed));
+          $('liveSlots').textContent = status.slots.filter((s) => s.pack).length;
+          if (status.closed) {
+            showLastClose(status.closed, true);
+            return;
+          }
+        } catch (err) {
+          $('liveSlots').textContent = '—';
+        }
+        try {
+          const day = await lastCall;
+          if (day) showLastClose(day, false);
+          else { $('lastDollars').textContent = '$0'; $('lastLabel').textContent = 'No close yet'; $('lastTickets').textContent = '0'; }
+        } catch (err) {
+          $('lastDollars').textContent = '—'; $('lastLabel').textContent = 'Last close'; $('lastTickets').textContent = '—';
+        }
+      } else {
+        try {
+          const status = await statusCall;
+          $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
+          setChip(Boolean(status.closed));
+          if (status.closed) {
+            $('employeeTitle').textContent = 'Day closed';
+            if (status.closed.closedAt) {
+              $('employeeNote').textContent = `Submitted at ${status.closed.closedAt}${status.closed.closedBy ? ` by ${status.closed.closedBy}` : ''}`;
+              $('employeeNote').classList.remove('hidden');
+            }
+          }
+        } catch (err) {}
       }
     }
+
+    function showLastClose(day, isToday) {
+      $('lastDollars').textContent = money(day.dollarsSold);
+      $('lastLabel').textContent = isToday ? "Today's close" : `Last close · ${dayName(day.date)}`;
+      $('lastTickets').textContent = Number(day.ticketsSold).toLocaleString('en-US');
+    }
+
     // A close submitted with no connection is sent from here too, so it goes as soon as the app is opened online.
     async function sendSavedClose() {
-      const el = document.getElementById('pendingClose');
+      const el = $('pendingClose');
       const pending = getPendingClose();
       if (!pending) return;
-      el.className = 'message error';
+      el.className = 'message banner error';
       el.textContent = `The close for ${pending.date} is saved on this phone but not sent yet. Sending…`;
       try {
         const summary = await sendPendingClose();
-        el.className = 'message ok';
+        el.className = 'message banner ok';
         el.textContent = `The close for ${summary.date} was sent ✓`;
+        loadStatus();
       } catch (err) {
         el.textContent = canRetryClose(err)
           ? `The close for ${pending.date} is saved on this phone but not sent yet (no connection). Tap to open it.`
@@ -67,20 +186,15 @@
     // From the 1st, until the owner starts the new month.
     async function showNewMonthReminder() {
       try {
-        const status = await api('monthStatus');
+        const status = await monthStatusCall;
         if (!status.canStart) return;
         const [year, month] = status.next.split('-').map(Number);
         const name = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long' });
-        const el = document.getElementById('newMonthDue');
+        const el = $('newMonthDue');
         el.textContent = `It's ${name} — tap here to start the new month's spreadsheet.`;
         el.classList.remove('hidden');
       } catch (e) {}
     }
-
-    document.getElementById('signOut').addEventListener('click', (e) => {
-      e.preventDefault();
-      signOut();
-    });
   </script>
 </body>
 </html>

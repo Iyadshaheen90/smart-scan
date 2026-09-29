@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — More</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="More"></header>
+  <p class="sub" id="who"></p>
+
+  <a class="list-card owner-only hidden" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage employees</span><span class="chev" data-icon="chevronRight"></span></a>
+  <a class="list-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span><span class="grow">Scanner test</span><span class="chev" data-icon="chevronRight"></span></a>
+  <a class="list-card" href="account.html"><span class="icon-box" data-icon="key"></span><span class="grow">Change my password</span><span class="chev" data-icon="chevronRight"></span></a>
+  <button type="button" class="list-card danger" id="signOut"><span class="icon-box" data-icon="logout"></span><span class="grow">Sign out</span></button>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin();
+    if (session) {
+      document.getElementById('who').textContent = `Signed in as ${session.username} (${session.role}).`;
+      if (session.role === 'owner') document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
+    }
+    document.getElementById('signOut').addEventListener('click', () => signOut());
+  </script>
+</body>
+</html>

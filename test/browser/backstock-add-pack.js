@@ -45,7 +45,7 @@ function handle(body) {
   assert.ok(await x('#packCancel') < await x('#packSave'));
   const bg = (sel) => page.$eval(sel, (el) => getComputedStyle(el).backgroundColor);
   assert.equal(await bg('#packCancel'), 'rgb(198, 40, 40)');   // red
-  assert.equal(await bg('#packSave'), 'rgb(31, 122, 77)');     // green
+  assert.equal(await bg('#packSave'), 'rgb(47, 158, 103)');     // green
 
   // 2. + and − change the number; Cancel closes with nothing saved.
   await page.click('#packPlus'); await page.click('#packPlus'); await page.click('#packPlus');
