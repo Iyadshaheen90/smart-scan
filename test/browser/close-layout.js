@@ -1,8 +1,8 @@
 // Close Day: the camera and the Press and hold button stay in the same place from one scan to the next
 // (owner's request 2026-09-29), for the owner and employees, and the progress bar, the slot card with Sold out / Skip, the
 // camera and the button all fit on an iPhone screen above the tab bar at once (the scan message sits on the camera): first scan, a long "belongs to" note, a big
-// sale, a refused scan, Skip, Sold out, and every slot done. Also the buzz: two for a scan that wasn't saved,
-// and on an iPhone (no navigator.vibrate) a hidden switch is clicked instead.
+// sale, a refused scan, Skip, Sold out, and every slot done. Also the buzz: two on Android for a scan that wasn't
+// saved; on an iPhone the finger flips a hidden switch in the Press and hold label, plus low beeps for a refused scan.
 // Run: node test/browser/close-layout.js   (SHOTS=dir also saves screenshots)
 const assert = require('assert/strict');
 const { openApp, sleep } = require('./harness');
@@ -72,48 +72,54 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
     console.log(role, JSON.stringify(steps.map((s) => s[1])));
     if (process.env.SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await sleep(100); await page.screenshot({ path: `${process.env.SHOTS}/close-${role}.png` }); }
 
-    // Two scans that weren't saved buzzed twice each.
+    // Android: the scans that weren't saved buzzed twice each.
     const buzzes = await page.evaluate(() => window.buzzes);
     assert.deepEqual(buzzes.filter((b) => Array.isArray(b)).length, 3, 'error buzzes');
     await app.close();
   }
 
-  // iPhone: no navigator.vibrate, so haptic() clicks a hidden iOS switch (one for a scan, two for an error).
+  // iPhone: no navigator.vibrate, and only a finger flipping a switch buzzes. The Press and hold button is a label
+  // around a hidden switch, enabled only by a scan during the hold, so lifting the finger flips it (the buzz).
+  // A scan that wasn't saved also beeps twice; with no held button (typed number) it's beeps only.
   const app = await openApp({ role: 'owner', handle });
   await app.page.evaluateOnNewDocument(() => {
     delete Navigator.prototype.vibrate;
-    window.switchClicks = 0;
-    const click = HTMLLabelElement.prototype.click;
-    HTMLLabelElement.prototype.click = function () {
-      if (this.querySelector('input[switch]')) window.switchClicks++;
-      return click.call(this);
+    window.tones = [];
+    const Real = window.AudioContext;
+    window.AudioContext = class extends Real {
+      createOscillator() { const o = super.createOscillator(); const start = o.start.bind(o); o.start = (t) => { window.tones.push(o.frequency.value); start(t); }; return o; }
     };
   });
   await app.page.goto(app.base + 'close.html');
-  await app.page.waitForSelector('#closeView:not(.hidden)');
-  const clicks = await app.page.evaluate(async () => {
-    const { haptic } = await import('./scanner.js');
-    haptic();
-    haptic('error');
-    await new Promise((r) => setTimeout(r, 300));
-    return { clicks: window.switchClicks, left: document.querySelectorAll('input[switch]').length };
-  });
-  assert.deepEqual(clicks, { clicks: 3, left: 0 }, 'iPhone taps, nothing left behind');
-  // During Press and hold the tap waits for the finger to lift (iOS only allows it as part of a touch).
-  const box = await app.page.$eval('#holdBtn', (b) => { b.scrollIntoView(); const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
-  await app.page.evaluate(() => { window.switchClicks = 0; });
-  await app.page.mouse.move(box.x, box.y);
-  await app.page.mouse.down();
-  const whileHeld = await app.page.evaluate(async () => {
-    const { haptic } = await import('./scanner.js');
-    haptic(); haptic('error');
-    return window.switchClicks;
-  });
-  await app.page.mouse.up(); await sleep(300);
-  assert.equal(whileHeld, 0, 'no tap while the finger is down');
-  assert.equal(await app.page.evaluate(() => window.switchClicks), 2, 'two taps (scan not saved) when it lifts');
-  await app.page.mouse.down(); await app.page.mouse.up(); await sleep(300);
-  assert.equal(await app.page.evaluate(() => window.switchClicks), 2, 'nothing left over for the next press');
+  await app.page.waitForSelector('#closeView:not(.hidden)'); await sleep(300);
+  const btn = await app.page.$eval('#holdBtn', (b) => { b.scrollIntoView(); const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  const flips = () => app.page.$eval('#holdBtn .hold-switch', (i) => i.checked);
+  const press = async (during) => {
+    await app.page.mouse.move(btn.x, btn.y);
+    await app.page.mouse.down();
+    if (during) await app.page.evaluate(during);
+    await app.page.mouse.up(); await sleep(300);
+  };
+  assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and hold to scan');
+  let before = await flips();
+  await press(null);
+  assert.equal(await flips(), before, 'letting go without a scan: no buzz');
+  await press(async () => (await import('./scanner.js')).haptic());
+  assert.notEqual(await flips(), before, 'a scan while held: the finger lifting flips the switch (buzz)');
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [], 'a saved scan makes no sound');
+  before = await flips();
+  await press(async () => (await import('./scanner.js')).haptic('error'));
+  assert.notEqual(await flips(), before, 'a refused scan buzzes too');
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300], '...and beeps twice, low');
+  before = await flips();
+  await press(null);
+  assert.equal(await flips(), before, 'next press without a scan: no buzz');
+  // A typed number that isn't saved: no held button, so two low beeps.
+  await app.page.evaluate(() => { window.tones = []; });
+  await app.page.type('#typed', '9999-0000001-6-010'); await app.page.click('#typedForm button'); await sleep(200);
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300]);
+  assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and hold to scan', 'text kept, switch not wiped');
+  assert.equal(await app.page.$$eval('#holdBtn .hold-switch', (e) => e.length), 1);
   await app.close();
   console.log('CLOSE LAYOUT CHECKS PASS');
 })().catch((e) => { console.error(e); process.exit(1); });

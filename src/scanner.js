@@ -16,52 +16,85 @@ const READER_OPTIONS = { formats: ['ITF'], tryHarder: true, tryRotate: true, max
 const AUTO_COOLDOWN_MS = 1500;
 const SAME_TICKET_GONE_MS = 1000;
 
-// A buzz when a ticket is scanned: one short one, or two for a scan that wasn't saved ('error').
-// iPhones don't support navigator.vibrate, but Safari (iOS 18 and later) gives a haptic tap when
-// a switch-style checkbox is toggled, so a hidden one is clicked there instead. iOS only allows that
-// as the direct result of a touch, and a Press and hold scan lands while the finger is still down,
-// so while the button is held the taps wait and play when the finger lifts (still that touch).
-let holdingAny = false;
-let waitingTaps = 0;
+// Feedback when a ticket is scanned: one buzz for a saved scan, and for one that wasn't saved ('error')
+// a double buzz (Android) or a buzz plus two low beeps (iPhone).
+//
+// iPhones have no navigator.vibrate, and Safari buzzes only when a finger itself flips a switch-style
+// checkbox (the app flipping one does nothing; tested on the owner's iPhone, iOS 18, 2026-09-29). So the
+// "Press and hold" button is a <label> around a hidden switch: a scan while it's held turns the switch on
+// (enabled), and the finger lifting then flips it — that's the buzz. With no scan it stays disabled, so
+// letting go buzzes nothing. Where there's no held button (Auto scan, a typed number) an iPhone gets beeps.
+let holdSwitch = null;     // the hidden switch in the button being held, or null
+let pendingKind = null;    // 'ok' / 'error' from a scan during this hold
 
 export function haptic(kind = 'ok') {
-  const taps = kind === 'error' ? 2 : 1;
   if (navigator.vibrate) {
-    navigator.vibrate(taps === 2 ? [120, 60, 120] : 80);
+    navigator.vibrate(kind === 'error' ? [120, 60, 120] : 80);
     return;
   }
-  if (holdingAny) {
-    waitingTaps = Math.max(waitingTaps, taps);
+  if (holdSwitch) {
+    holdSwitch.disabled = false;
+    if (kind === 'error' || !pendingKind) pendingKind = kind;
     return;
   }
-  playTaps(taps);
+  beep(kind);
 }
 
-// Called from the finger-lift handler, which iOS counts as the touch.
-function playWaitingTaps() {
-  const taps = waitingTaps;
-  waitingTaps = 0;
-  if (taps) playTaps(taps);
+// Runs as the finger lifts (a touch, so iOS lets sound start); the buzz itself comes from the switch flipping.
+function finishHold() {
+  if (pendingKind === 'error') beep('error');
+  pendingKind = null;
+  holdSwitch = null;
 }
 
-function playTaps(taps) {
-  iosTap();
-  if (taps === 2) setTimeout(iosTap, 180);
-}
-
-function iosTap() {
+// Web Audio beeps. iOS lets sound start only after a tap (unlocked on the first press), and the silent switch
+// mutes web sound unless the page asks for "playback" (Safari 16.4+).
+let audio = null;
+function unlockAudio() {
   try {
-    const label = document.createElement('label');
-    label.ariaHidden = 'true';
-    label.style.display = 'none';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.setAttribute('switch', '');
-    label.append(input);
-    document.head.append(label);
-    label.click();
-    label.remove();
+    if (!audio) {
+      audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    }
+    if (audio.state === 'suspended') audio.resume();
   } catch (e) {}
+}
+document.addEventListener('pointerdown', unlockAudio, { capture: true });
+
+function tone(freq, ms, at) {
+  const t = audio.currentTime + at;
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.25, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + ms / 1000);
+  osc.connect(gain).connect(audio.destination);
+  osc.start(t);
+  osc.stop(t + ms / 1000);
+}
+
+function beep(kind) {
+  try {
+    unlockAudio();
+    if (kind === 'error') { tone(300, 160, 0); tone(300, 160, 0.22); } else tone(1800, 90, 0);
+  } catch (e) {}
+}
+
+// Puts the hidden switch in a <label> hold button (see above) and keeps its text in a span, since setting
+// the label's text would remove the switch. Returns a function that sets the text.
+function prepareHoldButton(holdBtn) {
+  if (holdBtn.tagName !== 'LABEL') return { setText: (t) => { holdBtn.textContent = t; }, input: null };
+  const text = document.createElement('span');
+  text.textContent = holdBtn.textContent;
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.setAttribute('switch', '');
+  input.className = 'hold-switch';
+  input.tabIndex = -1;
+  input.disabled = true;
+  input.setAttribute('aria-hidden', 'true');
+  holdBtn.replaceChildren(input, text);
+  return { setText: (t) => { text.textContent = t; }, input };
 }
 
 export async function startScanner({ video, viewport, holdBtn, onStatus, onScan, mode = 'hold' }) {
@@ -72,6 +105,8 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   let pausedUntil = 0;
   let lastText = null;
   let lastSeenAt = 0;
+
+  const hold = prepareHoldButton(holdBtn);
 
   const controller = {
     setMode(next) {
@@ -87,18 +122,19 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   holdBtn.addEventListener('pointerdown', (e) => {
     holdBtn.setPointerCapture(e.pointerId);
     holding = true;
-    holdingAny = true;
-    waitingTaps = 0;
     done = false;
+    // Off until a scan lands, so letting go without one doesn't buzz.
+    if (hold.input) hold.input.disabled = true;
+    holdSwitch = hold.input;
+    pendingKind = null;
     holdBtn.classList.add('holding');
-    holdBtn.textContent = 'Scanning…';
+    hold.setText('Scanning…');
   });
   const release = () => {
     holding = false;
-    holdingAny = false;
-    playWaitingTaps();
+    finishHold();
     holdBtn.classList.remove('holding');
-    holdBtn.textContent = 'Press and hold to scan';
+    hold.setText('Press and hold to scan');
   };
   holdBtn.addEventListener('pointerup', release);
   holdBtn.addEventListener('pointercancel', release);
@@ -111,7 +147,7 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     if (mode === 'hold') {
       if (!holding || done) return; // a decode can finish after release
       done = true;
-      holdBtn.textContent = 'Got it — release';
+      hold.setText('Got it — release');
     } else {
       const stillInView = text === lastText && now - lastSeenAt < SAME_TICKET_GONE_MS;
       if (text === lastText) lastSeenAt = now;

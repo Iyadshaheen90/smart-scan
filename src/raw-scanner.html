@@ -53,34 +53,17 @@
   <button id="scanPhotoBtn">Scan from photo</button>
   <input type="file" id="fileInput" accept="image/*" style="display:none;">
   <button id="clearBtn">Clear log</button>
-  <!-- Checks the scan buzz on this phone: one tap, then two (a scan that wasn't saved). -->
-  <button id="buzzBtn">Test vibration</button>
-  <button id="buzzTwiceBtn">Test vibration: scan not saved</button>
-  <div id="buzzInfo" class="sub"></div>
-
-  <!-- iPhone vibration tests (2026-09-29): different ways of toggling a switch, to find the one this iPhone buzzes for. -->
+  <!-- iPhones buzz only when a finger flips a switch (tested 2026-09-29), so the scan buttons are labels around a
+       hidden switch (see scanner.js). These check that, and the beeps, on a phone. -->
   <div class="card" style="margin-top: 14px;">
-    <strong>iPhone vibration tests</strong>
-    <p class="sub">Tap each one and note which ones you feel.</p>
-    <label style="display: flex; align-items: center; gap: 12px; margin-top: 10px; font-weight: 700;">
-      <input type="checkbox" switch id="realSwitch" style="width: auto; transform: scale(1.4);"> 1. Flip this switch with your finger
-    </label>
-    <button type="button" id="buzzB" style="margin-top: 10px;">2. Hidden switch on the page</button>
-    <button type="button" id="buzzC">3. Hidden switch, clicked directly</button>
-    <button type="button" id="buzzD">4. The switch above, flipped by the app</button>
-  </div>
-
-  <!-- Round 2 (2026-09-29): only a finger on the switch buzzed, so these let the finger flip a hidden switch
-       by pressing a big button (a label around the switch), like the scan button could. Plus a beep. -->
-  <div class="card" style="margin-top: 14px;">
-    <strong>iPhone vibration tests, round 2</strong>
-    <p class="sub">Note which ones you feel, and how the beeps sound.</p>
+    <strong>Vibration and sound check (iPhone)</strong>
+    <p class="sub">The first two should buzz when you let go; the last two beep.</p>
     <label class="hold-button switch-button" id="labelHold" style="margin-top: 10px;">
-      <input type="checkbox" switch class="finger-switch">5. Press and hold for 2 seconds, then let go</label>
+      <input type="checkbox" switch class="finger-switch">Press and hold for 2 seconds, then let go</label>
     <label class="hold-button switch-button" id="labelTap">
-      <input type="checkbox" switch class="finger-switch">6. Tap quickly</label>
-    <button type="button" id="beepOk">7. Beep: scan saved</button>
-    <button type="button" id="beepError">8. Beep: scan not saved</button>
+      <input type="checkbox" switch class="finger-switch">Tap quickly</label>
+    <button type="button" id="beepOk">Beep: scan saved</button>
+    <button type="button" id="beepError">Beep: scan not saved</button>
   </div>
   <style>
     .switch-button { display: block; position: relative; text-align: center; font-weight: 700; margin-top: 8px; color: var(--text); font-size: 16px;
@@ -103,37 +86,6 @@
     // ITF barcodes reliably; html5-qrcode (ZXing-js) never managed to, even on sharp photos.
     import { readBarcodes, prepareZXingModule } from 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/es/reader/index.js';
     import { haptic } from './scanner.js';
-
-    // What this phone offers for the scan buzz, so a missing buzz can be told apart from a phone that has none.
-    document.getElementById('buzzInfo').textContent = navigator.vibrate
-      ? 'This phone vibrates (Android-style).'
-      : `No standard vibration here (iPhone): using the iOS switch tap, which needs iOS 18 or later. ${navigator.userAgent.match(/OS (\d+)[_\d]* like Mac OS X/) ? `This phone: iOS ${navigator.userAgent.match(/OS (\d+)[_\d]* like Mac OS X/)[1]}.` : ''}`;
-    document.getElementById('buzzBtn').addEventListener('click', () => haptic());
-    document.getElementById('buzzTwiceBtn').addEventListener('click', () => haptic('error'));
-
-    // Test 2: a label + switch in the page (not hidden with display:none), clicked through the label.
-    // Test 3: the same, but the switch itself is clicked. Test 4: the visible switch, clicked by the app.
-    function offscreenSwitch(withLabel) {
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.setAttribute('switch', '');
-      const holder = withLabel ? document.createElement('label') : document.createElement('div');
-      holder.style.cssText = 'position: fixed; left: 0; bottom: 0; width: 40px; height: 30px; opacity: 0.01; pointer-events: none;';
-      holder.append(input);
-      document.body.append(holder);
-      return { holder, input };
-    }
-    document.getElementById('buzzB').addEventListener('click', () => {
-      const { holder } = offscreenSwitch(true);
-      holder.click();
-      setTimeout(() => holder.remove(), 500);
-    });
-    document.getElementById('buzzC').addEventListener('click', () => {
-      const { holder, input } = offscreenSwitch(false);
-      input.click();
-      setTimeout(() => holder.remove(), 500);
-    });
-    document.getElementById('buzzD').addEventListener('click', () => document.getElementById('realSwitch').click());
 
     // Beeps from Web Audio. iOS starts sound only after a tap, and the silent switch mutes web sound unless the
     // page says it's "playback" (Safari 16.4+).
