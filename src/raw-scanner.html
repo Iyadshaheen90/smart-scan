@@ -74,6 +74,8 @@
     <label class="hold-button switch-button" data-test="final" data-sound="playback"><input type="checkbox" switch class="finger-switch"><span>H. G + beep (sound setting the app uses now)</span></label>
     <label class="hold-button switch-button" data-test="final" data-sound="transient"><input type="checkbox" switch class="finger-switch"><span>I. G + beep (setting 2)</span></label>
     <label class="hold-button switch-button" data-test="final" data-sound="ambient"><input type="checkbox" switch class="finger-switch"><span>J. G + beep (setting 3, silent switch mutes it)</span></label>
+    <div class="sub" style="margin-top: 12px;">K is the real scan button's own code (a "scan" 1 second into the hold). Hold it, then let go.</div>
+    <label class="button hold-button" id="realHold" style="margin-top: 8px;">K. Real scan button: hold 1 second, let go</label>
     <button type="button" id="beepOk">Beep: scan saved</button>
     <button type="button" id="beepError">Beep: scan not saved</button>
   </div>
@@ -97,7 +99,22 @@
     // zxing-wasm is the ZXing C++ engine compiled to WebAssembly. It decodes these tickets'
     // ITF barcodes reliably; html5-qrcode (ZXing-js) never managed to, even on sharp photos.
     import { readBarcodes, prepareZXingModule } from 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/es/reader/index.js';
-    import { haptic } from './scanner.js';
+    import { haptic, holdFeedback } from './scanner.js';
+
+    // K: the real Press and hold code (holdFeedback) with a pretend scan 1 second in, as in Close Day.
+    {
+      const k = document.getElementById('realHold');
+      const hold = holdFeedback(k);
+      let timer = null;
+      k.addEventListener('pointerdown', () => {
+        k.classList.add('holding');
+        hold.setText('Scanning…');
+        timer = setTimeout(() => { hold.setText('Got it — release'); haptic(); }, 1000);
+      });
+      const up = () => { clearTimeout(timer); k.classList.remove('holding'); hold.setText('K. Real scan button: hold 1 second, let go'); };
+      k.addEventListener('pointerup', up);
+      k.addEventListener('pointercancel', up);
+    }
 
     // Beeps from Web Audio. iOS starts sound only after a tap, and the silent switch mutes web sound unless the
     // page says it's "playback" (Safari 16.4+).

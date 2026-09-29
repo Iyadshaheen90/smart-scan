@@ -106,6 +106,21 @@ function prepareHoldButton(holdBtn) {
   return { setText: (t) => { text.textContent = t; }, input };
 }
 
+// The buzz wiring for a Press and hold <label> (hidden switch, and which scan the lift plays). Used by
+// startScanner, and by Scanner test's K button so the phone can check this exact code on its own.
+export function holdFeedback(holdBtn) {
+  const hold = prepareHoldButton(holdBtn);
+  holdBtn.addEventListener('pointerdown', (e) => {
+    holdBtn.setPointerCapture(e.pointerId);
+    holdSwitch = hold.input;
+    pendingKind = null;
+  });
+  holdBtn.addEventListener('pointerup', finishHold);
+  holdBtn.addEventListener('pointercancel', finishHold);
+  holdBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  return hold;
+}
+
 export async function startScanner({ video, viewport, holdBtn, onStatus, onScan, mode = 'hold' }) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -115,7 +130,7 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   let lastText = null;
   let lastSeenAt = 0;
 
-  const hold = prepareHoldButton(holdBtn);
+  const hold = holdFeedback(holdBtn);
 
   const controller = {
     setMode(next) {
@@ -128,24 +143,19 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   };
   controller.setMode(mode);
 
-  holdBtn.addEventListener('pointerdown', (e) => {
-    holdBtn.setPointerCapture(e.pointerId);
+  holdBtn.addEventListener('pointerdown', () => {
     holding = true;
     done = false;
-    holdSwitch = hold.input;
-    pendingKind = null;
     holdBtn.classList.add('holding');
     hold.setText('Scanning…');
   });
   const release = () => {
     holding = false;
-    finishHold();
     holdBtn.classList.remove('holding');
     hold.setText('Press and hold to scan');
   };
   holdBtn.addEventListener('pointerup', release);
   holdBtn.addEventListener('pointercancel', release);
-  holdBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
   const decoding = () => (mode === 'hold' ? holding && !done : Date.now() >= pausedUntil);
 
