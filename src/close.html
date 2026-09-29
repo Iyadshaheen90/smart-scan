@@ -44,14 +44,15 @@
       <div class="current-where" id="curWhere"></div>
       <div class="slot-detail"><span class="mono" id="curPack"></span></div>
       <div class="slot-detail" id="curLast"></div>
-      <div class="slot-detail" id="curDone"></div>
+      <div class="slot-detail cur-done" id="curDone"></div>
     </div>
     <div class="choices">
       <button type="button" id="soldOutBtn">Sold out</button>
       <button type="button" id="skipBtn">Skip</button>
     </div>
 
-    <div id="flash" class="message"></div>
+    <!-- Always the same height, so the camera and the scan button never move from one scan to the next. -->
+    <div id="flash" class="message flash-fixed"></div>
 
     <div class="scan-viewport paused" id="viewport">
       <video id="video" playsinline muted autoplay></video>
@@ -86,7 +87,7 @@
   <script src="nav.js"></script>
   <script src="barcode.js"></script>
   <script type="module">
-    import { startScanner } from './scanner.js';
+    import { startScanner, haptic } from './scanner.js';
 
     // Scans are kept on this phone until Submit, so they're instant and survive a reload or a
     // dropped connection. The server checks everything again when the close is submitted.
@@ -165,20 +166,25 @@
       render();
     }
 
+    // The box keeps its size (flash-fixed); a message too long for it gets smaller text instead.
     function flash(text, kind) {
-      showMessage($('flash'), text, kind);
+      const box = $('flash');
+      showMessage(box, text, kind);
+      box.classList.add('flash-fixed');
+      box.style.fontSize = '';
+      for (let size = 14; box.scrollHeight > box.clientHeight && size >= 11; size--) box.style.fontSize = `${size}px`;
     }
 
     function useTicket(ticket) {
       const slot = live.find((s) => s.pack.gameNumber === ticket.gameNumber && s.pack.packNumber === ticket.packNumber);
       if (!slot) {
-        if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+        haptic('error');
         flash(`Pack ${ticket.gameNumber}-${ticket.packNumber} isn't in any slot. Not saved.`, 'error');
         return;
       }
       const exposed = slot.pack.exposedTicket;
       if (ticket.ticketNumber > exposed) {
-        if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+        haptic('error');
         flash(`Ticket ${pad3(ticket.ticketNumber)} is above the last top ticket (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error');
         return;
       }
@@ -196,9 +202,14 @@
       $('progressBar').style.width = live.length ? `${(100 * done) / live.length}%` : '100%';
 
       const current = live.find((s) => keyOf(s) === currentKey);
-      $('currentCard').classList.toggle('hidden', !current);
+      // The card stays (same size) when every slot is done, so nothing below it moves.
       ['soldOutBtn', 'skipBtn'].forEach((id) => { $(id).disabled = !current; });
-      if (current) {
+      if (!current) {
+        $('curWhere').textContent = 'All slots done';
+        $('curPack').textContent = '\u00a0'; // a blank line the same height as a pack line
+        $('curLast').textContent = 'Check the list below, then Submit close.';
+        $('curDone').textContent = '';
+      } else {
         $('curWhere').textContent = `Box ${current.box} · Slot ${current.slot}`;
         $('curPack').textContent = `$${current.pack.price} · ${packKeyOf(current)}`;
         $('curLast').textContent = `Last top ticket ${pad3(current.pack.exposedTicket)} (${current.pack.remaining} left)`;
@@ -342,7 +353,7 @@
     $('skipBtn').addEventListener('click', () => {
       const next = nextOpen(currentKey);
       currentKey = next && next !== currentKey ? next : currentKey;
-      $('flash').className = 'message';
+      $('flash').className = 'message flash-fixed';
       $('flash').textContent = '';
       render();
     });

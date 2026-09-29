@@ -16,6 +16,33 @@ const READER_OPTIONS = { formats: ['ITF'], tryHarder: true, tryRotate: true, max
 const AUTO_COOLDOWN_MS = 1500;
 const SAME_TICKET_GONE_MS = 1000;
 
+// A buzz when a ticket is scanned: one short one, or two for a scan that wasn't saved ('error').
+// iPhones don't support navigator.vibrate, but Safari (iOS 18 and later) gives a haptic tap when
+// a switch-style checkbox is toggled, so a hidden one is clicked there instead.
+export function haptic(kind = 'ok') {
+  if (navigator.vibrate) {
+    navigator.vibrate(kind === 'error' ? [120, 60, 120] : 80);
+    return;
+  }
+  iosTap();
+  if (kind === 'error') setTimeout(iosTap, 180);
+}
+
+function iosTap() {
+  try {
+    const label = document.createElement('label');
+    label.ariaHidden = 'true';
+    label.style.display = 'none';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    label.append(input);
+    document.head.append(label);
+    label.click();
+    label.remove();
+  } catch (e) {}
+}
+
 export async function startScanner({ video, viewport, holdBtn, onStatus, onScan, mode = 'hold' }) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -70,7 +97,7 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     }
     viewport.classList.add('hit');
     setTimeout(() => viewport.classList.remove('hit'), 400);
-    if (navigator.vibrate) navigator.vibrate(80);
+    haptic();
     try {
       onScan(parseTicketBarcode(text, format));
     } catch (err) {

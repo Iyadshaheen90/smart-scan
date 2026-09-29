@@ -153,6 +153,11 @@ a.card { display: block; color: inherit; text-decoration: none; }
 .progress div { height: 100%; background: var(--accent); transition: width 0.2s; }
 .card.current { border: 2px solid var(--accent); }
 .current-where { font-size: 24px; font-weight: 800; }
+/* Close Day: fixed heights above the camera, so the scan button stays put from one scan to the next. */
+.card.current .slot-detail { min-height: 1.4em; line-height: 1.4; }
+.card.current .cur-done { height: 2.8em; overflow: hidden; }
+.message.flash-fixed { display: flex; align-items: center; height: 91px; overflow: hidden; } /* 3 lines of 15px text */
+.message.flash-fixed:empty { visibility: hidden; }
 .review-row {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
   margin: 6px 0 0; padding: 12px 14px; font-size: 15px; font-weight: 500; text-align: left;
