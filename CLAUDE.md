@@ -103,9 +103,18 @@ Frontend (`src/`, plain HTML + JS, no build):
   one per phone in `smartScanPendingClose`)
 - `barcode.js` `parseTicketBarcode`, `parsePrintedTicket`, `STANDARD_PACK_SIZES` · `scanner.js` shared camera
   (zxing-wasm, `startScanner({... mode})` → `{ setMode }`) · `style.css` shared styles
-- `index.html` home (also sends an unsent close, with a banner; button order is the owner's: Close Day, Slots, Back stock &
-  shipments, Months & totals, Scanner test, Manage employees, Change my password) · `login.html` · `setup-owner.html` · `account.html` ·
-  `users.html` (owner)
+- **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.
+  `nav.js` fills `<header class="app-header" data-title=…>` (store name or a `data-back` link, title, name pill → More) and
+  `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports · More; employee Home · Slots · More.
+  The slot page (`activate.html`) has a back link instead of the tab bar; login/setup have no tab bar. `icons.js` inline
+  line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
+  `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`.
+- `index.html` home (also sends an unsent close, with a banner). Owner: status card (Not closed / Closed chip, big number = last
+  close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), Close Day
+  button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
+  month), Scanner test, Manage employees row. Employee: status card (Ready to scan / Day closed + submitted by) and a big
+  Scan tickets button → Close Day; no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
+  `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
 - `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo; then (owner's order) slot price, pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
@@ -172,6 +181,7 @@ node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cance
 node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 1, 0 greys Save, new game, ended game, waits for scan release
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
+node test/browser/home.js                 # home for both roles: last close, tiles, chips, tab bars, huge numbers fit
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"

@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1f7a4d">
+<meta name="theme-color" content="#0e1010">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Smart Scan">
 <title>Smart Scan — Months</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
-  <h1>Months</h1>
+  <header class="app-header" data-title="Months &amp; totals"></header>
   <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook. Totals come from each day's close.</p>
 
   <div id="current">Loading…</div>
@@ -40,11 +40,14 @@
     <div id="past"></div>
   </div>
 
+  <nav class="tabbar" data-active="reports"></nav>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
   <script>
     const session = requireLogin('owner');
-    if (session) document.getElementById('who').textContent = session.username;
 
     const $ = (id) => document.getElementById(id);
     const startBtn = $('startBtn');
@@ -93,7 +96,7 @@
         ['Inventory at last close', money(summary.endingInventoryValue)],
       ]) {
         const tile = el('div', 'tile');
-        tile.append(el('div', 'tile-label', label), el('div', 'tile-value', value));
+        tile.append(el('div', 'tile-label', label), el('div', 'tile-value fit', value));
         tiles.append(tile);
       }
       box.append(tiles);
@@ -111,7 +114,10 @@
           el('td', null, money(d.dollarsSold)), el('td', null, money(d.inventoryValue)));
         table.append(row);
       }
-      box.append(table);
+      // The table sits in a box that shrinks its text if big amounts would make it wider than the screen.
+      const wrap = el('div', 'fit table-fit');
+      wrap.append(table);
+      box.append(wrap);
       return box;
     }
 
@@ -130,7 +136,9 @@
       card.append(body);
       current.append(card);
       try {
-        body.replaceWith(summaryView(await api('monthSummary', { label: status.current })));
+        const view = summaryView(await api('monthSummary', { label: status.current }));
+        body.replaceWith(view);
+        fitNumbers(view);
       } catch (err) {
         body.textContent = err.message;
       }
@@ -162,7 +170,9 @@
         button.style.marginTop = '10px';
         button.addEventListener('click', () => whileBusy(button, 'Loading…', async () => {
           try {
-            button.replaceWith(summaryView(await api('monthSummary', { label: m.label })));
+            const view = summaryView(await api('monthSummary', { label: m.label }));
+            button.replaceWith(view);
+            fitNumbers(view);
           } catch (err) {
             showMessage(message, err.message);
           }

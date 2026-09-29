@@ -81,21 +81,12 @@
     }
     const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 
-    // Shows a number whole: if it's too wide for its box, the text gets smaller instead of being cut off.
-    function fitText(el) {
-      el.style.fontSize = '';
-      let size = parseFloat(getComputedStyle(el).fontSize);
-      while (el.scrollWidth > el.clientWidth && size > 11) {
-        size -= 1;
-        el.style.fontSize = `${size}px`;
-      }
-    }
+    // fitText (nav.js) shrinks a number that doesn't fit its box, so it always shows whole.
     function setNumber(id, text) {
       const el = $(id);
       el.textContent = text;
       fitText(el);
     }
-    window.addEventListener('resize', () => document.querySelectorAll('.fit').forEach(fitText));
 
     if (session) {
       document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));

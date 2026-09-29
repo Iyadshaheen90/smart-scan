@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1f7a4d">
+<meta name="theme-color" content="#0e1010">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Smart Scan">
 <title>Smart Scan — My Password</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="topbar"><a href="index.html">‹ Home</a><span id="who"></span></div>
-  <h1>Change my password</h1>
+  <header class="app-header" data-title="Change my password"></header>
 
   <form id="form">
     <label for="current">Current password</label>
@@ -27,11 +27,14 @@
   </form>
   <div id="message" class="message"></div>
 
+  <nav class="tabbar" data-active="more"></nav>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
   <script>
     const session = requireLogin();
-    if (session) document.getElementById('who').textContent = session.username;
     const form = document.getElementById('form');
     const messageEl = document.getElementById('message');
 

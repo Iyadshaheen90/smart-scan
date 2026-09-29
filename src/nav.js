@@ -29,15 +29,17 @@ function initials(username) {
   return String(username || '?').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || '?';
 }
 
+// data-back-id / data-title-id give the back link and the title an id, for pages that change them (the slot page).
 function renderHeader(el, session) {
   const back = el.dataset.back;
+  const id = (name) => (name ? ` id="${navEscape(name)}"` : '');
   const top = back
-    ? `<a class="back" href="${navEscape(back)}">‹ ${navEscape(el.dataset.backLabel || 'Back')}</a>`
+    ? `<a class="back"${id(el.dataset.backId)} href="${navEscape(back)}">‹ ${navEscape(el.dataset.backLabel || 'Back')}</a>`
     : '<div class="eyebrow">Route 66 Liquor</div>';
   const pill = session
     ? `<a class="user-pill" href="more.html"><span class="name">${navEscape(session.username)}</span><span class="avatar">${navEscape(initials(session.username))}</span></a>`
     : '';
-  el.innerHTML = `<div>${top}<h1>${navEscape(el.dataset.title || 'Smart Scan')}</h1></div>${pill}`;
+  el.innerHTML = `<div>${top}<h1${id(el.dataset.titleId)}>${navEscape(el.dataset.title || 'Smart Scan')}</h1></div>${pill}`;
 }
 
 function renderTabBar(el, session) {
@@ -46,6 +48,21 @@ function renderTabBar(el, session) {
     + `${icon(t.icon)}<span>${t.label}</span></a>`).join('');
   document.body.classList.add('has-tabbar');
 }
+
+// Shows a number (or a row of numbers) whole: if it's too wide for its box, the text gets smaller
+// instead of being cut off or pushing past the screen (owner's rule 2026-09-28). Give the box class "fit".
+function fitText(el) {
+  el.style.fontSize = '';
+  let size = parseFloat(getComputedStyle(el).fontSize);
+  while (el.scrollWidth > el.clientWidth && size > 10) {
+    size -= 1;
+    el.style.fontSize = `${size}px`;
+  }
+}
+function fitNumbers(root = document) {
+  root.querySelectorAll('.fit').forEach(fitText);
+}
+window.addEventListener('resize', () => fitNumbers());
 
 (function renderNav() {
   const session = getSession();

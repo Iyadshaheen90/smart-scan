@@ -38,6 +38,8 @@ body {
 }
 /* Pages with the bottom tab bar leave room for it. */
 body.has-tabbar { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+/* Anything scrolled to (a focused field, the next button) stops above the tab bar, not under it. */
+html:has(body.has-tabbar) { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 a { color: var(--accent-bright); }
 h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 8px 0 4px; }
 h2 { font-size: 18px; font-weight: 700; margin: 26px 0 8px; }
@@ -158,14 +160,16 @@ a.card { display: block; color: inherit; text-decoration: none; }
 .review-row.active { border-color: var(--accent); }
 
 /* Months page: totals tiles and the per-day table. */
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-.tile { background: var(--card-2); border-radius: 12px; padding: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.tile { background: var(--card-2); border-radius: 12px; padding: 12px; min-width: 0; }
 .tile-label { font-size: 12px; color: var(--muted); }
 .tile-value { font-size: 20px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
-table.days { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
-table.days th { text-align: right; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 0; border-bottom: 1px solid var(--border); }
-table.days td { text-align: right; padding: 8px 0; border-bottom: 1px solid var(--border); }
-table.days th:first-child, table.days td:first-child { text-align: left; }
+/* Its font size is on .table-fit, which fitText() shrinks when the amounts are too wide. */
+.table-fit { font-size: 14px; white-space: normal; }
+table.days { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: inherit; font-variant-numeric: tabular-nums; }
+table.days th { white-space: nowrap; text-align: right; font-size: 0.86em; color: var(--muted); font-weight: 600; padding: 4px 0; border-bottom: 1px solid var(--border); }
+table.days td { white-space: nowrap; text-align: right; padding: 8px 0 8px 10px; border-bottom: 1px solid var(--border); }
+table.days th:first-child, table.days td:first-child { text-align: left; padding-left: 0; }
 
 /* Pop-up dialog (Back stock: Manage packs, Shipment received). */
 .overlay {
