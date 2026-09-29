@@ -102,18 +102,19 @@ async function home(app) {
   assert.equal(await text(app.page, 'lastLabel'), 'No close yet');
   await app.close();
 
-  // Employee: Scan tickets opens Close Day, one Slots tile, 3 tabs, no dollars, no owner links.
+  // Employee: Scan tickets opens Close Day; tabs Home · Slots · More (no Slots card); no dollars, no owner links.
   const calls = [];
   const employee = backend();
   app = await openApp({ role: 'employee', username: 'employee', handle: (body) => { calls.push(body.action); return employee(body); } });
   await home(app);
   assert.equal(await text(app.page, 'closedChip'), 'Not closed');
   assert.equal(await text(app.page, 'employeeTitle'), 'Ready to scan');
-  assert.deepEqual((await tabs(app.page)).map((t) => t[0]), ['Home', 'Scan', 'More']);
+  assert.deepEqual(await tabs(app.page), [['Home', 'index.html', true], ['Slots', 'slots.html', false], ['More', 'more.html', false]]);
+  assert.equal(await app.page.$$eval('.employee-only .tile-card', (els) => els.length), 0, 'no Slots card on home');
   const empText = await visibleText(app.page);
   assert.ok(!empText.includes('$'), 'no dollars for employees');
   for (const label of ['Back stock', 'Months', 'Manage employees', 'Tickets sold']) assert.ok(!empText.includes(label), label);
-  assert.ok(empText.includes('Scan tickets') && empText.includes('Slots'));
+  assert.ok(empText.includes('Scan tickets'));
   const hero = await app.page.$eval('.employee-only .action-hero', (a) => a.getAttribute('href'));
   assert.equal(hero, 'close.html');
   assert.deepEqual(calls.filter((c) => c !== 'closeStatus'), [], 'employee home asks only closeStatus');
