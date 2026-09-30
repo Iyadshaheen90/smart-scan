@@ -22,6 +22,15 @@ const cards = (page) => page.$$eval('#list .card', (els) => els.map((el) => ({
   assert.deepEqual(c.map((x) => x.days), ['Activated today', '1 day', '49 days', '50 days', '75 days', null, null]);
   assert.deepEqual(c.map((x) => x.mark), [false, false, false, true, true, false, false]);
   assert.equal(c[0].left, '10 left'); assert.equal(c[6].left, 'Out of stock');
+  // The mark sits on the card's top-left corner: slot names line up with or without it, and it stays on screen.
+  const pos = await app.page.$$eval('#list .card', (els) => els.map((el) => {
+    const box = (e) => { const r = e.getBoundingClientRect(); return { left: r.left, top: r.top }; };
+    const mark = el.querySelector('.old-mark');
+    return { nameX: box(el.querySelector('.slot-num')).left, mark: mark ? box(mark) : null, card: box(el) };
+  }));
+  assert.equal(pos[3].nameX, pos[0].nameX);
+  assert.ok(pos[3].mark.left >= 0 && pos[3].mark.left < pos[3].card.left && pos[3].mark.top < pos[3].card.top);
+  if (process.env.SHOT) await app.page.screenshot({ path: process.env.SHOT });
   await app.close();
 
   app = await openApp({ role: 'employee', handle: (body) => (body.action === 'listSlots' ? slots : {}) });

@@ -85,7 +85,9 @@
             const mark = document.createElement('span');
             mark.className = 'old-mark';
             mark.textContent = '!';
-            name.prepend(mark);
+            // It sits on the card's top-left corner, so the slot name isn't pushed right.
+            card.classList.add('has-old-mark');
+            card.append(mark);
             card.title = `Pack out ${s.pack.daysActive} days. CA Lottery settles packs at 50–60 days.`;
           }
           top.append(name, stack);
