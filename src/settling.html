@@ -68,7 +68,7 @@
     function packCard(s) {
       const p = s.pack;
       const card = el('a', 'card settle-card');
-      card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
+      card.href = `activate.html?box=${s.box}&slot=${s.slot}&from=settling`; // back goes to Settling
       const top = el('div', 'row');
       top.append(el('span', 'slot-num', `Box ${s.box} · Slot ${s.slot}`),
         el('span', `chip ${p.daysActive >= SETTLED_PACK_DAYS ? 'red' : 'amber'}`, `${p.daysActive} days`));

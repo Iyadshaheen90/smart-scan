@@ -181,7 +181,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
-  `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page.
+  `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page (`&from=settling`, so its back link and
+  "Back to settling" return to Settling; opened from Slots they return to Slots, owner 2026-09-30).
   Icon `settle` (handshake under a $ coin) in icons.js.
 - `full-packs.html` (owner, 2026-09-30) this month's full pack sales (`listFullPackSales`, saved answer first): green
   **Sell a full pack** → `backstock.html?mode=fullpack`, totals (packs, $), one card per sale newest first (day, game ·

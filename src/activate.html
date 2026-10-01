@@ -138,8 +138,13 @@
     let finished = false;
     let scannerStarted = false;
 
-    $('back').href = `slots.html?box=${box}`;
-    $('doneBtn').href = `slots.html?box=${box}`;
+    // Back goes to the page this slot was opened from: Settling (?from=settling) or, by default, Slots on this box.
+    const backTo = params.get('from') === 'settling' ? { href: 'settling.html', label: 'Settling' }
+      : { href: `slots.html?box=${box}`, label: 'Slots' };
+    $('back').href = backTo.href;
+    $('back').textContent = `‹ ${backTo.label}`;
+    $('doneBtn').href = backTo.href;
+    $('doneBtn').textContent = `Back to ${backTo.label.toLowerCase()}`;
     $('title').textContent = `Box ${box} · Slot ${slotNumber}`;
     const isOwner = session && session.role === 'owner';
     if (session) {

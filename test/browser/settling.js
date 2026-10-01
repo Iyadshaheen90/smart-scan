@@ -25,12 +25,22 @@ const cards = (page) => page.$$eval('#list .settle-card', (els) => els.map((c) =
   assert.deepEqual(c.map((x) => x.where), ['Box 2 · Slot 5', 'Box 2 · Slot 4', 'Box 1 · Slot 3']);
   assert.deepEqual(c.map((x) => x.chip), ['75 days', '62 days', '50 days']);
   assert.deepEqual(c.map((x) => x.red), [true, true, false]);
-  assert.equal(c[1].href, 'activate.html?box=2&slot=4');
+  assert.equal(c[1].href, 'activate.html?box=2&slot=4&from=settling');
   for (const bit of ['Game 1704 · Pack 1000004', '$30', '7', '$210', 'Activated Aug 1', 'Sep 28 close']) assert.ok(c[1].text.includes(bit), bit);
   assert.equal(await app.page.$eval('#packCount', (e) => e.textContent), '3');
   assert.equal(await app.page.$eval('#ticketCount', (e) => e.textContent), '219');            // 200 + 7 + 12
   assert.equal(await app.page.$eval('#dollarCount', (e) => e.textContent), '$470');          // 200×1 + 7×30 + 12×5
   if (process.env.SHOTS) await app.page.screenshot({ path: `${process.env.SHOTS}/settling.png`, fullPage: true });
+
+  // A slot opened from Settling goes back to Settling; opened from Slots, back to Slots (that box).
+  const backLinks = async (url) => {
+    await app.page.goto(app.base + url); await sleep(300);
+    return app.page.evaluate(() => ['back', 'doneBtn'].map((id) => [document.getElementById(id).textContent.trim(), document.getElementById(id).getAttribute('href')]));
+  };
+  assert.deepEqual(await backLinks('activate.html?box=2&slot=4&from=settling'), [['‹ Settling', 'settling.html'], ['Back to settling', 'settling.html']]);
+  assert.deepEqual(await backLinks('activate.html?box=2&slot=4'), [['‹ Slots', 'slots.html?box=2'], ['Back to slots', 'slots.html?box=2']]);
+  await app.page.goto(app.base + 'settling.html');
+  await app.page.waitForFunction(() => document.getElementById('packCount').textContent !== '…');
 
   // Slot 4 sold out and slot 5 was returned: they're no longer live, so they leave the list.
   slots = slots.filter((s) => s.slot !== 4 && s.slot !== 5);
