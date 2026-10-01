@@ -49,6 +49,7 @@ function sellFullPack(user, req) {
       late_activation: false,
       performed_by: user.username,
       previous_close_date: '',
+      logged_at: nowStamp(),
     });
     appendObject(monthSheet('PackHistory'), {
       game_number: gameNumber,

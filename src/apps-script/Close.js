@@ -52,12 +52,16 @@ function salesDate() {
 }
 
 // What the Close Day screen needs: every slot (in order) and whether today is already closed.
+// myShiftToday: an employee's own shift close today, for the home page (they get one a day).
 function closeStatus(user) {
   const summary = todaysSummary();
+  const today = todayLabel();
+  const mine = user.role === 'owner' ? null : shiftsOn(today).filter((s) => s.closed_by === user.username).pop();
   return {
-    today: todayLabel(),
+    today,
     largeSaleTickets: LARGE_SALE_TICKETS,
     closed: summary ? summaryFor(user, summary) : null,
+    myShiftToday: mine ? shiftFor(user, mine) : null,
     slots: listSlots(),
   };
 }

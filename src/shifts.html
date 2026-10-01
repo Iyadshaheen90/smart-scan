@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Shift Closure</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Shift Closure"></header>
+  <p class="sub">Shift closes this month, newest first, to compare with the register. Each counts from the shift
+    close before it that day (or last night's close). Close Day still covers the whole day.</p>
+
+  <div id="message" class="message"></div>
+  <div id="list" class="saved-dim saved-lock"></div>
+
+  <nav class="tabbar" data-active=""></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin('owner');
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+    const pad3 = (n) => String(n).padStart(3, '0');
+
+    // "2026-10-05" -> "Mon, Oct 5"
+    function dayName(label) {
+      const [y, m, d] = label.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function el(tag, className, text) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+
+    function stat(value, label) {
+      const box = el('div', 'stat');
+      box.append(el('div', 'stat-value fit', value), el('div', 'stat-label', label));
+      return box;
+    }
+
+    // One line per slot (or pack ended during the shift): where, which pack, and what sold.
+    function rowText(r) {
+      const where = r.box == null ? 'From the back' : `Box ${r.box} · Slot ${r.slot}`;
+      const what = {
+        scan: () => `${pad3(r.start)} → ${pad3(r.end)}`,
+        sold_out: () => `${pad3(r.start)} → sold out`,
+        sold_out_earlier: () => 'sold out at an earlier shift close',
+        ended_sold_out: () => 'marked sold out during the shift',
+        ended_returned: () => `returned at ${pad3(r.end)} during the shift`,
+        full_pack: () => 'full pack sold',
+      }[r.type];
+      return [`${where} · ${r.packKey}`, `${what ? what() : r.type} · ${r.sold} sold · ${money(r.dollars)}`];
+    }
+
+    function shiftCard(shift) {
+      const card = el('div', 'card');
+      const top = el('div', 'row');
+      top.append(el('span', 'slot-num', `${shift.closedBy} · ${shift.closedAt}`), el('span', 'chip green', money(shift.dollarsSold)));
+      const from = shift.since ? `the ${shift.since} shift close` : "last night's close";
+      const stats = el('div', 'stat-grid');
+      stats.append(stat(String(shift.ticketsSold), 'Tickets sold'), stat(money(shift.dollarsSold), 'Sold'),
+        stat(String(shift.slotsScanned), 'Slots scanned'));
+      card.append(top, el('div', 'slot-detail', `From ${from} to ${shift.closedAt}`), stats);
+      if (shift.endedTickets) {
+        card.append(el('div', 'slot-detail', `Includes ${shift.endedTickets} tickets (${money(shift.endedDollars)}) from packs ended or sold whole during the shift.`));
+      }
+
+      // Tap to see every slot's start → end ticket.
+      const details = el('details');
+      details.style.marginTop = '12px';
+      details.append(el('summary', null, `Slots (${shift.rows.length})`));
+      for (const r of shift.rows) {
+        const [left, right] = rowText(r);
+        const line = el('div', 'slot-detail');
+        line.style.marginTop = '10px';
+        line.append(el('div', 'mono', left), el('div', null, right));
+        details.append(line);
+      }
+      card.append(details);
+
+      const del = el('button', 'small danger', 'Delete');
+      del.type = 'button';
+      del.style.marginTop = '12px';
+      del.addEventListener('click', () => deleteShift(shift, del));
+      card.append(del);
+      return card;
+    }
+
+    function showShifts(data) {
+      const list = $('list');
+      list.innerHTML = '';
+      if (data.shifts.length === 0) list.append(el('p', 'sub', 'No shift closes this month yet.'));
+      let day = null;
+      for (const shift of data.shifts) {
+        if (shift.date !== day) {
+          day = shift.date;
+          list.append(el('div', 'section-label', dayName(day)));
+        }
+        list.append(shiftCard(shift));
+      }
+      fitNumbers();
+    }
+
+    // For a shift close made by mistake: later shift closes that day then start from the one before it,
+    // and an employee can close their shift again.
+    async function deleteShift(shift, button) {
+      if (!confirm(`Delete ${shift.closedBy}'s shift close at ${shift.closedAt} on ${dayName(shift.date)}? This can't be undone.`)) return;
+      try {
+        const data = await whileBusy(button, 'Deleting…', () => api('deleteShiftClose', { shiftId: shift.shiftId }));
+        showShifts(data);
+        showMessage($('message'), `Deleted ${shift.closedBy}'s shift close at ${shift.closedAt}.`, 'ok');
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    }
+
+    async function load() {
+      try {
+        await loadSaved('shifts', () => api('listShiftCloses'), showShifts);
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    }
+    if (session) load();
+  </script>
+</body>
+</html>

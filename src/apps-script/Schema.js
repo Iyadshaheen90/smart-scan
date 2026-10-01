@@ -35,6 +35,8 @@ const MONTHLY_TABS = {
     'remaining_after_close', 'close_type', 'late_activation', 'performed_by',
     // The pack's last close before this row, so undoing it restores that even across months.
     'previous_close_date',
+    // When a pack ended mid-day or a full pack was sold ("2026-09-30 15:02:11"), so it counts in the right shift close.
+    'logged_at',
   ],
   DailySummary: [
     'close_date', 'total_tickets_sold', 'total_dollars_sold', 'occupied_slot_count', 'total_inventory_value',
@@ -46,6 +48,15 @@ const MONTHLY_TABS = {
   PackHistory: [
     'game_number', 'pack_number', 'box', 'slot_number', 'price_per_ticket', 'activation_date',
     'end_date', 'end_reason', 'final_tickets_sold_total', 'remaining_at_return', 'total_dollars_sold', 'performed_by',
+  ],
+  // Optional shift closes (Shifts.js): one row per shift close, and one per slot (plus packs ended during it).
+  ShiftCloses: [
+    'shift_id', 'shift_date', 'closed_by', 'started_at', 'closed_at', 'tickets_sold', 'dollars_sold',
+    'slots_scanned', 'ended_tickets', 'ended_dollars',
+  ],
+  ShiftCloseLog: [
+    'shift_id', 'shift_date', 'box', 'slot_number', 'pack_key', 'start_ticket', 'end_ticket', 'tickets_sold',
+    'price_per_ticket', 'dollars_sold', 'entry_type',
   ],
 };
 
@@ -60,6 +71,8 @@ const MONTHLY_LOG_DATE_COLUMNS = {
   DailyCloseLog: 'close_date',
   DailySummary: 'close_date',
   PackHistory: 'end_date',
+  ShiftCloses: 'shift_date',
+  ShiftCloseLog: 'shift_date',
 };
 
 // Tickets in a pack by ticket price (owner's rule of thumb, 2026-09-24). Packs count down, so a

@@ -146,7 +146,9 @@ function startNewMonth(req) {
     const old = SpreadsheetApp.openById(current.spreadsheetId);
     const moved = {};
     for (const [tab, column] of Object.entries(MONTHLY_LOG_DATE_COLUMNS)) {
-      moved[tab] = deleteRowsWhere(old.getSheetByName(tab), inNewMonth(column));
+      // A tab added since the old month's spreadsheet was made (e.g. ShiftCloses) has nothing to move.
+      const sheet = old.getSheetByName(tab);
+      moved[tab] = sheet ? deleteRowsWhere(sheet, inNewMonth(column)) : 0;
     }
     return { label, previous: current.label, url: spreadsheetUrl(id), moved };
   });

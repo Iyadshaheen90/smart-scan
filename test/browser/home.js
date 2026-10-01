@@ -10,7 +10,9 @@ const slots = [live(1), live(2, 10, 50), live(3, 10, 70), { box: 1, slot: 4, slo
 let backStock = [{ gameNumber: '1747', valueInBack: 1200 }, { gameNumber: '1800', valueInBack: 450.5 }];
 
 // closed: today's summary or null. months: { label: days[] }.
-function backend({ closed = null, slotList = slots, months = { '2026-09': [{ date: '2026-09-27', ticketsSold: 214, dollarsSold: 1284 }] }, current = '2026-09', canStart = false, today = '2026-09-28' } = {}) {
+const someShifts = { count: 2, last: { date: '2026-09-28', closedAt: '3:02 PM', closedBy: 'sara' } };
+function backend({ closed = null, slotList = slots, months = { '2026-09': [{ date: '2026-09-27', ticketsSold: 214, dollarsSold: 1284 }] }, current = '2026-09', canStart = false, today = '2026-09-28',
+  shifts = someShifts, myShiftToday = null } = {}) {
   return (body) => {
     switch (body.action) {
       // What ownerHome in Home.js returns, built from the same pieces.
@@ -22,14 +24,14 @@ function backend({ closed = null, slotList = slots, months = { '2026-09': [{ dat
         return { today, closed, slots: slotList, month: { current, next, canStart },
           monthDollars: days.reduce((sum, d) => sum + d.dollarsSold, 0),
           lastClose: days.length ? days[days.length - 1] : before.length ? before[before.length - 1] : null,
-          backValue: backStock.reduce((sum, g) => sum + g.valueInBack, 0), fullPacks: { count: 3, dollars: 1500 } };
+          backValue: backStock.reduce((sum, g) => sum + g.valueInBack, 0), fullPacks: { count: 3, dollars: 1500 }, shifts };
       }
       case 'startNewMonth': {
         const previous = current;
         current = body.label; canStart = false; months[current] = [];
         return { label: current, previous, moved: { DailyCloseLog: 0 } };
       }
-      case 'closeStatus': return { today, closed, slots: slotList };
+      case 'closeStatus': return { today, closed, myShiftToday, slots: slotList };
       case 'listBackStock': return backStock;
       case 'monthStatus': return { current, next: `${current.slice(0, 5)}${String(Number(current.slice(5)) + 1).padStart(2, '0')}`, canStart };
       case 'monthSummary': {
@@ -78,6 +80,18 @@ async function home(app) {
   assert.equal(await app.page.$eval('#fullPackCount', (el) => el.closest('a').getAttribute('href')), 'full-packs.html');
   assert.equal(await app.page.$eval('.tile-wide', (el) => Math.round(el.getBoundingClientRect().width)),
     await app.page.$eval('.tile-grid', (el) => Math.round(el.getBoundingClientRect().width)));
+  // Shift Closure card: this month's shift closes and the latest; opens the report. Close my shift under Close Day.
+  assert.equal(await text(app.page, 'shiftCount'), '2 shifts');
+  assert.equal(await text(app.page, 'shiftLast'), '3:02 PM');
+  assert.equal(await text(app.page, 'shiftLastSub'), 'today by sara');
+  assert.equal(await app.page.$eval('#shiftCount', (el) => el.closest('a').getAttribute('href')), 'shifts.html');
+  assert.ok(await app.page.$eval('#shiftCount', (el) => el.closest('a').querySelector('[data-icon="shift"] svg path') !== null), 'shift icon drawn');
+  const shiftOrder = await app.page.evaluate(() => {
+    const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
+    return [top('.owner-only a.action-main[href="close.html"]'), top('.owner-only a.action-shift')];
+  });
+  assert.ok(shiftOrder[0] < shiftOrder[1], 'Close my shift is under Close Day');
+  assert.equal(await app.page.$eval('.owner-only a.action-shift', (a) => [a.getAttribute('href'), a.textContent.trim()].join(' ')), 'close.html?shift=1 Close my shift');
   assert.equal(await app.page.$$eval('.owner-only a[href="raw-scanner.html"]', (els) => els.length), 0, 'Scanner test is in More only');
   assert.ok(await app.page.$eval('#statusCard', (el) => !el.textContent.includes('Back stock')), 'back stock is not in the top card');
   assert.deepEqual((await tabs(app.page)).map((t) => t[0]), ['Home', 'Scan', 'Stock', 'Reports', 'More']);
@@ -189,6 +203,17 @@ async function home(app) {
   assert.equal(await text(app.page, 'lastLabel'), 'No close yet');
   await app.close();
 
+  // Owner, no shift closes this month (and an answer saved before the card existed reads as none).
+  app = await openApp({ role: 'owner', handle: backend({ shifts: { count: 0, last: null } }) });
+  await home(app);
+  assert.equal(await text(app.page, 'shiftCount'), '0 shifts'); assert.equal(await text(app.page, 'shiftLast'), '—');
+  assert.equal(await text(app.page, 'shiftLastSub'), 'none yet');
+  await app.close();
+  app = await openApp({ role: 'owner', handle: backend({ shifts: { count: 1, last: { date: '2026-09-26', closedAt: '9:15 AM', closedBy: 'e' } } }) });
+  await home(app);
+  assert.equal(await text(app.page, 'shiftLastSub'), 'Sat, Sep 26 by e');
+  await app.close();
+
   // Employee: Scan tickets opens Close Day; tabs Home · Slots · More (no Slots card); no dollars, no owner links.
   const calls = [];
   const employee = backend();
@@ -206,6 +231,9 @@ async function home(app) {
   assert.equal(hero, 'close.html');
   assert.deepEqual(calls.filter((c) => c !== 'closeStatus'), [], 'employee home asks only closeStatus');
   assert.ok(await app.page.$eval('#startMonthBtn', (el) => !el.offsetParent), 'no Start month for employees');
+  // Close my shift under Scan tickets until they've closed one today.
+  assert.equal(await app.page.$eval('#shiftBtn', (a) => (a.offsetParent ? a.getAttribute('href') : null)), 'close.html?shift=1');
+  assert.ok(await app.page.$eval('#shiftDone', (el) => !el.offsetParent));
   if (shots) await app.page.screenshot({ path: `${shots}/home-employee.png`, fullPage: true });
 
   // More page: no Manage employees for employees; Sign out there.
@@ -220,6 +248,15 @@ async function home(app) {
   assert.equal(await text(app.page, 'closedChip'), 'Closed');
   assert.equal(await text(app.page, 'employeeTitle'), 'Day closed');
   assert.equal(await text(app.page, 'employeeNote'), 'Submitted at 10:52 PM by e');
+  assert.ok(await app.page.$eval('#shiftBtn', (el) => !el.offsetParent), 'no shift close once the day is closed');
+  await app.close();
+
+  // Employee who already closed their shift today: greyed "Shift closed at …" instead of the button.
+  app = await openApp({ role: 'employee', handle: backend({ myShiftToday: { closedAt: '2:00 PM', closedBy: 'e', ticketsSold: 40 } }) });
+  await home(app);
+  assert.ok(await app.page.$eval('#shiftBtn', (el) => !el.offsetParent));
+  assert.equal(await app.page.$eval('#shiftDone', (el) => (el.offsetParent ? el.textContent : null)), 'Shift closed at 2:00 PM');
+  if (shots) await app.page.screenshot({ path: `${shots}/home-employee-shift-done.png`, fullPage: true });
   await app.close();
 
   console.log('HOME CHECKS PASS');

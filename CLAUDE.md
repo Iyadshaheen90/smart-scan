@@ -66,6 +66,19 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Day totals (`DailySummary`) = every `DailyCloseLog` row dated that day, so mid-day sold-outs are included.
 - A pack ended **after** today's close is logged to the next day (`salesDate()`).
 - One close per day (`already_closed`); the owner can reopen it (`reopenClose`).
+- **Shift close** (optional; owner's request 2026-09-30; `Shifts.js`, `close.html?shift=1`): whoever ends a shift scans
+  every live slot (same screen as Close Day, titled Close shift). Only that shift's numbers are saved (`ShiftCloses` +
+  `ShiftCloseLog`, created on first use in a month sheet without them), for the owner to compare with the register by
+  hand; the app judges nothing. It **never** writes SlotState, DailyCloseLog or DailySummary: Close Day still counts the
+  whole day from last night's close, and Slots / home $ on display / Settling keep showing last night's top tickets
+  (owner's choices). Shift start ticket = the pack's ticket at today's last shift close, else SlotState (last close or
+  activation ticket). Sold out at a shift close counts every ticket left that shift but doesn't end the pack; later shift
+  closes that day fill it in as "sold out · 0" (no scan); the night Close Day is **not** pre-filled (tap Sold out again,
+  owner's choice). Packs ended and full packs sold during a shift count in it (DailyCloseLog rows by the new `logged_at`,
+  less what an earlier shift close already counted). Employees: one shift close a day (`already_closed_shift`) unless
+  the owner deletes it; tickets only, no $. Owner: no limit, sees $. None after the day is closed. No offline queue:
+  with no connection it says so and the scans stay in the phone's draft (`smartScanShiftDraft:<user>`, tied to the
+  previous shift close). Repeated `shiftId` = the saved shift back. Owner deletes a mistaken one on `shifts.html`.
 - **Sending a close** (offline queue): Submit saves the close on the phone with a `closeId`, then sends it. With no
   connection it waits as "saved, not sent yet" and is resent (every 30s, when back online, when the app comes back
   to the front, and from the home page). The server answers a repeated `closeId` with the close it already saved
@@ -89,6 +102,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Wrong pack size → `setPackSize` (refused if a live pack's top ticket wouldn't fit). Wrong slot price → `setSlotPrice`.
 - Wrong close → `reopenClose` restores every top ticket (found by pack, so moves after the close are fine).
 - Close submitted by mistake while still unsent → "Stop sending and change scans" on Close Day.
+- Shift close made by mistake → Delete on the Shift Closure page (`deleteShiftClose`): later shift closes that day start
+  from the one before it, and that employee can close their shift again.
 - Full pack sold by mistake → Undo on the Full pack sales page (`undoFullPackSale`), while that sales day isn't closed:
   the pack goes back in the back and the sale is removed.
 - Game ended by mistake → Bring back (or it comes back by itself when received).
@@ -156,8 +171,11 @@ Frontend (`src/`, plain HTML + JS, no build):
   close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), amber Start <Month>
   button (from the 1st until the month is started; confirm, then `startNewMonth`, then it hides), Close Day button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
   month), Settling (packs live 50+ days, amber when any), a full-width Full pack sales card (`.tile-wide`: packs sold this month
-  and their $, from `ownerHome.fullPacks`; opens `full-packs.html`), Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
-  Scan tickets button → Close Day; no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
+  and their $, from `ownerHome.fullPacks`; opens `full-packs.html`), a full-width Shift Closure card (shift closes this month and
+  the latest "3:02 PM · today by sara", from `ownerHome.shifts`; opens `shifts.html`), a quieter **Close my shift** button
+  (`.action-shift`) under Close Day, Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
+  Scan tickets button → Close Day, and under it Close my shift (hidden once the day is closed; a greyed "Shift closed at
+  2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`); no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
@@ -166,6 +184,9 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `full-packs.html` (owner, 2026-09-30) this month's full pack sales (`listFullPackSales`, saved answer first): green
   **Sell a full pack** → `backstock.html?mode=fullpack`, totals (packs, $), one card per sale newest first (day, game ·
   pack, ticket price, pack size, total value) with Undo until that day is closed. Icon `ticket`.
+- `shifts.html` (owner, 2026-09-30) Shift Closure: this month's shift closes by day, newest first (`listShiftCloses`, saved
+  answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
+  (every slot's start → end ticket) and Delete (confirm). Icon `shift` (two block arrows, from the owner's picture).
 - `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo; then (owner's order) slot price, pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
@@ -203,6 +224,9 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   `getCurrentMonth`/`openCurrentMonth` keep the month and its opened spreadsheet for the rest of a request (reset in `doPost`).
 - `Home.js` `ownerHome`: everything on the owner's home in one request (closeStatus + monthStatus + this month's $ + last
   close + back stock $ + this month's full packs).
+- `Shifts.js` `shiftStatus`, `submitShiftClose(user, entries, shiftId, date)`, `listShiftCloses`, `deleteShiftClose`,
+  `shiftHomeSummary` (for `ownerHome.shifts`), `shiftStarts`, `endedInShift`, `nowStamp` (also used for `logged_at`).
+  `closeStatus` also returns `myShiftToday` (an employee's own shift close today).
 - `FullPacks.js` `sellFullPack`, `undoFullPackSale`, `listFullPackSales`, `fullPackTotals` (also used by `monthSummary`). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management
 - `Slots.js` `listSlots`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
@@ -218,13 +242,13 @@ errors are `ApiError(code, message)` with a message the person at the counter ca
 New columns go at the **end** of a tab. Existing month sheets don't have them yet: call `ensureHeaders` before
 writing one, and read them defensively (a missing column reads as `undefined`, and `dateLabel(undefined)` is the
 string "undefined", so check the value first). `SlotState.remaining_count` is a formula column that must not move.
-Recent columns: `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
+Recent columns: `DailyCloseLog.logged_at`, `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
 `SlotState.last_game_number`.
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", same Drive folder as Control)
 
 Users, Sessions, SlotConfig, SlotState, ReserveInventory, Shipments, ReserveAdjustments, DailyCloseLog,
-DailySummary, PackHistory. Columns are in `Schema.js`. The owner reads these after each close but should not
+DailySummary, PackHistory, ShiftCloses, ShiftCloseLog (the last two from Oct 2026; added on first use before that). Columns are in `Schema.js`. The owner reads these after each close but should not
 hand-edit them.
 
 ## Test and deploy
@@ -249,6 +273,8 @@ node test/browser/camera-revive.js        # camera un-freezes after Clear all / 
 node test/browser/backstock-fullpack.js # Full pack sale mode: ?mode=fullpack, pop-up, Sell/Cancel, refusals, draft kept (real backend code)
 node test/browser/full-packs.js          # Full pack sales page: totals, cards, Undo, none after close, empty month (real backend code)
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
+node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
+node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"

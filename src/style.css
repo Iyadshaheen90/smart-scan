@@ -259,6 +259,10 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 /* Start the new month on the owner home: amber, since it still needs doing (from the 1st until tapped). */
 button.action-main { width: 100%; border: 0; font-family: inherit; cursor: pointer; }
 .action-month { background: var(--amber); color: #241a05; }
+/* Close my shift: under Close Day / Scan tickets, quieter than the green button. Greyed once an employee has used it. */
+.action-shift { background: var(--card); color: var(--text); border: 1px solid var(--border); font-size: 17px; }
+.action-shift svg { color: var(--accent-bright); }
+.action-shift.done { opacity: 0.6; font-size: 15px; font-weight: 700; }
 .action-month:disabled { opacity: 0.6; }
 /* Owner home: numbers from the last load on this phone, dimmed until the fresh ones arrive. */
 .stale .big-number, .stale .stat-value, .stale .tile-num { opacity: 0.55; transition: opacity 0.2s; }

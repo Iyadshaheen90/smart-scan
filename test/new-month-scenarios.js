@@ -9,10 +9,10 @@ const dir = path.join(__dirname, '..', 'src', 'apps-script');
 const control = fakeSpreadsheet('control', { Months: fakeSheet(['month_label', 'spreadsheet_id', 'created_date', 'status']) });
 const google = fakeGoogle(control);
 const ctx = { console, ...google, Session: { getScriptTimeZone: () => 'x' },
-  Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : globalThis.TODAY },
+  Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${globalThis.TODAY} 12:00:00` : globalThis.TODAY },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Home.js']) {
+for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Home.js']) {
   vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 }
 const run = (code) => vm.runInContext(code, ctx);
@@ -21,10 +21,11 @@ const tabs = (id) => google.SpreadsheetApp.openById(id).tabs;
 const col = (sheet, name) => sheet.rows.slice(1).map((r) => r[sheet.rows[0].indexOf(name)]);
 Object.assign(ctx, { owner: { username: 'o', role: 'owner' }, emp: { username: 'e', role: 'employee' } });
 
-// September's spreadsheet: three slots, back stock of three games, an owner signed in.
+// September's spreadsheet: three slots, back stock of three games, an owner signed in. It was made before
+// shift closes existed, so it has no ShiftCloses / ShiftCloseLog tabs.
 const MONTHLY_TABS = run('MONTHLY_TABS');
 const sep = google.add('Smart Scan — 2026-09', fakeSpreadsheet('sep', Object.fromEntries(
-  Object.entries(MONTHLY_TABS).map(([n, h]) => [n, fakeSheet(h)]))));
+  Object.entries(MONTHLY_TABS).filter(([n]) => !n.startsWith('Shift')).map(([n, h]) => [n, fakeSheet(h)]))));
 sep.tabs.Users.rows.push(['o', 'hash', 'salt', 'owner', true, '2026-09-22']);
 sep.tabs.Sessions.rows.push(['tokenhash', 'o', '2026-09-29', '2099-01-01']);
 sep.tabs.SlotConfig.rows.push([1, 1, 20], [1, 2, 10], [1, 3, 5]);
@@ -63,12 +64,16 @@ assert.equal(run('monthStatus()').canStart, true);
 assert.equal(code(() => run(`startNewMonth({ label: '2026-11' })`)), 'bad_request');
 r = run(`startNewMonth({ label: '2026-10' })`);
 assert.equal(r.label, '2026-10'); assert.equal(r.previous, '2026-09');
-assert.deepEqual({ ...r.moved }, { Shipments: 0, ReserveAdjustments: 1, DailyCloseLog: 3, DailySummary: 1, PackHistory: 0 });
+assert.deepEqual({ ...r.moved }, { Shipments: 0, ReserveAdjustments: 1, DailyCloseLog: 3, DailySummary: 1, PackHistory: 0, ShiftCloses: 0, ShiftCloseLog: 0 });
 const octId = run('getCurrentMonth()').spreadsheetId;
 assert.equal(r.url, `https://docs.google.com/spreadsheets/d/${octId}/edit`);
 assert.equal(google.files[octId].name, 'Smart Scan — 2026-10');
 assert.deepEqual(col(control.tabs.Months, 'status'), ['archived', 'active']);
 const oct = tabs(octId);
+// September never had the shift tabs; October's spreadsheet gets them (empty).
+assert.equal(sep.tabs.ShiftCloses, undefined);
+assert.equal(JSON.stringify(oct.ShiftCloses.rows), JSON.stringify([MONTHLY_TABS.ShiftCloses]));
+assert.equal(JSON.stringify(oct.ShiftCloseLog.rows), JSON.stringify([MONTHLY_TABS.ShiftCloseLog]));
 // What's in the store carried over exactly; logs hold only October.
 for (const t of ['Users', 'Sessions', 'SlotConfig', 'SlotState', 'ReserveInventory']) assert.deepEqual(oct[t].rows, sep.tabs[t].rows, t);
 assert.deepEqual([...new Set(col(oct.DailyCloseLog, 'close_date'))], ['2026-10-01']);
@@ -92,6 +97,21 @@ assert.equal(home.backValue, run('listBackStock()').reduce((sum, g) => sum + g.v
 assert.ok(home.backValue > 0);
 console.log('late October start: moved 5 October rows out of September, store carried over — OK');
 
+// A month sheet without the shift tabs (like September's when shift closes went live): reading sees no shift
+// closes, and the first shift close creates both tabs.
+delete oct.ShiftCloses; delete oct.ShiftCloseLog;
+assert.equal(run('shiftStatus(emp)').since, null); assert.equal(run('ownerHome(owner)').shifts.count, 0);
+{
+  const st = run('shiftStatus(emp)');
+  const e = JSON.stringify(st.slots.filter((x) => x.pack).map((x) => ({ box: x.box, slot: x.slot,
+    packKey: `${x.pack.gameNumber}-${x.pack.packNumber}`, type: 'scan', ticketNumber: x.pack.exposedTicket - 1 })));
+  const shift = run(`submitShiftClose(emp, ${e}, 'oct-shift', '2026-10-02')`);
+  assert.equal(shift.ticketsSold, 2); assert.equal(shift.closedBy, 'e');
+  assert.equal(oct.ShiftCloses.rows.length, 2); assert.equal(oct.ShiftCloseLog.rows.length, 3);
+  run(`deleteShiftClose(owner, { shiftId: 'oct-shift' })`); assert.equal(oct.ShiftCloses.rows.length, 1);
+}
+console.log('shift close in a month sheet made before shift closes: tabs created on first use — OK');
+
 // Oct 2 close, reopened: slot 2 goes back to its Oct 1 close, which was logged in September's sheet.
 run(`submitClose(emp, ${entries({ 2: 30, 3: 70 })})`);
 run('reopenClose()');
@@ -104,7 +124,7 @@ google.add('Smart Scan — 2026-11', fakeSpreadsheet('leftover', {}));
 r = run(`startNewMonth({ label: '2026-11' })`);
 assert.equal(google.files.leftover.trashed, true);
 assert.deepEqual(col(control.tabs.Months, 'status'), ['archived', 'archived', 'active']);
-assert.deepEqual({ ...r.moved }, { Shipments: 0, ReserveAdjustments: 0, DailyCloseLog: 0, DailySummary: 0, PackHistory: 0 });
+assert.deepEqual({ ...r.moved }, { Shipments: 0, ReserveAdjustments: 0, DailyCloseLog: 0, DailySummary: 0, PackHistory: 0, ShiftCloses: 0, ShiftCloseLog: 0 });
 const nov = tabs(run('getCurrentMonth()').spreadsheetId);
 assert.equal(nov.DailyCloseLog.rows.length, 1);
 
@@ -158,8 +178,15 @@ console.log('owner home pass');
   assert.deepEqual({ ...run(`monthSummary('2026-11')`).fullPacks }, { count: 1, dollars: g.price * g.ticketsPerPack });
   assert.deepEqual({ ...run('ownerHome(owner)').fullPacks }, { count: 1, dollars: g.price * g.ticketsPerPack });
   assert.equal(run(`monthSummary('2026-10')`).fullPacks.count, 0);
+  // A shift close in November (its sheet has the tabs), then December starts with an empty list.
+  const shiftEntries = JSON.stringify(run('shiftStatus(emp)').slots.filter((x) => x.pack)
+    .map((x) => ({ box: x.box, slot: x.slot, packKey: `${x.pack.gameNumber}-${x.pack.packNumber}`, type: 'scan', ticketNumber: x.pack.exposedTicket })));
+  run(`submitShiftClose(emp, ${shiftEntries}, 'nov-shift', '2026-11-01')`);
+  assert.equal(run('ownerHome(owner)').shifts.count, 1); assert.equal(run('ownerHome(owner)').shifts.last.closedBy, 'e');
   globalThis.TODAY = '2026-12-01';
   run(`startNewMonth({ label: '2026-12' })`);
+  assert.equal(run('listShiftCloses(owner)').count, 0); assert.equal(run('ownerHome(owner)').shifts.count, 0);
+  assert.equal(nov.ShiftCloses.rows.length, 2);
   assert.equal(run('listFullPackSales()').count, 0); assert.equal(run('ownerHome(owner)').fullPacks.count, 0);
   assert.equal(run('listBackStock()').find((x) => x.gameNumber === g.gameNumber).packsInBack, g.packsInBack - 1);
   assert.equal(run(`monthSummary('2026-11')`).fullPacks.count, 1);

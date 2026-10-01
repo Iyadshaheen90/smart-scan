@@ -61,12 +61,13 @@ async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e'
 
 // The real backend (src/apps-script) on an in-memory spreadsheet, for tests that should run the
 // server code too. ctx holds its functions (ctx.listBackStock() …); addRow(tab, { column: value }).
-function backendInVm(today) {
-  const ctx = { console, Utilities: { formatDate: (d, tz) => (tz === 'UTC' ? d.toISOString().slice(0, 10) : today) },
+function backendInVm(today, clock = () => '12:00:00') {
+  const ctx = { console, Utilities: { formatDate: (d, tz, fmt) => (tz === 'UTC' ? d.toISOString().slice(0, 10)
+    : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${today} ${clock()}` : fmt === 'yyyy-MM-dd HH:mm' ? `${today} ${clock().slice(0, 5)}` : today) },
     Session: { getScriptTimeZone: () => 'x' }, LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     fakeSheetFn: fakeSheet };
   vm.createContext(ctx);
-  for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js']) {
+  for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js']) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'apps-script', f), 'utf8'), ctx);
   }
   vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }

@@ -3,7 +3,7 @@
 
 // { today, closed, slots } as closeStatus gives them, plus:
 // month: monthStatus(); monthDollars: sold this month so far; backValue: $ of packs in the back;
-// fullPacks: { count, dollars } of full packs sold this month;
+// fullPacks: { count, dollars } of full packs sold this month; shifts: this month's shift closes (count, last);
 // lastClose: this month's last closed day, or last month's when none yet (null when there's none).
 function ownerHome(user) {
   const status = closeStatus(user);
@@ -17,5 +17,6 @@ function ownerHome(user) {
   }
   const backValue = readTable(monthSheet('ReserveInventory'))
     .reduce((sum, r) => sum + packsInBack(r) * (Number(r.tickets_per_pack) || 0) * (Number(r.price_per_ticket) || 0), 0);
-  return { ...status, month, monthDollars: summary.dollarsSold, fullPacks: summary.fullPacks, lastClose, backValue };
+  return { ...status, month, monthDollars: summary.dollarsSold, fullPacks: summary.fullPacks, lastClose, backValue,
+    shifts: shiftHomeSummary() };
 }

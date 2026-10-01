@@ -44,6 +44,8 @@
     <button type="button" id="startMonthBtn" class="action-main action-month hidden"></button>
     <div id="monthMessage" class="message"></div>
     <a class="action-main" href="close.html"><span data-icon="check"></span>Close Day</a>
+    <!-- Optional shift close (owner: any number a day). Never changes Close Day. -->
+    <a class="action-main action-shift" href="close.html?shift=1"><span data-icon="shift"></span>Close my shift</a>
     <div class="section-label">Manage</div>
     <div class="tile-grid">
       <a class="tile-card" href="slots.html"><span class="icon-box" data-icon="grid"></span>
@@ -60,6 +62,12 @@
           <span class="tile-stat"><span class="tile-num fit" id="fullPackCount">…</span><span class="tile-sub">sold this month</span></span>
           <span class="tile-stat"><span class="tile-num fit" id="fullPackDollars">…</span><span class="tile-sub">total value</span></span>
         </span></span></a>
+      <!-- Shift closes this month and the latest one; tapping lists them with their numbers. -->
+      <a class="tile-card tile-wide" href="shifts.html"><span class="icon-box" data-icon="shift"></span>
+        <span>Shift Closure<span class="tile-pair">
+          <span class="tile-stat"><span class="tile-num fit" id="shiftCount">…</span><span class="tile-sub">closed this month</span></span>
+          <span class="tile-stat"><span class="tile-num fit" id="shiftLast">…</span><span class="tile-sub fit" id="shiftLastSub">last one</span></span>
+        </span></span></a>
     </div>
     <a class="list-card" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage employees</span><span class="chev" data-icon="chevronRight"></span></a>
   </div>
@@ -67,6 +75,9 @@
   <!-- Employee: scanning happens in Close Day, so the big button opens it. Slots is in the tab bar. -->
   <div class="employee-only hidden">
     <a class="action-main action-hero" href="close.html"><span data-icon="scan"></span>Scan tickets<span class="hint">Close Day</span></a>
+    <!-- One shift close a day; once used it shows when, until the owner deletes it. Hidden once the day is closed. -->
+    <a class="action-main action-shift" id="shiftBtn" href="close.html?shift=1"><span data-icon="shift"></span>Close my shift</a>
+    <div class="action-main action-shift done hidden" id="shiftDone"></div>
   </div>
 
   <nav class="tabbar" data-active="home"></nav>
@@ -128,7 +139,7 @@
           showOwnerHome(home, true);
         } catch (err) {
           if (saved) return;
-          for (const id of ['liveSlots', 'liveValue', 'settlingCount', 'backValue', 'monthDollars', 'fullPackCount', 'fullPackDollars', 'lastDollars', 'lastTickets']) setNumber(id, '—');
+          for (const id of ['liveSlots', 'liveValue', 'settlingCount', 'backValue', 'monthDollars', 'fullPackCount', 'fullPackDollars', 'shiftCount', 'shiftLast', 'lastDollars', 'lastTickets']) setNumber(id, '—');
           $('lastLabel').textContent = 'Last close';
         }
       } else {
@@ -136,6 +147,7 @@
           const status = await api('closeStatus');
           $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
           setChip(Boolean(status.closed));
+          showMyShift(status);
           if (status.closed) {
             $('employeeTitle').textContent = 'Day closed';
             if (status.closed.closedAt) {
@@ -174,11 +186,33 @@
       const fullPacks = home.fullPacks || { count: 0, dollars: 0 };
       setNumber('fullPackCount', `${fullPacks.count} ${fullPacks.count === 1 ? 'pack' : 'packs'}`);
       setNumber('fullPackDollars', money(fullPacks.dollars));
+      showShifts(home.shifts || { count: 0, last: null }, home.today);
       if (closed) showLastClose(closed, true);
       else if (lastClose) showLastClose(lastClose, false);
       else { setNumber('lastDollars', '$0'); $('lastLabel').textContent = 'No close yet'; setNumber('lastTickets', '0'); }
       // Only a fresh answer decides the Start month button (a saved one may be from before the 1st).
       if (fresh) showStartMonth(home.month);
+    }
+
+    // Owner's Shift Closure card: how many this month, and the latest ("3:02 PM", "today by sara").
+    function showShifts(shifts, today) {
+      setNumber('shiftCount', `${shifts.count} ${shifts.count === 1 ? 'shift' : 'shifts'}`);
+      if (!shifts.last) {
+        setNumber('shiftLast', '—');
+        $('shiftLastSub').textContent = 'none yet';
+        return;
+      }
+      setNumber('shiftLast', shifts.last.closedAt);
+      $('shiftLastSub').textContent = `${shifts.last.date === today ? 'today' : dayName(shifts.last.date)} by ${shifts.last.closedBy}`;
+      fitText($('shiftLastSub'));
+    }
+
+    // Employee: Close my shift until they've closed one today (then when), and not once the day is closed.
+    function showMyShift(status) {
+      const mine = status.myShiftToday;
+      $('shiftBtn').classList.toggle('hidden', Boolean(status.closed || mine));
+      $('shiftDone').classList.toggle('hidden', !mine);
+      if (mine) $('shiftDone').textContent = `Shift closed at ${mine.closedAt}`;
     }
 
     function showLastClose(day, isToday) {

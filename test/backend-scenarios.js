@@ -5,10 +5,10 @@ globalThis.TODAY = '2026-09-24';
 const fs = require('fs'); const vm = require('vm'); const path = require('path'); const assert = require('assert/strict');
 const dir = process.argv[2] || path.join(__dirname, '..', 'src', 'apps-script');
 const { fakeSheet } = require('./fakes');
-const ctx = { console, Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
+const ctx = { console, Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${globalThis.TODAY} ${globalThis.CLOCK || '12:00:00'}` : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
+for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
   const sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h, n === 'SlotState' ? h.slice(0, 10) : null);
   function monthSheet(n) { return sheets[n]; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet }));
@@ -386,6 +386,107 @@ console.log('game ended scenarios pass');
   assert.equal(run('listFullPackSales()').sales[0].packNumber, '0000005');
   globalThis.TODAY = saved;
   console.log('full pack sale scenarios pass');
+}
+// ---- Shift closes (optional; never change Close Day) ----
+{
+  const saved = globalThis.TODAY;
+  const same = (x, y) => assert.equal(JSON.stringify(x), JSON.stringify(y)); // results come from the vm's realm
+  for (const n of ['SlotConfig', 'SlotState', 'ReserveInventory', 'DailyCloseLog', 'DailySummary', 'PackHistory', 'ShiftCloses', 'ShiftCloseLog']) S[n].rows.splice(1);
+  S.SlotConfig.rows.push([1, 1, 20], [1, 2, 10], [1, 3, 5], [1, 4, 20]);
+  S.SlotState.rows.push([1, 1], [1, 2], [1, 3], [1, 4]);
+  S.ReserveInventory.rows.push(['1747', 20, 30, 3, 90], ['1111', 10, 50, 2, 100], ['5555', 5, 80, 2, 160], ['3333', 20, 30, 3, 90]);
+  const f = { username: 'f', role: 'employee' }; ctx.f = f;
+  const ent = (list) => JSON.stringify(list.map(([slot, packKey, type, ticketNumber]) => ({ box: 1, slot, packKey, type, ticketNumber })));
+  globalThis.TODAY = '2026-11-09';
+  run(`activatePack(owner, { box: 1, slot: 1, gameNumber: '1747', packNumber: '0000001', ticketNumber: 29 })`);
+  run(`activatePack(owner, { box: 1, slot: 2, gameNumber: '1111', packNumber: '0000001', ticketNumber: 49 })`);
+  run(`activatePack(owner, { box: 1, slot: 3, gameNumber: '5555', packNumber: '0000001', ticketNumber: 79 })`);
+  run(`submitClose(emp, ${ent([[1, '1747-0000001', 'scan', 25], [2, '1111-0000001', 'scan', 45], [3, '5555-0000001', 'scan', 70]])})`);
+
+  globalThis.TODAY = '2026-11-10';
+  globalThis.CLOCK = '09:00:00';
+  run(`activatePack(owner, { box: 1, slot: 4, gameNumber: '3333', packNumber: '0000001', ticketNumber: 29 })`); // activated today
+  let st = run('shiftStatus(emp)');
+  assert.equal(st.since, null); assert.equal(st.dayClosed, false); assert.equal(st.myShiftToday, null);
+  same(st.slots.map((x) => x.pack && x.pack.exposedTicket), [25, 45, 70, 29]); // last close, or the activation ticket
+  // Shift 1 (employee e, 2 PM): refusals first, nothing written by them
+  const shift1 = [[1, '1747-0000001', 'scan', 20], [2, '1111-0000001', 'sold_out'], [3, '5555-0000001', 'scan', 70], [4, '3333-0000001', 'scan', 27]];
+  globalThis.CLOCK = '14:00:00';
+  assert.equal(code(() => run(`submitShiftClose(emp, ${ent(shift1.slice(1))}, 's1', '2026-11-10')`)), 'incomplete');
+  assert.equal(code(() => run(`submitShiftClose(emp, ${ent([[1, '1747-0000001', 'scan', 26], ...shift1.slice(1)])}, 's1', '2026-11-10')`)), 'bad_ticket');
+  assert.equal(code(() => run(`submitShiftClose(emp, ${ent([[1, '1747-0000009', 'scan', 20], ...shift1.slice(1)])}, 's1', '2026-11-10')`)), 'slots_changed');
+  assert.equal(code(() => run(`submitShiftClose(emp, ${ent([...shift1, [9, '1-1', 'scan', 1]])}, 's1', '2026-11-10')`)), 'slots_changed');
+  assert.equal(code(() => run(`submitShiftClose(emp, ${ent(shift1)}, 's1', '2026-11-09')`)), 'wrong_day');
+  assert.equal(S.ShiftCloses.rows.length, 1); assert.equal(S.ShiftCloseLog.rows.length, 1);
+  r = run(`submitShiftClose(emp, ${ent(shift1)}, 's1', '2026-11-10')`);
+  assert.equal(r.ticketsSold, 5 + 46 + 0 + 2); assert.equal(r.dollarsSold, undefined); // employees: tickets only
+  same([r.closedBy, r.closedAt, r.since], ['e', '2:00 PM', null]);
+  // lost answer, sent again: the saved shift back, nothing written twice
+  r = run(`submitShiftClose(emp, ${ent(shift1)}, 's1', '2026-11-10')`); assert.equal(r.alreadySent, true);
+  assert.equal(S.ShiftCloses.rows.length, 2);
+  // one shift close a day per employee
+  assert.equal(code(() => run(`submitShiftClose(emp, ${ent(shift1)}, 's1b', '2026-11-10')`)), 'already_closed_shift');
+  assert.equal(run('shiftStatus(emp)').myShiftToday.closedAt, '2:00 PM'); assert.equal(run('closeStatus(emp)').myShiftToday.closedAt, '2:00 PM');
+  assert.equal(run('closeStatus(owner)').myShiftToday, null);
+  // Slots and Close Day still show last night's top tickets
+  same(run('listSlots()').map((x) => x.pack && x.pack.exposedTicket), [25, 45, 70, 29]);
+  same(run('closeStatus(emp)').slots.map((x) => x.pack && x.pack.exposedTicket), [25, 45, 70, 29]);
+
+  // Mid-shift (owner): slot 1 returned at ticket 15 (shift 2 counts 20 -> 15 = 5), a full pack sold
+  globalThis.CLOCK = '15:00:00'; run(`endPack(owner, { box: 1, slot: 1, reason: 'returned', ticketNumber: 15 })`);
+  globalThis.CLOCK = '15:30:00'; run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000002' })`);
+  globalThis.CLOCK = '16:00:00';
+  st = run('shiftStatus(owner)');
+  same({ ...st.since }, { closedAt: '2:00 PM', closedBy: 'e' });
+  assert.equal(st.slots[0].pack, null);
+  assert.equal(st.slots[1].pack.soldOutAtShift, '2:00 PM'); assert.equal(st.slots[1].pack.remaining, 0); // sold out at shift 1, still in the slot
+  same(st.slots.slice(2).map((x) => x.pack.exposedTicket), [70, 27]);
+  // Shift 2 (employee f, 6 PM): slot 2 needs no scan
+  globalThis.CLOCK = '18:00:00';
+  r = run(`submitShiftClose(f, ${ent([[3, '5555-0000001', 'scan', 60], [4, '3333-0000001', 'scan', 20]])}, 's2', '2026-11-10')`);
+  assert.equal(r.ticketsSold, 10 + 7 + 5 + 30); assert.equal(r.since, '2:00 PM');
+  // Owner: any number of shift closes a day, with $
+  globalThis.CLOCK = '19:00:00';
+  r = run(`submitShiftClose(owner, ${ent([[3, '5555-0000001', 'scan', 60], [4, '3333-0000001', 'scan', 20]])}, 's3', '2026-11-10')`);
+  same([r.ticketsSold, r.dollarsSold, r.endedTickets], [0, 0, 0]);
+  globalThis.CLOCK = '19:30:00';
+  r = run(`submitShiftClose(owner, ${ent([[3, '5555-0000001', 'scan', 58], [4, '3333-0000001', 'scan', 20]])}, 's4', '2026-11-10')`);
+  same([r.ticketsSold, r.dollarsSold], [2, 10]);
+  let list = run('listShiftCloses(owner)');
+  assert.equal(list.count, 4); same(list.shifts.map((x) => x.shiftId), ['s4', 's3', 's2', 's1']);
+  const s2 = list.shifts[2];
+  same([s2.dollarsSold, s2.endedTickets, s2.endedDollars], [10 * 5 + 7 * 20 + 5 * 20 + 600, 35, 700]);
+  assert.equal(JSON.stringify(s2.rows.map((x) => [x.slot, x.type, x.start, x.end, x.sold])), JSON.stringify([
+    [2, 'sold_out_earlier', null, null, 0], [3, 'scan', 70, 60, 10], [4, 'scan', 27, 20, 7],
+    [1, 'ended_returned', 20, 15, 5], [null, 'full_pack', 29, null, 30]]));
+  same({ ...run('shiftHomeSummary()').last }, { date: '2026-11-10', closedAt: '7:30 PM', closedBy: 'o' });
+  // Delete (owner): e may close a shift again today
+  assert.equal(code(() => run(`deleteShiftClose(owner, { shiftId: 'nope' })`)), 'nothing_to_delete');
+  list = run(`deleteShiftClose(owner, { shiftId: 's1' })`); assert.equal(list.count, 3);
+  assert.equal(run('shiftStatus(emp)').myShiftToday, null);
+  globalThis.CLOCK = '20:00:00';
+  r = run(`submitShiftClose(emp, ${ent([[3, '5555-0000001', 'scan', 58], [4, '3333-0000001', 'scan', 20]])}, 's5', '2026-11-10')`);
+  assert.equal(r.ticketsSold, 0);
+  for (const a of ['listShiftCloses', 'deleteShiftClose']) assert.equal(run(`SIGNED_IN_ACTIONS.${a}.owner`), true);
+  for (const a of ['shiftStatus', 'submitShiftClose']) assert.equal(run(`SIGNED_IN_ACTIONS.${a}.owner`), undefined);
+
+  // Night Close Day: the whole day from last night's close, as if no shift was closed. Slot 2 is
+  // marked sold out again (not pre-filled).
+  globalThis.CLOCK = '22:52:00';
+  const tonight = [[2, '1111-0000001', 'sold_out'], [3, '5555-0000001', 'scan', 55], [4, '3333-0000001', 'scan', 18]];
+  assert.equal(code(() => run(`submitClose(emp, ${ent(tonight.slice(1))})`)), 'incomplete');
+  r = run(`submitClose(emp, ${ent(tonight)}, 'night', '2026-11-10')`);
+  assert.equal(r.ticketsSold, 46 + 15 + 11 + 10 + 30); // + returned slot 1 (25 -> 15) and the full pack
+  assert.equal(run('closeStatus(owner)').closed.dollarsSold, 46 * 10 + 15 * 5 + 11 * 20 + 10 * 20 + 600);
+  assert.equal(code(() => run(`submitShiftClose(f, [], 's6', '2026-11-10')`)), 'already_closed'); // the day is closed
+  // Next day: e can close a shift again, starting from tonight's close
+  globalThis.TODAY = '2026-11-11'; globalThis.CLOCK = '12:00:00';
+  st = run('shiftStatus(emp)'); assert.equal(st.since, null); assert.equal(st.myShiftToday, null);
+  same(st.slots.map((x) => x.pack && x.pack.exposedTicket), [null, null, 55, 18]);
+  r = run(`submitShiftClose(emp, ${ent([[3, '5555-0000001', 'scan', 50], [4, '3333-0000001', 'scan', 18]])}, 's7', '2026-11-11')`);
+  assert.equal(r.ticketsSold, 5);
+  globalThis.TODAY = saved; delete globalThis.CLOCK;
+  console.log('shift close scenarios pass');
 }
 console.log('back stock scenarios pass');
 console.log('all slot, close and pack-size scenarios pass');

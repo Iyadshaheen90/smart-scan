@@ -16,6 +16,8 @@ const ICON_PATHS = {
     + '<path d="M13.35 2.75h-1.8a0.85 0.85 0 0 0 0 1.7h0.9a0.85 0.85 0 0 1 0 1.7h-1.8M12 2v0.75M12 6.15v0.75" stroke-width="1.3"/>',
   // Full packs: a lottery ticket.
   ticket: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
+  // Shift Closure: two block arrows passing each other, one shift handing over to the next (owner's picture, 2026-09-30).
+  shift: '<path d="M4 9V6h11V2.5l6 5.5-6 5.5V10H9"/><path d="M20 15v3H9v3.5L3 16l6-5.5V14h6"/>',
   chevronRight: '<path d="m9 18 6-6-6-6"/>',
   chevronLeft: '<path d="m15 18-6-6 6-6"/>',
 };

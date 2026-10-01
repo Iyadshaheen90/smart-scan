@@ -254,6 +254,7 @@ function endPackInSlot(user, state, reason, topTicket) {
     late_activation: false,
     performed_by: user.username,
     previous_close_date: dateLabel(state.last_close_date) || '',
+    logged_at: nowStamp(),
   });
 
   const reserve = findReserve(state.game_number);

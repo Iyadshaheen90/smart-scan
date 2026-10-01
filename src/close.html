@@ -15,6 +15,15 @@
 </head>
 <body>
   <header class="app-header" data-title="Close Day"></header>
+  <script>
+    // close.html?shift=1 is Close shift (owner's request 2026-09-30): the same scanning screen, for an optional
+    // shift close. It saves only that shift's numbers and never changes anything Close Day uses.
+    const SHIFT_MODE = new URLSearchParams(location.search).get('shift') === '1';
+    if (SHIFT_MODE) {
+      document.currentScript.previousElementSibling.dataset.title = 'Close shift';
+      document.title = 'Smart Scan — Close shift';
+    }
+  </script>
   <p class="sub" id="dateLine">Loading…</p>
 
   <!-- Today is already closed. -->
@@ -100,7 +109,8 @@
     const pad3 = (n) => String(n).padStart(3, '0');
     const keyOf = (s) => `${s.box}-${s.slot}`;
     const packKeyOf = (s) => `${s.pack.gameNumber}-${s.pack.packNumber}`;
-    const DRAFT_KEY = `smartScanCloseDraft:${session ? session.username : ''}`;
+    // A shift close has its own draft, so it never mixes with tonight's Close Day scans.
+    const DRAFT_KEY = `${SHIFT_MODE ? 'smartScanShiftDraft' : 'smartScanCloseDraft'}:${session ? session.username : ''}`;
     const MODE_KEY = 'smartScanCloseMode';
     // Why a saved close was refused, shown again after the page reloads.
     const REFUSED_KEY = 'smartScanCloseRefused';
@@ -112,22 +122,28 @@
     let currentKey = null;
     let scanner = null;
     let retryTimer = null;
+    let shiftId = null;     // Close shift: made on the first Submit and kept until it's saved, so a resend is saved once
     let mode = 'hold';      // press-and-hold unless this phone was switched to auto
     try { mode = localStorage.getItem(MODE_KEY) === 'auto' ? 'auto' : 'hold'; } catch (e) {}
 
 
     // --- Draft kept on the phone ---
 
+    // Close shift: the shift's start point (the previous shift close today, or none), so a draft started
+    // before someone else closed a shift isn't used against the new start tickets.
+    const draftSince = () => (SHIFT_MODE && status.since ? `${status.since.closedAt} ${status.since.closedBy}` : '');
+
     function loadDraft() {
       try {
         const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
-        if (!draft || draft.date !== status.today) return {};
+        if (!draft || draft.date !== status.today || (draft.since || '') !== draftSince()) return {};
+        shiftId = draft.shiftId || null;
         // Drop anything for a slot whose pack has changed since it was scanned, and old
         // "no sales" taps (that button was removed; those slots need a real scan).
         return Object.fromEntries(Object.entries(draft.entries).filter(([key, e]) => {
           if (e.type !== 'scan' && e.type !== 'sold_out') return false;
           const slot = live.find((s) => keyOf(s) === key);
-          return slot && packKeyOf(slot) === e.packKey;
+          return slot && packKeyOf(slot) === e.packKey && !slot.pack.soldOutAtShift;
         }));
       } catch (e) {
         return {};
@@ -135,7 +151,15 @@
     }
 
     function saveDraft() {
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: status.today, entries })); } catch (e) {}
+      const kept = Object.fromEntries(Object.entries(entries).filter(([, e]) => e.type !== 'sold_out_earlier'));
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: status.today, since: draftSince(), shiftId, entries: kept })); } catch (e) {}
+    }
+
+    // Close shift: a pack sold out at an earlier shift close today is filled in as "sold out · 0" (no scan).
+    function addEarlierSoldOuts() {
+      for (const slot of live) {
+        if (slot.pack.soldOutAtShift) entries[keyOf(slot)] = { packKey: packKeyOf(slot), type: 'sold_out_earlier', sold: 0 };
+      }
     }
 
     function clearDraft() {
@@ -161,7 +185,7 @@
       entries[keyOf(slot)] = { packKey: packKeyOf(slot), ...entry };
       saveDraft();
       const where = `Box ${slot.box} · Slot ${slot.slot}`;
-      const what = entry.type === 'sold_out' ? `sold out (${entry.sold} sold)`
+      const what = entry.type === 'sold_out' ? `sold out (${entry.sold} sold${SHIFT_MODE ? ' this shift' : ''})`
         : `${entry.sold} sold`;
       const large = entry.sold >= status.largeSaleTickets ? ' — that is a lot, double-check it' : '';
       currentKey = nextOpen(keyOf(slot));
@@ -187,10 +211,16 @@
         afterRelease(() => flash(`Pack ${ticket.gameNumber}-${ticket.packNumber} isn't in any slot. Not saved.`, 'error'));
         return;
       }
+      if (slot.pack.soldOutAtShift) {
+        haptic('error');
+        afterRelease(() => flash(`Box ${slot.box} · slot ${slot.slot} was marked sold out at the ${slot.pack.soldOutAtShift} shift close. Not saved.`, 'error'));
+        return;
+      }
       const exposed = slot.pack.exposedTicket;
       if (ticket.ticketNumber > exposed) {
         haptic('error');
-        afterRelease(() => flash(`Ticket ${pad3(ticket.ticketNumber)} is above the last top ticket (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error'));
+        const last = SHIFT_MODE ? "the shift's start ticket" : 'the last top ticket';
+        afterRelease(() => flash(`Ticket ${pad3(ticket.ticketNumber)} is above ${last} (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error'));
         return;
       }
       const elsewhere = currentKey && keyOf(slot) !== currentKey ? ` (it belongs to box ${slot.box} · slot ${slot.slot})` : '';
@@ -209,17 +239,20 @@
       const current = live.find((s) => keyOf(s) === currentKey);
       // The card stays (same size) when every slot is done, so nothing below it moves.
       ['soldOutBtn', 'skipBtn'].forEach((id) => { $(id).disabled = !current; });
+      if (current && current.pack.soldOutAtShift) $('soldOutBtn').disabled = true;
       if (!current) {
         $('curWhere').textContent = 'All slots done';
         $('curPack').textContent = '\u00a0'; // a blank line the same height as a pack line
-        $('curLast').textContent = 'Check the list below, then Submit close.';
+        $('curLast').textContent = `Check the list below, then ${submitLabel()}.`;
         $('curDone').textContent = '';
       } else {
         $('curWhere').textContent = `Box ${current.box} · Slot ${current.slot}`;
         $('curPack').textContent = `$${current.pack.price} · ${packKeyOf(current)}`;
-        $('curLast').textContent = `Last top ticket ${pad3(current.pack.exposedTicket)} (${current.pack.remaining} left)`;
+        $('curLast').textContent = current.pack.soldOutAtShift ? `Sold out at the ${current.pack.soldOutAtShift} shift close`
+          : `${SHIFT_MODE ? 'Shift start ticket' : 'Last top ticket'} ${pad3(current.pack.exposedTicket)} (${current.pack.remaining} left)`;
         const entry = entries[currentKey];
-        $('curDone').textContent = entry ? `Already done: ${describe(entry)}. Scan again to replace it.` : 'Scan the top ticket.';
+        $('curDone').textContent = entry && entry.type === 'sold_out_earlier' ? 'Nothing to scan here.'
+          : entry ? `Already done: ${describe(entry)}. Scan again to replace it.` : 'Scan the top ticket.';
         fitText($('curDone')); // one line always, smaller text if it's long
       }
 
@@ -245,11 +278,14 @@
       }
 
       $('submitBtn').disabled = done !== live.length;
-      $('submitBtn').textContent = done === live.length ? 'Submit close' : `Submit close (${live.length - done} left)`;
-      $('clearBtn').classList.toggle('hidden', done === 0);
+      $('submitBtn').textContent = done === live.length ? submitLabel() : `${submitLabel()} (${live.length - done} left)`;
+      $('clearBtn').classList.toggle('hidden', !live.some((s) => entries[keyOf(s)] && entries[keyOf(s)].type !== 'sold_out_earlier'));
     }
 
+    const submitLabel = () => (SHIFT_MODE ? 'Submit shift close' : 'Submit close');
+
     function describe(entry) {
+      if (entry.type === 'sold_out_earlier') return 'sold out · 0';
       if (entry.type === 'sold_out') return `sold out · ${entry.sold}`;
       return `${entry.sold} sold · top ${pad3(entry.ticketNumber)}`;
     }
@@ -269,6 +305,33 @@
       lines.push(`${summary.liveSlots} slots live`);
       $('summary').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
       $('reopenBtn').classList.toggle('hidden', !isOwner);
+    }
+
+    // Close shift saved (or this employee's shift close today, shown again). note: an extra line under it.
+    function renderShiftDone(shift, note) {
+      stopCamera();
+      $('closeView').classList.add('hidden');
+      $('closedView').classList.remove('hidden');
+      $('reopenBtn').classList.add('hidden');
+      const lines = [`<strong>Shift closed at ${shift.closedAt} by ${navEscape(shift.closedBy)}</strong>`,
+        `From ${shift.since ? `the ${shift.since} shift close` : "last night's close"} to ${shift.closedAt}`,
+        `${shift.ticketsSold} tickets sold this shift`];
+      if ('dollarsSold' in shift) {
+        lines.push(`$${shift.dollarsSold.toLocaleString()} sold this shift`);
+        if (shift.endedTickets) {
+          lines.push(`Includes ${shift.endedTickets} tickets ($${shift.endedDollars.toLocaleString()}) from packs ended or sold whole during the shift`);
+        }
+      }
+      lines.push("Tonight's Close Day still covers the whole day.");
+      if (note) lines.push(note);
+      $('summary').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
+    }
+
+    // Close shift isn't possible (the day is closed): just the reason and Done.
+    function renderShiftBlocked(text) {
+      $('closedView').classList.remove('hidden');
+      $('reopenBtn').classList.add('hidden');
+      $('summary').textContent = text;
     }
 
     // --- Sending the close ---
@@ -335,9 +398,10 @@
 
     $('retryBtn').addEventListener('click', () => trySend());
     // Try again as soon as the phone is back online or the app comes back to the front.
-    window.addEventListener('online', () => { if (getPendingClose()) trySend(); });
+    // (Not on Close shift: an unsent Close Day is sent from Close Day and the home page.)
+    window.addEventListener('online', () => { if (!SHIFT_MODE && getPendingClose()) trySend(); });
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && getPendingClose()) trySend();
+      if (!SHIFT_MODE && document.visibilityState === 'visible' && getPendingClose()) trySend();
     });
 
     $('cancelPendingBtn').addEventListener('click', () => {
@@ -353,7 +417,8 @@
 
     $('soldOutBtn').addEventListener('click', () => {
       const slot = current();
-      if (!confirm(`Box ${slot.box} · Slot ${slot.slot}: pack ${packKeyOf(slot)} is empty? All ${slot.pack.remaining} tickets left count as sold, and the slot goes out of stock.`)) return;
+      const after = SHIFT_MODE ? ' this shift. The pack stays in the slot until Close Day.' : ', and the slot goes out of stock.';
+      if (!confirm(`Box ${slot.box} · Slot ${slot.slot}: pack ${packKeyOf(slot)} is empty? All ${slot.pack.remaining} tickets left count as sold${after}`)) return;
       record(slot, { type: 'sold_out', sold: slot.pack.remaining });
     });
     $('skipBtn').addEventListener('click', () => {
@@ -367,10 +432,11 @@
     // Throws away every scan on this phone (e.g. after a practice run) so tonight's close starts
     // from nothing. Nothing was sent to the server yet, so there is nothing else to undo.
     $('clearBtn').addEventListener('click', () => {
-      const done = Object.keys(entries).length;
-      if (!confirm(`Clear all ${done} scans on this phone and start the close over? Every slot has to be scanned again. This can't be undone.`)) return;
+      const done = Object.values(entries).filter((e) => e.type !== 'sold_out_earlier').length;
+      if (!confirm(`Clear all ${done} scans on this phone and start the ${SHIFT_MODE ? 'shift close' : 'close'} over? Every slot has to be scanned again. This can't be undone.`)) return;
       entries = {};
       clearDraft();
+      addEarlierSoldOuts();
       currentKey = nextOpen(null);
       $('submitMessage').className = 'message';
       $('submitMessage').textContent = '';
@@ -401,10 +467,14 @@
     $('submitBtn').addEventListener('click', async () => {
       const submitMessage = $('submitMessage');
       submitMessage.className = 'message';
-      const payload = live.map((s) => {
+      const payload = live.filter((s) => entries[keyOf(s)].type !== 'sold_out_earlier').map((s) => {
         const e = entries[keyOf(s)];
         return { box: s.box, slot: s.slot, packKey: e.packKey, type: e.type, ticketNumber: e.ticketNumber };
       });
+      if (SHIFT_MODE) {
+        await whileBusy($('submitBtn'), 'Submitting…', () => submitShift(payload));
+        return;
+      }
       try {
         savePendingClose({ closeId: newCloseId(), date: status.today, entries: payload });
       } catch (err) {
@@ -413,6 +483,22 @@
       }
       await whileBusy($('submitBtn'), 'Submitting…', trySend);
     });
+
+    // A shift close isn't queued like Close Day: with no connection it says so and the scans stay on the phone.
+    async function submitShift(payload) {
+      if (!shiftId) shiftId = newCloseId();
+      saveDraft();
+      try {
+        const shift = await api('submitShiftClose', { shiftId, date: status.today, entries: payload });
+        clearDraft();
+        renderShiftDone(shift);
+        window.scrollTo({ top: 0 });
+      } catch (err) {
+        const why = err.code === 'network' ? "Couldn't reach the server. Your scans are kept on this phone; try Submit again."
+          : `The shift close wasn't saved: ${err.message}`;
+        showMessage($('submitMessage'), why);
+      }
+    }
 
     $('reopenBtn').addEventListener('click', async () => {
       if (!confirm("Reopen today's close? Every slot goes back to its top ticket from before the close, and the day has to be closed again.")) return;
@@ -432,22 +518,39 @@
         refused = sessionStorage.getItem(REFUSED_KEY);
         sessionStorage.removeItem(REFUSED_KEY);
       } catch (e) {}
-      // A close submitted earlier that hasn't reached the server yet: send it before anything else.
-      if (getPendingClose()) {
-        showPending();
-        if (await trySend()) return;
-        if (getPendingClose()) return;
-      }
+      if (SHIFT_MODE) {
+        // Not the Close Day tab.
+        document.querySelectorAll('nav.tabbar a.active').forEach((a) => a.classList.remove('active'));
+        status = await api('shiftStatus');
+        $('dateLine').textContent = `${status.today} · since ${status.since
+          ? `the ${status.since.closedAt} shift close by ${status.since.closedBy}` : "last night's close"}`;
+        if (status.dayClosed) {
+          renderShiftBlocked("Today is already closed, so there's no shift left to close. Shift closes are for before tonight's Close Day.");
+          return;
+        }
+        if (status.myShiftToday) {
+          renderShiftDone(status.myShiftToday, 'You can close one shift a day. If this one was a mistake, ask the owner to delete it.');
+          return;
+        }
+      } else {
+        // A close submitted earlier that hasn't reached the server yet: send it before anything else.
+        if (getPendingClose()) {
+          showPending();
+          if (await trySend()) return;
+          if (getPendingClose()) return;
+        }
 
-      status = await api('closeStatus');
-      $('dateLine').textContent = status.today;
-      if (status.closed) {
-        renderClosed(status.closed);
-        if (refused) showMessage($('message'), refused);
-        return;
+        status = await api('closeStatus');
+        $('dateLine').textContent = status.today;
+        if (status.closed) {
+          renderClosed(status.closed);
+          if (refused) showMessage($('message'), refused);
+          return;
+        }
       }
       live = status.slots.filter((s) => s.pack).sort((a, b) => a.box - b.box || a.slot - b.slot);
       entries = loadDraft();
+      addEarlierSoldOuts();
       currentKey = nextOpen(null);
       $('closeView').classList.remove('hidden');
       render();
