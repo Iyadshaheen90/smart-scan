@@ -77,6 +77,9 @@
     <button type="button" id="rescanBtn">Scan a different ticket</button>
   </div>
 
+  <!-- Owner, after tapping Sold out or Returned: back out before anything is saved. -->
+  <button type="button" class="cancel hidden" id="cancelEndBtn">Cancel</button>
+
   <div id="message" class="message"></div>
   <a class="button hidden" id="doneBtn" href="slots.html">Back to slots</a>
 
@@ -154,6 +157,8 @@
     function clearMessage() { messageEl.className = 'message'; messageEl.textContent = ''; }
     function show(id, visible) { $(id).classList.toggle('hidden', !visible); }
     const waitingForOldTop = () => oldEnd === 'returned' && oldTop === null;
+    // "30 sold today ($150)": what ending the pack will count as today's sales (same math as endPack).
+    const soldText = (tickets, price) => `${tickets} sold today ($${(tickets * price).toLocaleString()})`;
 
     function render() {
       const pack = slot.pack;
@@ -175,7 +180,7 @@
         if (document.activeElement !== $('slotPrice')) $('slotPrice').value = slot.slotPrice;
       }
       if (finished) {
-        ['oldStep', 'nextStep', 'undoEndBtn', 'scanStep', 'confirmStep'].forEach((id) => show(id, false));
+        ['oldStep', 'nextStep', 'undoEndBtn', 'scanStep', 'confirmStep', 'cancelEndBtn'].forEach((id) => show(id, false));
         show('doneBtn', true);
         return;
       }
@@ -197,9 +202,11 @@
       show('nextStep', isOwner && oldPackDealtWith && !replacing);
       if (oldPackDealtWith) {
         $('nextPrompt').textContent = oldEnd === 'sold_out'
-          ? `Pack ${pack.gameNumber}-${pack.packNumber} sold out. Put a new pack in now?`
-          : `Pack ${pack.gameNumber}-${pack.packNumber} returned with top ticket ${pad3(oldTop)}. Put a new pack in now?`;
+          ? `Pack ${pack.gameNumber}-${pack.packNumber} sold out: ${soldText(pack.remaining, pack.price)}. Put a new pack in now?`
+          : `Pack ${pack.gameNumber}-${pack.packNumber} returned with top ticket ${pad3(oldTop)}: `
+            + `${soldText(pack.exposedTicket - oldTop, pack.price)}, ${oldTop + 1} going back. Put a new pack in now?`;
       }
+      show('cancelEndBtn', isOwner && Boolean(pack) && Boolean(oldEnd));
 
       const scanning = isOwner && !newTicket && (!pack || waitingForOldTop() || replacing);
       show('scanStep', scanning);
@@ -266,6 +273,15 @@
 
     $('soldOutBtn').addEventListener('click', () => { oldEnd = 'sold_out'; clearMessage(); render(); });
     $('returnedBtn').addEventListener('click', () => { oldEnd = 'returned'; clearMessage(); render(); });
+    // Cancel: forget Sold out / Returned and any scans since; nothing was saved yet.
+    $('cancelEndBtn').addEventListener('click', () => {
+      oldEnd = null;
+      oldTop = null;
+      newTicket = null;
+      replacing = false;
+      clearMessage();
+      render();
+    });
     $('replaceBtn').addEventListener('click', () => { replacing = true; clearMessage(); render(); });
     $('rescanBtn').addEventListener('click', () => { newTicket = null; clearMessage(); render(); });
 
