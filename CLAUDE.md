@@ -13,6 +13,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 
 - 2 boxes × 24 slots = 48 slots. Each slot has a price tier (`SlotConfig`); seeded from `INITIAL_SLOT_PRICES`.
 - Tickets count **down** to 0; a pack whose top ("exposed") ticket is N has N + 1 left.
+  Route 66 Liquor sells descending; ascending (0 → last) is a future per-store setting, kept per pack (see the plan's
+  FUTURE section).
 - Standard pack sizes by price (`STANDARD_PACK_SIZES`, kept in both `Schema.js` and `barcode.js`):
   $40/$30/$20 → 30, $10 → 50, $5 → 80, $3/$2 → 100, $1 → 240.
 - Ticket back barcode: 26-digit ITF `GGGG PPPPPPP TTT 000000000 XXX` (game, pack, ticket). Printed
@@ -75,8 +77,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   activation ticket). Sold out at a shift close counts every ticket left that shift but doesn't end the pack; later shift
   closes that day fill it in as "sold out · 0" (no scan); the night Close Day is **not** pre-filled (tap Sold out again,
   owner's choice). Packs ended and full packs sold during a shift count in it (DailyCloseLog rows by the new `logged_at`,
-  less what an earlier shift close already counted). Employees: one shift close a day (`already_closed_shift`) unless
-  the owner deletes it; tickets only, no $. Owner: no limit, sees $. None after the day is closed. No offline queue:
+  less what an earlier shift close already counted). Employees: one shift close a day **per username** (`already_closed_shift`;
+  each person signs in as themselves, so several employees can each close one the same day) unless the owner deletes it; tickets only, no $. Owner: no limit, sees $. None after the day is closed. No offline queue:
   with no connection it says so and the scans stay in the phone's draft (`smartScanShiftDraft:<user>`, tied to the
   previous shift close). Repeated `shiftId` = the saved shift back. Owner deletes a mistaken one on `shifts.html`.
 - **Sending a close** (offline queue): Submit saves the close on the phone with a `closeId`, then sends it. With no
