@@ -14,6 +14,8 @@ const ICON_PATHS = {
   settle: '<g transform="translate(3.36 7.5) scale(0.72)" stroke-width="2.6"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></g>'
     + '<circle cx="12" cy="4.4" r="3.6" stroke-width="1.7"/>'
     + '<path d="M13.35 2.75h-1.8a0.85 0.85 0 0 0 0 1.7h0.9a0.85 0.85 0 0 1 0 1.7h-1.8M12 2v0.75M12 6.15v0.75" stroke-width="1.3"/>',
+  // Full packs: a lottery ticket.
+  ticket: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
   chevronRight: '<path d="m9 18 6-6-6-6"/>',
   chevronLeft: '<path d="m15 18-6-6 6-6"/>',
 };

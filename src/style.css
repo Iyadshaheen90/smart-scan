@@ -280,6 +280,9 @@ body.showing-saved .saved-lock { pointer-events: none; }
 .tile-num.amber { color: var(--amber); }
 .tile-sub { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 1px; }
 .tile-card > span:last-child { min-width: 0; }
+/* Full pack sales: a full-width tile with two numbers side by side (packs, $). */
+.tile-wide { grid-column: 1 / -1; min-height: 0; }
+.tile-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .icon-box {
   display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px;
   background: var(--accent-soft); color: var(--accent-bright);

@@ -54,6 +54,12 @@
         <span>Months &amp; totals<span class="tile-stat"><span class="tile-num fit" id="monthDollars">…</span><span class="tile-sub">sold this month</span></span></span></a>
       <a class="tile-card" href="settling.html"><span class="icon-box" data-icon="settle"></span>
         <span>Settling<span class="tile-stat"><span class="tile-num fit" id="settlingCount">…</span><span class="tile-sub">live 50+ days</span></span></span></a>
+      <!-- Full packs sold whole from the back this month (count and $); tapping lists them. Full width under the grid. -->
+      <a class="tile-card tile-wide" href="full-packs.html"><span class="icon-box" data-icon="ticket"></span>
+        <span>Full pack sales<span class="tile-pair">
+          <span class="tile-stat"><span class="tile-num fit" id="fullPackCount">…</span><span class="tile-sub">sold this month</span></span>
+          <span class="tile-stat"><span class="tile-num fit" id="fullPackDollars">…</span><span class="tile-sub">total value</span></span>
+        </span></span></a>
     </div>
     <a class="list-card" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage employees</span><span class="chev" data-icon="chevronRight"></span></a>
   </div>
@@ -122,7 +128,7 @@
           showOwnerHome(home, true);
         } catch (err) {
           if (saved) return;
-          for (const id of ['liveSlots', 'liveValue', 'settlingCount', 'backValue', 'monthDollars', 'lastDollars', 'lastTickets']) setNumber(id, '—');
+          for (const id of ['liveSlots', 'liveValue', 'settlingCount', 'backValue', 'monthDollars', 'fullPackCount', 'fullPackDollars', 'lastDollars', 'lastTickets']) setNumber(id, '—');
           $('lastLabel').textContent = 'Last close';
         }
       } else {
@@ -164,6 +170,10 @@
       $('settlingCount').classList.toggle('amber', settling > 0);
       setNumber('backValue', money(home.backValue));
       setNumber('monthDollars', money(home.monthDollars));
+      // Full packs sold this month (missing in an answer saved before this card existed).
+      const fullPacks = home.fullPacks || { count: 0, dollars: 0 };
+      setNumber('fullPackCount', `${fullPacks.count} ${fullPacks.count === 1 ? 'pack' : 'packs'}`);
+      setNumber('fullPackDollars', money(fullPacks.dollars));
       if (closed) showLastClose(closed, true);
       else if (lastClose) showLastClose(lastClose, false);
       else { setNumber('lastDollars', '$0'); $('lastLabel').textContent = 'No close yet'; setNumber('lastTickets', '0'); }

@@ -24,6 +24,7 @@
   <div class="segmented" id="modeSwitch">
     <button type="button" data-mode="shipment">Shipment received</button>
     <button type="button" data-mode="count">Count the back</button>
+    <button type="button" data-mode="fullpack">Full pack sale</button>
   </div>
   <p class="sub" id="modeHint"></p>
 
@@ -121,6 +122,22 @@
     </div>
   </div>
 
+  <!-- Full pack sale: scanning (or typing) a ticket of a sealed pack opens this. Sell takes that pack off
+       back stock and counts it in today's sales (listed on the owner's Full pack sales page). -->
+  <div id="sellDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sellTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="sellTitle">Sell full pack</div>
+      <div class="slot-detail mono" id="sellPack"></div>
+      <div class="stepper-count" id="sellValue"></div>
+      <div class="slot-detail" id="sellMath"></div>
+      <div class="slot-detail" id="sellBack"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="cancel" id="sellCancel">Cancel</button>
+        <button type="button" class="save" id="sellSave">Sell</button>
+      </div>
+    </div>
+  </div>
+
   <nav class="tabbar" data-active="stock"></nav>
 
   <script src="config.js"></script>
@@ -140,6 +157,7 @@
     const DRAFT_KEY = 'smartScanBackStockDraft';
     const HINTS = {
       shipment: 'Scan one ticket from each game in the delivery, then tap + for how many packs came and Save. They are added to what is in the back.',
+      fullpack: 'A customer buys a whole sealed pack from the back: scan any ticket of that pack, check the pop-up and tap Sell. One pack comes off back stock and it counts in today\'s sales.',
       count: 'Scan one ticket from each game on the shelf and enter how many packs you counted. That becomes the number in the back; any difference is logged. Games you don\'t scan are left as they are.',
     };
 
@@ -157,7 +175,7 @@
       try {
         const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
         if (draft) {
-          mode = draft.mode === 'count' ? 'count' : 'shipment';
+          mode = draft.mode === 'count' ? 'count' : 'shipment';   // a full pack sale is never left as a draft
           lines = Array.isArray(draft.lines) ? draft.lines : [];
           $('notes').value = draft.notes || '';
         }
@@ -169,6 +187,18 @@
     const ended = () => stock.filter((g) => g.endedDate);
 
     function flash(text, kind = 'ok') { showMessage($('flash'), text, kind); }
+
+    // A scanned or typed ticket: in Full pack sale mode the pack number is needed too.
+    function addTicket(ticket) {
+      if (mode !== 'fullpack') { addGame(ticket.gameNumber); return; }
+      if (!stockLoaded) { flash('Still loading back stock. Try again in a moment.', 'error'); return; }
+      const game = known(ticket.gameNumber);
+      if (!game || game.packsInBack < 1) {
+        flash(`No packs of game ${ticket.gameNumber} in the back, so it can't be sold as a full pack. Receive the shipment first.`, 'error');
+        return;
+      }
+      whenHandsFree(() => openSellDialog(game, ticket.packNumber));
+    }
 
     function addGame(gameNumber) {
       if (mode === 'shipment') {
@@ -204,8 +234,9 @@
 
       const list = $('lines');
       list.innerHTML = '';
-      for (const line of lines) list.append(lineCard(line));
-      $('saveArea').classList.toggle('hidden', lines.length === 0);
+      // The shipment/count list stays out of the way while selling full packs.
+      if (mode !== 'fullpack') for (const line of lines) list.append(lineCard(line));
+      $('saveArea').classList.toggle('hidden', lines.length === 0 || mode === 'fullpack');
       const packs = lines.reduce((sum, l) => sum + (Number(l.packs) || 0), 0);
       const games = `${lines.length} game${lines.length === 1 ? '' : 's'}`;
       $('saveBtn').textContent = mode === 'shipment'
@@ -594,13 +625,54 @@
       }
     });
 
+    // --- Full pack sale dialog ---
+
+    let sell = null;   // { game, packNumber } while open
+
+    function openSellDialog(game, packNumber) {
+      sell = { game, packNumber };
+      const value = game.price * game.ticketsPerPack;
+      $('sellPack').textContent = `Game ${game.gameNumber} · Pack ${packNumber}`;
+      $('sellValue').textContent = money(value);
+      $('sellMath').textContent = `$${game.price} × ${game.ticketsPerPack} tickets`;
+      $('sellBack').textContent = `Back: ${game.packsInBack} → ${game.packsInBack - 1}`;
+      $('sellDialog').classList.remove('hidden');
+    }
+
+    function closeSellDialog() {
+      sell = null;
+      $('sellDialog').classList.add('hidden');
+    }
+
+    $('sellCancel').addEventListener('click', closeSellDialog);
+
+    // Sell: one pack comes off the back at once, and the sale is in today's totals.
+    $('sellSave').addEventListener('click', async () => {
+      const { game, packNumber } = sell;
+      $('sellCancel').disabled = true;
+      try {
+        const r = await whileBusy($('sellSave'), 'Selling…', () =>
+          api('sellFullPack', { gameNumber: game.gameNumber, packNumber }));
+        stock = r.backStock;
+        closeSellDialog();
+        renderStock();
+        flash(`Sold full pack ${r.packKey} for ${money(r.dollars)}. Game ${r.gameNumber}: ${r.before} → ${r.after} in the back.`);
+      } catch (err) {
+        closeSellDialog();
+        flash(err.message, 'error');
+      } finally {
+        $('sellCancel').disabled = false;
+      }
+    });
+
     // --- Actions ---
 
     document.querySelectorAll('#modeSwitch button').forEach((b) => b.addEventListener('click', () => {
       if (b.dataset.mode === mode) return;
-      if (lines.length && !confirm('Switch? The games on the list stay, but check the numbers — a shipment adds packs, a count replaces them.')) return;
+      if (lines.length && mode !== 'fullpack' && b.dataset.mode !== 'fullpack' && !confirm('Switch? The games on the list stay, but check the numbers — a shipment adds packs, a count replaces them.')) return;
       mode = b.dataset.mode;
-      saveDraft();
+      // The draft keeps the shipment/count list and its mode, so a reload returns to it, not to Full pack sale.
+      if (mode !== 'fullpack') saveDraft();
       render();
     }));
 
@@ -608,7 +680,12 @@
       e.preventDefault();
       const text = $('typed').value.trim();
       try {
-        addGame(/^\d{4}$/.test(text) ? text : parsePrintedTicket(text).gameNumber);
+        if (/^\d{4}$/.test(text)) {
+          if (mode === 'fullpack') throw new Error('Type the whole ticket number: the pack number is needed to sell a full pack.');
+          addGame(text);
+        } else {
+          addTicket(parsePrintedTicket(text));
+        }
         $('typed').value = '';
       } catch (err) {
         flash(err.message, 'error');
@@ -661,6 +738,8 @@
 
     async function start() {
       loadDraft();
+      // From the Full pack sales page: start in Full pack sale mode.
+      if (new URLSearchParams(location.search).get('mode') === 'fullpack') mode = 'fullpack';
       render();
       // Last load first (dimmed, buttons off), then the fresh one. Scans and search wait for the fresh one,
       // since they decide from it whether a game is new.
@@ -675,7 +754,7 @@
         viewport: $('viewport'),
         holdBtn: $('holdBtn'),
         onStatus: (text) => (text ? flash(text, 'error') : null),
-        onScan: (ticket) => addGame(ticket.gameNumber),
+        onScan: (ticket) => addTicket(ticket),
       });
     }
 

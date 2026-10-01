@@ -66,7 +66,7 @@ function backendInVm(today) {
     Session: { getScriptTimeZone: () => 'x' }, LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     fakeSheetFn: fakeSheet };
   vm.createContext(ctx);
-  for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js']) {
+  for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js']) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'apps-script', f), 'utf8'), ctx);
   }
   vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }

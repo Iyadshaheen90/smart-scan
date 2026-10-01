@@ -12,7 +12,7 @@ const ctx = { console, ...google, Session: { getScriptTimeZone: () => 'x' },
   Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : globalThis.TODAY },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'Home.js']) {
+for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Home.js']) {
   vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 }
 const run = (code) => vm.runInContext(code, ctx);
@@ -149,3 +149,19 @@ home = run('ownerHome(owner)');
 assert.equal(home.month.current, '2026-11'); assert.equal(home.monthDollars, 0);
 assert.equal(home.lastClose.date, '2026-10-02'); assert.equal(home.today, '2026-11-01');
 console.log('owner home pass');
+
+// Full pack sales: listed per month (a new month starts with an empty list); back stock carries over.
+{
+  const g = run('listBackStock()').find((x) => x.packsInBack > 0);
+  r = run(`sellFullPack(owner, { gameNumber: '${g.gameNumber}', packNumber: '7777777' })`);
+  assert.equal(r.after, g.packsInBack - 1);
+  assert.deepEqual({ ...run(`monthSummary('2026-11')`).fullPacks }, { count: 1, dollars: g.price * g.ticketsPerPack });
+  assert.deepEqual({ ...run('ownerHome(owner)').fullPacks }, { count: 1, dollars: g.price * g.ticketsPerPack });
+  assert.equal(run(`monthSummary('2026-10')`).fullPacks.count, 0);
+  globalThis.TODAY = '2026-12-01';
+  run(`startNewMonth({ label: '2026-12' })`);
+  assert.equal(run('listFullPackSales()').count, 0); assert.equal(run('ownerHome(owner)').fullPacks.count, 0);
+  assert.equal(run('listBackStock()').find((x) => x.gameNumber === g.gameNumber).packsInBack, g.packsInBack - 1);
+  assert.equal(run(`monthSummary('2026-11')`).fullPacks.count, 1);
+  console.log('full packs per month pass');
+}

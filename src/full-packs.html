@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Full pack sales</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Full pack sales"></header>
+  <p class="sub">Sealed packs sold whole from the back this month. Each one is taken off back stock and counted in
+    that day's sales. The list starts empty each month; back stock carries over.</p>
+
+  <a class="button primary" href="backstock.html?mode=fullpack">Sell a full pack</a>
+
+  <div class="status-card saved-dim" id="totals" style="margin-top: 16px;">
+    <div class="stat-grid two">
+      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs this month</div></div>
+      <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Total value</div></div>
+    </div>
+  </div>
+
+  <div id="message" class="message"></div>
+  <div id="list" class="saved-dim saved-lock"></div>
+
+  <nav class="tabbar" data-active=""></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin('owner');
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+
+    // "2026-10-05" -> "Mon, Oct 5"
+    function dayName(label) {
+      const [y, m, d] = label.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function el(tag, className, text) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+
+    function stat(value, label) {
+      const box = el('div', 'stat');
+      box.append(el('div', 'stat-value fit', value), el('div', 'stat-label', label));
+      return box;
+    }
+
+    // One card per pack sold: the day, game and pack, price, pack size and value. Undo until that day is closed.
+    function saleCard(sale) {
+      const card = el('div', 'card full-pack-card');
+      const top = el('div', 'row');
+      top.append(el('span', 'slot-num', dayName(sale.date)), el('span', 'chip green', money(sale.dollars)));
+      const stats = el('div', 'stat-grid');
+      stats.append(stat(money(sale.price), 'Ticket price'), stat(String(sale.ticketsPerPack), 'Pack size'),
+        stat(money(sale.dollars), 'Total value'));
+      card.append(top, el('div', 'slot-detail mono', `Game ${sale.gameNumber} · Pack ${sale.packNumber}`), stats);
+      if (sale.canUndo) {
+        const undo = el('button', 'small danger', 'Undo');
+        undo.type = 'button';
+        undo.style.marginTop = '12px';
+        undo.addEventListener('click', () => undoSale(sale, undo));
+        card.append(undo);
+      }
+      return card;
+    }
+
+    function showSales(data) {
+      $('packCount').textContent = `${data.count} ${data.count === 1 ? 'pack' : 'packs'}`;
+      $('dollarCount').textContent = money(data.dollars);
+      const list = $('list');
+      list.innerHTML = '';
+      if (data.sales.length === 0) list.append(el('p', 'sub', 'No full packs sold this month yet.'));
+      data.sales.forEach((sale) => list.append(saleCard(sale)));
+      fitNumbers();
+    }
+
+    // Puts the pack back in the back and takes the sale off that day.
+    async function undoSale(sale, button) {
+      if (!confirm(`Undo the full pack sale of game ${sale.gameNumber}, pack ${sale.packNumber} (${money(sale.dollars)})? The pack goes back into back stock.`)) return;
+      try {
+        const result = await whileBusy(button, 'Undoing…', () => api('undoFullPackSale', { packKey: sale.packKey }));
+        showSales(result.sales);
+        showMessage($('message'), `Undone: game ${sale.gameNumber} has ${result.after} pack${result.after === 1 ? '' : 's'} in the back again.`, 'ok');
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    }
+
+    async function load() {
+      try {
+        await loadSaved('fullPacks', () => api('listFullPackSales'), showSales);
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    }
+    if (session) load();
+  </script>
+</body>
+</html>

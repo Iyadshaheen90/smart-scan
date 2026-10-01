@@ -8,7 +8,7 @@ const { fakeSheet } = require('./fakes');
 const ctx = { console, Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
+for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
   const sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h, n === 'SlotState' ? h.slice(0, 10) : null);
   function monthSheet(n) { return sheets[n]; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet }));
@@ -340,6 +340,52 @@ console.log('game ended scenarios pass');
   assert.equal(run(`daysBetween('2026-09-01', '2026-10-21')`), 50);
   globalThis.TODAY = saved;
   console.log('days since activation scenarios pass');
+}
+// ---- Full pack sale (a sealed pack sold whole from the back; owner only) ----
+{
+  const saved = globalThis.TODAY; globalThis.TODAY = '2026-10-20';
+  S.ReserveInventory.rows.push(['3333', 20, 30, 2, 60]);
+  const back = () => run('findReserve("3333")');
+  assert.equal(run('SIGNED_IN_ACTIONS.sellFullPack.owner'), true); assert.equal(run('SIGNED_IN_ACTIONS.undoFullPackSale.owner'), true);
+  assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '3333' })`)), 'bad_request');          // pack number needed
+  assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '9898', packNumber: '1' })`)), 'unknown_game');
+  r = run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000001' })`);
+  assert.deepEqual([r.before, r.after, r.dollars, r.date], [2, 1, 600, '2026-10-20']);
+  assert.deepEqual([back().packs_in_reserve, back().tickets_in_reserve], [1, 30]);
+  assert.equal(r.backStock.find((g) => g.gameNumber === '3333').packsInBack, 1);
+  const logRow = S.DailyCloseLog.rows[S.DailyCloseLog.rows.length - 1]; const h = S.DailyCloseLog.rows[0];
+  assert.deepEqual(['close_type', 'pack_key', 'tickets_sold', 'dollars_sold', 'box'].map((c) => logRow[h.indexOf(c)]), ['full_pack', '3333-0000001', 30, 600, '']);
+  assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000001' })`)), 'pack_ended');   // same pack twice
+  // a sold pack can't go into a slot
+  S.SlotConfig.rows.push([5, 1, 20]); S.SlotState.rows.push([5, 1]);
+  assert.equal(code(() => run(`activatePack(owner, { box: 5, slot: 1, gameNumber: '3333', packNumber: '0000001', ticketNumber: 29 })`)), 'pack_ended');
+  // a pack live in a slot can't be sold whole
+  run(`activatePack(owner, { box: 5, slot: 1, gameNumber: '3333', packNumber: '0000002', ticketNumber: 29 })`);
+  assert.equal(back().packs_in_reserve, 0);
+  S.ReserveInventory.rows.find((row) => row[0] === '3333').splice(3, 2, 1, 30);
+  assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000002' })`)), 'pack_in_use');
+  r = run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000003' })`); assert.equal(r.after, 0);
+  assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000004' })`)), 'none_in_back');   // never below 0
+  // in the day's totals, and listed on its own
+  assert.equal(run(`buildSummary('2026-10-20', owner)`).total_dollars_sold, 1200);
+  let list = run('listFullPackSales()');
+  assert.deepEqual([list.count, list.dollars], [2, 1200]);
+  assert.equal(JSON.stringify(list.sales.map((x) => [x.packNumber, x.price, x.ticketsPerPack, x.dollars, x.date, x.canUndo])),
+    JSON.stringify([['0000003', 20, 30, 600, '2026-10-20', true], ['0000001', 20, 30, 600, '2026-10-20', true]]));
+  // undo puts the pack back and drops the sale
+  r = run(`undoFullPackSale({ packKey: '3333-0000003' })`);
+  assert.equal(r.after, 1); assert.equal(back().tickets_in_reserve, 30); assert.equal(r.sales.count, 1);
+  assert.equal(code(() => run(`undoFullPackSale({ packKey: '3333-0000003' })`)), 'nothing_to_undo');
+  r = run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000003' })`); assert.equal(r.after, 0);   // sellable again
+  // after that day's close: no undo, and a later sale counts toward tomorrow
+  S.DailySummary.rows.push(['2026-10-20', 0, 1200, 0, 0]);
+  assert.equal(code(() => run(`undoFullPackSale({ packKey: '3333-0000001' })`)), 'already_closed');
+  assert.equal(run('listFullPackSales()').sales.every((x) => !x.canUndo), true);
+  S.ReserveInventory.rows.find((row) => row[0] === '3333').splice(3, 2, 1, 30);
+  r = run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000005' })`); assert.equal(r.date, '2026-10-21');
+  assert.equal(run('listFullPackSales()').sales[0].packNumber, '0000005');
+  globalThis.TODAY = saved;
+  console.log('full pack sale scenarios pass');
 }
 console.log('back stock scenarios pass');
 console.log('all slot, close and pack-size scenarios pass');

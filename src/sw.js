@@ -3,10 +3,10 @@
 // copy is only used when the network fails. The scanner library (a pinned version on the CDN) is kept
 // after its first download so the camera starts faster. Backend requests (POSTs) are never touched.
 // Bump CACHE when the list below changes.
-const CACHE = 'smart-scan-v4';
+const CACHE = 'smart-scan-v5';
 const SHELL = [
   'index.html', 'login.html', 'close.html', 'slots.html', 'activate.html', 'backstock.html', 'month.html',
-  'users.html', 'account.html', 'more.html', 'settling.html', 'raw-scanner.html', 'style.css', 'config.js', 'api.js', 'barcode.js', 'scanner.js', 'icons.js', 'nav.js',
+  'users.html', 'account.html', 'more.html', 'settling.html', 'full-packs.html', 'raw-scanner.html', 'style.css', 'config.js', 'api.js', 'barcode.js', 'scanner.js', 'icons.js', 'nav.js',
   'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png',
 ];
 

@@ -22,7 +22,7 @@ function backend({ closed = null, slotList = slots, months = { '2026-09': [{ dat
         return { today, closed, slots: slotList, month: { current, next, canStart },
           monthDollars: days.reduce((sum, d) => sum + d.dollarsSold, 0),
           lastClose: days.length ? days[days.length - 1] : before.length ? before[before.length - 1] : null,
-          backValue: backStock.reduce((sum, g) => sum + g.valueInBack, 0) };
+          backValue: backStock.reduce((sum, g) => sum + g.valueInBack, 0), fullPacks: { count: 3, dollars: 1500 } };
       }
       case 'startNewMonth': {
         const previous = current;
@@ -72,6 +72,12 @@ async function home(app) {
   assert.equal(await text(app.page, 'monthDollars'), '$1,284');   // this month so far, on the Months tile
   assert.equal(await text(app.page, 'settlingCount'), '2 packs');   // live 50+ days, on the Settling tile
   assert.ok(await app.page.$eval('#settlingCount', (e) => e.classList.contains('amber')));
+  // Full pack sales card: this month's packs and $, full width under the tiles, opens the list.
+  assert.equal(await text(app.page, 'fullPackCount'), '3 packs');
+  assert.equal(await text(app.page, 'fullPackDollars'), '$1,500');
+  assert.equal(await app.page.$eval('#fullPackCount', (el) => el.closest('a').getAttribute('href')), 'full-packs.html');
+  assert.equal(await app.page.$eval('.tile-wide', (el) => Math.round(el.getBoundingClientRect().width)),
+    await app.page.$eval('.tile-grid', (el) => Math.round(el.getBoundingClientRect().width)));
   assert.equal(await app.page.$$eval('.owner-only a[href="raw-scanner.html"]', (els) => els.length), 0, 'Scanner test is in More only');
   assert.ok(await app.page.$eval('#statusCard', (el) => !el.textContent.includes('Back stock')), 'back stock is not in the top card');
   assert.deepEqual((await tabs(app.page)).map((t) => t[0]), ['Home', 'Scan', 'Stock', 'Reports', 'More']);

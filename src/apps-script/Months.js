@@ -183,6 +183,8 @@ function monthSummary(label) {
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
   const shipments = readTable(spreadsheet.getSheetByName('Shipments'));
+  // Full packs sold from the back this month (already in the day totals; shown on their own too).
+  const fullPacks = fullPackTotals(readTable(spreadsheet.getSheetByName('DailyCloseLog')));
   const sum = (rows, f) => rows.reduce((total, r) => total + (Number(f(r)) || 0), 0);
   return {
     label,
@@ -192,6 +194,7 @@ function monthSummary(label) {
     ticketsSold: sum(days, (d) => d.ticketsSold),
     dollarsSold: sum(days, (d) => d.dollarsSold),
     shipmentValue: sum(shipments, (s) => s.tickets_received * s.price_per_ticket),
+    fullPacks,
     endingInventoryValue: days.length ? days[days.length - 1].inventoryValue : null,
   };
 }

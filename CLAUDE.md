@@ -39,12 +39,20 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - **Days since activation** (owner only, Slots page only; owner's choice 2026-09-27): each live slot shows a yellow
   "Activated today" / "N days" under its green "N left" (`listSlots` → `pack.daysActive`, from
   `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`, api.js) a yellow `!`
-  shows before the slot name: CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
+  badge sits on the slot card's top-left corner (not before the name, so the name isn't indented; owner 2026-09-30): CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
   The same packs (50+ days) are listed on the owner's **Settling** page, red from day 60 (owner approved 2026-09-29).
 - Back stock changes and where they're logged: Shipment received (source "delivery") and **Manage packs** (+) (source
   "add pack", owner approved 2026-09-27) → `Shipments` (both count in the month's "Shipments in"); Count and Manage packs (−)
   → `ReserveAdjustments` (reason count / returned, game expired, damaged, stolen, other; "adjust" only from the API).
+- **Full pack sale** (owner only, 2026-09-30): a customer buys a whole sealed pack from the back. The owner scans a ticket of
+  it (pack number needed), and `sellFullPack` takes one pack off `ReserveInventory` (refused with 0 in the back, for a pack
+  live in a slot, or one already in PackHistory). It logs a `DailyCloseLog` row (`close_type 'full_pack'`, no box/slot,
+  whole pack × price, dated `salesDate()`), so it is in that day's totals, plus a PackHistory row (`end_reason
+  'full_pack_sale'`) so the pack can't be activated later. Not a ReserveAdjustment (it's a sale). Also shown on its own:
+  the owner home's Full pack sales card (this month's count and $) and `full-packs.html`. Each month's list starts empty
+  (log rows stay in their month); back stock carries over. Limit, same as activation: a pack sold last month isn't
+  checked against this month's sales.
 - A game's `ReserveInventory` row is also where its price and pack size are remembered, so rows are never deleted.
 - **Game ended** (CA Lottery stopped the game): the owner hides it with `endGame`, allowed only with 0 packs in the
   back and none in a slot. It sets `ReserveInventory.ended_date`; the row stays, carries into each new month, and
@@ -81,6 +89,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Wrong pack size → `setPackSize` (refused if a live pack's top ticket wouldn't fit). Wrong slot price → `setSlotPrice`.
 - Wrong close → `reopenClose` restores every top ticket (found by pack, so moves after the close are fine).
 - Close submitted by mistake while still unsent → "Stop sending and change scans" on Close Day.
+- Full pack sold by mistake → Undo on the Full pack sales page (`undoFullPackSale`), while that sales day isn't closed:
+  the pack goes back in the back and the sale is removed.
 - Game ended by mistake → Bring back (or it comes back by itself when received).
 
 **Months** (one spreadsheet per month, like the owner's monthly Excel workbook)
@@ -145,13 +155,17 @@ Frontend (`src/`, plain HTML + JS, no build):
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not closed / Closed chip, big number = last
   close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), amber Start <Month>
   button (from the 1st until the month is started; confirm, then `startNewMonth`, then it hides), Close Day button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
-  month), Settling (packs live 50+ days, amber when any), Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
+  month), Settling (packs live 50+ days, amber when any), a full-width Full pack sales card (`.tile-wide`: packs sold this month
+  and their $, from `ownerHome.fullPacks`; opens `full-packs.html`), Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
   Scan tickets button → Close Day; no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
   `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page.
   Icon `settle` (handshake under a $ coin) in icons.js.
+- `full-packs.html` (owner, 2026-09-30) this month's full pack sales (`listFullPackSales`, saved answer first): green
+  **Sell a full pack** → `backstock.html?mode=fullpack`, totals (packs, $), one card per sale newest first (day, game ·
+  pack, ticket price, pack size, total value) with Undo until that day is closed. Icon `ticket`.
 - `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo; then (owner's order) slot price, pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
@@ -168,7 +182,11 @@ Frontend (`src/`, plain HTML + JS, no build):
   **Count the back** (sets) still uses the list: scan one ticket per game, enter packs, Save count; one **Manage packs** dialog on every game (owner
   2026-09-27: replaced Add pack + Remove packs): − count + with red Cancel / green Save. Save with more packs sends
   them as a shipment; with fewer it shows "Remove N packs (a → b). Why?" with reason buttons (returned, game expired,
-  damaged, stolen, other), red Cancel and Back, and nothing changes until a reason is tapped; Game ended / Ended games list
+  damaged, stolen, other), red Cancel and Back, and nothing changes until a reason is tapped; Game ended / Ended games list.
+  **Full pack sale** (3rd mode; `?mode=fullpack` opens it): a scanned/typed *full* ticket number (a bare game number is
+  refused) opens "Sell full pack" (game · pack, value, "$20 × 30 tickets", "Back: 2 → 1", red Cancel / green Sell) after
+  the finger lifts; a game with none in the back is refused before the pop-up. Switching to it never changes the saved
+  shipment/count draft, and it hides that list.
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
   Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
@@ -184,7 +202,8 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   (totals from that month's DailySummary) · `Setup.js` one-time `setup()` (safe to re-run; adds missing columns).
   `getCurrentMonth`/`openCurrentMonth` keep the month and its opened spreadsheet for the rest of a request (reset in `doPost`).
 - `Home.js` `ownerHome`: everything on the owner's home in one request (closeStatus + monthStatus + this month's $ + last
-  close + back stock $). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
+  close + back stock $ + this month's full packs).
+- `FullPacks.js` `sellFullPack`, `undoFullPackSale`, `listFullPackSales`, `fullPackTotals` (also used by `monthSummary`). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management
 - `Slots.js` `listSlots`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
   `swapSlots`, `setSlotPrice`, `setPackSize`, `addGameToReserve`, `dateLabel`
@@ -227,6 +246,8 @@ node test/browser/home.js                 # home for both roles: one request, sa
 node test/browser/saved-pages.js          # Slots, Settling, Back stock, Months: saved answer first (dimmed, locked), then fresh
 node test/browser/close-layout.js         # Close Day: button stays put and progress→button fit on screen through every kind of scan; buzzes
 node test/browser/camera-revive.js        # camera un-freezes after Clear all / a pause / being shut off; stays off once closed
+node test/browser/backstock-fullpack.js # Full pack sale mode: ?mode=fullpack, pop-up, Sell/Cancel, refusals, draft kept (real backend code)
+node test/browser/full-packs.js          # Full pack sales page: totals, cards, Undo, none after close, empty month (real backend code)
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
