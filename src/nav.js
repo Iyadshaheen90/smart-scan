@@ -1,6 +1,7 @@
 // The page header (title + who's signed in) and the bottom tab bar, the same on every page.
 // Needs api.js (getSession) and icons.js loaded first.
-//   <header class="app-header" data-title="Slots" data-back="slots.html"></header>  (data-back: a "‹" link instead of the store name)
+//   <header class="app-header" data-title="Slots" data-back="slots.html"></header>  (data-back: a back pill instead of the store name;
+//   its text is in .back-label)
 //   <nav class="tabbar" data-active="scan"></nav>
 // Tabs are only links: what each role may do is still checked by the server.
 
@@ -34,7 +35,7 @@ function renderHeader(el, session) {
   const back = el.dataset.back;
   const id = (name) => (name ? ` id="${navEscape(name)}"` : '');
   const top = back
-    ? `<a class="back"${id(el.dataset.backId)} href="${navEscape(back)}">‹ ${navEscape(el.dataset.backLabel || 'Back')}</a>`
+    ? `<a class="back"${id(el.dataset.backId)} href="${navEscape(back)}">${icon('chevronLeft')}<span class="back-label">${navEscape(el.dataset.backLabel || 'Back')}</span></a>`
     : '<div class="eyebrow">Route 66 Liquor</div>';
   const pill = session
     ? `<a class="user-pill" href="more.html"><span class="name">${navEscape(session.username)}</span><span class="avatar">${navEscape(initials(session.username))}</span></a>`

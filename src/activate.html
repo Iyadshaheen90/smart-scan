@@ -142,7 +142,7 @@
     const backTo = params.get('from') === 'settling' ? { href: 'settling.html', label: 'Settling' }
       : { href: `slots.html?box=${box}`, label: 'Slots' };
     $('back').href = backTo.href;
-    $('back').textContent = `‹ ${backTo.label}`;
+    $('back').querySelector('.back-label').textContent = backTo.label;
     $('doneBtn').href = backTo.href;
     $('doneBtn').textContent = `Back to ${backTo.label.toLowerCase()}`;
     $('title').textContent = `Box ${box} · Slot ${slotNumber}`;

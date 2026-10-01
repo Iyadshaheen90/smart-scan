@@ -212,7 +212,14 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 .app-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 18px; }
 .app-header .eyebrow { font-size: 14px; color: var(--muted); }
 .app-header h1 { margin: 2px 0 0; }
-.app-header .back { display: inline-block; font-size: 15px; color: var(--muted); text-decoration: none; margin-bottom: 2px; }
+/* Back link: a pill like the name pill (owner 2026-09-30: the plain grey text was small and hard to tap). 44px tall to tap. */
+.app-header .back {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 16px 0 10px; margin-bottom: 8px;
+  border-radius: 999px; background: var(--card); border: 1px solid var(--border);
+  font-size: 16px; font-weight: 700; color: var(--text); text-decoration: none;
+}
+.app-header .back svg { width: 20px; height: 20px; color: var(--accent-bright); }
+.app-header .back:active { background: var(--card-2); }
 .user-pill {
   display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0;
   padding: 5px 5px 5px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border);

@@ -159,7 +159,8 @@ Frontend (`src/`, plain HTML + JS, no build):
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.
   `nav.js` fills `<header class="app-header" data-title=…>` (store name or a `data-back` link, title, name pill → More) and
   `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports · More; employee Home · Slots · More.
-  The slot page (`activate.html`) has a back link instead of the tab bar; login/setup have no tab bar. `icons.js` inline
+  The slot page (`activate.html`) has a back pill (`.back`: chevron + label, 44px tall, styled like the name pill;
+  owner 2026-09-30) instead of the tab bar; login/setup have no tab bar. `icons.js` inline
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
   `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
@@ -181,7 +182,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
-  `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page (`&from=settling`, so its back link and
+  `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page (`&from=settling`, so its back pill and
   "Back to settling" return to Settling; opened from Slots they return to Slots, owner 2026-09-30).
   Icon `settle` (handshake under a $ coin) in icons.js.
 - `full-packs.html` (owner, 2026-09-30) this month's full pack sales (`listFullPackSales`, saved answer first): green
