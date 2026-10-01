@@ -121,7 +121,7 @@ function startNewMonth(req) {
     }
 
     // A copy left by an earlier attempt that failed partway was never registered, so nothing used it.
-    const folder = DriveApp.getFileById(control.getId()).getParents().next();
+    const folder = monthsFolder(control);
     const name = `Smart Scan — ${label}`;
     const leftovers = folder.getFilesByName(name);
     while (leftovers.hasNext()) {
@@ -151,6 +151,58 @@ function startNewMonth(req) {
       moved[tab] = sheet ? deleteRowsWhere(sheet, inNewMonth(column)) : 0;
     }
     return { label, previous: current.label, url: spreadsheetUrl(id), moved };
+  });
+}
+
+// --- Where the monthly spreadsheets are kept in Drive ---
+// The owner keeps them in their own folder (2026-10-01). The app opens each month by its id in the
+// Months tab, never by folder, so moving a spreadsheet changes nothing for the app.
+
+const MONTHS_FOLDER_NAME = 'Smart Scan Monthly Sheets';
+const MONTHS_FOLDER_ID_PROPERTY = 'MONTHS_FOLDER_ID';
+
+// The folder new months are made in: the one moveMonthsToFolder saved, or, before it has been run
+// (or if that folder is gone), the Control spreadsheet's folder as before.
+function monthsFolder(control) {
+  const id = PropertiesService.getScriptProperties().getProperty(MONTHS_FOLDER_ID_PROPERTY);
+  if (id) {
+    try {
+      const folder = DriveApp.getFolderById(id);
+      if (!folder.isTrashed()) return folder;
+    } catch (err) {
+      // Deleted or no longer shared: fall back below so Start New Month still works.
+    }
+  }
+  return DriveApp.getFileById(control.getId()).getParents().next();
+}
+
+// One-time, run by hand from the Apps Script editor (select "moveMonthsToFolder", click Run):
+// finds the Drive folder named "Smart Scan Monthly Sheets" (any capitals), moves every month's
+// spreadsheet in the Months tab into it, and saves it as the folder for new months.
+// Safe to run again: spreadsheets already there are left alone.
+function moveMonthsToFolder() {
+  withLock(() => {
+    const wanted = MONTHS_FOLDER_NAME.toLowerCase();
+    const found = [];
+    const folders = DriveApp.searchFolders("title contains 'Monthly Sheets' and trashed = false");
+    while (folders.hasNext()) {
+      const folder = folders.next();
+      if (folder.getName().trim().toLowerCase() === wanted) found.push(folder);
+    }
+    if (found.length === 0) throw new Error(`No Drive folder named "${MONTHS_FOLDER_NAME}". Create it, then run this again.`);
+    if (found.length > 1) throw new Error(`${found.length} Drive folders are named "${MONTHS_FOLDER_NAME}". Rename or delete the extra ones, then run this again.`);
+    const folder = found[0];
+
+    for (const month of readTable(getControlSpreadsheet().getSheetByName('Months'))) {
+      const file = DriveApp.getFileById(month.spreadsheet_id);
+      let inFolder = false;
+      const parents = file.getParents();
+      while (parents.hasNext()) if (parents.next().getId() === folder.getId()) inFolder = true;
+      if (!inFolder) file.moveTo(folder);
+      Logger.log('%s: %s %s', normalizeMonthLabel(month.month_label), file.getName(), inFolder ? 'was already there' : 'moved');
+    }
+    PropertiesService.getScriptProperties().setProperty(MONTHS_FOLDER_ID_PROPERTY, folder.getId());
+    Logger.log('New months will be made in %s', folder.getName());
   });
 }
 

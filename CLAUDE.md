@@ -224,6 +224,9 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `Sheets.js` `readTable`, `appendObject`, `updateRowsWhere`, `deleteRowsWhere`, `ensureHeaders`, `withLock`, `setCell`
 - `Months.js` active month lookup (Control → Months tab), `monthStatus`, `startNewMonth`, `listMonths`, `monthSummary`,
   `monthsPage` (Months & totals in one request: status + this month's summary + every month)
+  · month spreadsheets live in Drive folder "Smart Scan Monthly Sheets": one-time `moveMonthsToFolder()` (run in the
+  editor) moves them and saves its id (script property `MONTHS_FOLDER_ID`); `monthsFolder()` = where Start New Month
+  copies to, falling back to Control's folder. Months are opened by id, so moving files never affects the app.
   (totals from that month's DailySummary) · `Setup.js` one-time `setup()` (safe to re-run; adds missing columns).
   `getCurrentMonth`/`openCurrentMonth` keep the month and its opened spreadsheet for the rest of a request (reset in `doPost`).
 - `Home.js` `ownerHome`: everything on the owner's home in one request (closeStatus + monthStatus + this month's $ + last

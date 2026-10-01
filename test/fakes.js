@@ -47,32 +47,46 @@ function fakeSpreadsheet(id, tabs) {
   };
 }
 
-// Drive holding the Control spreadsheet (with a Months tab) and the given month spreadsheets,
-// all in one folder, plus SpreadsheetApp and CacheService over them.
+// Drive holding the Control spreadsheet (with a Months tab) and the given month spreadsheets, all
+// in one folder ("root") unless moved, plus other folders (addFolder), script properties, and
+// SpreadsheetApp and CacheService over them.
 function fakeGoogle(control) {
   const files = {};
+  const folders = {};
+  const props = {};
   let nextId = 1;
-  const folder = {
-    getFilesByName(name) {
-      const found = Object.values(files).filter((f) => f.name === name && !f.trashed).map(fileApi);
-      return { hasNext: () => found.length > 0, next: () => found.shift() };
-    },
-  };
-  function add(name, spreadsheet) {
-    files[spreadsheet.getId()] = { name, spreadsheet, trashed: false };
+  function addFolder(id, name) {
+    folders[id] = {
+      id, name, trashed: false,
+      getId: () => id,
+      getName: () => folders[id].name,
+      isTrashed: () => folders[id].trashed,
+      getFilesByName(fileName) {
+        const found = Object.values(files).filter((f) => f.name === fileName && !f.trashed && f.folder === id).map(fileApi);
+        return { hasNext: () => found.length > 0, next: () => found.shift() };
+      },
+    };
+    return folders[id];
+  }
+  const iterator = (list) => ({ hasNext: () => list.length > 0, next: () => list.shift() });
+  addFolder('root', 'My Drive folder');
+  function add(name, spreadsheet, folder = 'root') {
+    files[spreadsheet.getId()] = { name, spreadsheet, trashed: false, folder };
     return spreadsheet;
   }
   function fileApi(f) {
     return {
       getId: () => f.spreadsheet.getId(),
+      getName: () => f.name,
       getMimeType: () => 'application/vnd.google-apps.spreadsheet',
-      getParents: () => ({ next: () => folder }),
+      getParents: () => iterator([folders[f.folder]]),
       setTrashed(v) { f.trashed = v; },
       isTrashed: () => f.trashed,
-      makeCopy(name) {
+      moveTo(folder) { f.folder = folder.getId(); return this; },
+      makeCopy(name, folder) {
         const id = `copy${nextId++}`;
         const tabs = Object.fromEntries(Object.entries(f.spreadsheet.tabs).map(([n, s]) => [n, s.copy()]));
-        add(name, fakeSpreadsheet(id, tabs));
+        add(name, fakeSpreadsheet(id, tabs), folder ? folder.getId() : f.folder);
         return fileApi(files[id]);
       },
     };
@@ -80,8 +94,18 @@ function fakeGoogle(control) {
   add('Smart Scan Control', control);
   const cache = new Map();
   return {
-    files, add,
-    DriveApp: { getFileById: (id) => fileApi(files[id]) },
+    files, folders, props, add, addFolder,
+    DriveApp: {
+      getFileById: (id) => fileApi(files[id]),
+      getFolderById: (id) => { if (!folders[id]) throw new Error('No item with the given ID could be found'); return folders[id]; },
+      // Only the query moveMonthsToFolder sends: folders whose name contains the quoted text.
+      searchFolders: (q) => {
+        const text = q.match(/contains '([^']+)'/)[1].toLowerCase();
+        return iterator(Object.values(folders).filter((f) => !f.trashed && f.name.toLowerCase().includes(text)));
+      },
+    },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props[k] ?? null, setProperty: (k, v) => { props[k] = v; } }) },
+    Logger: { log() {} },
     MimeType: { GOOGLE_SHEETS: 'application/vnd.google-apps.spreadsheet' },
     SpreadsheetApp: { openById: (id) => files[id].spreadsheet, getActiveSpreadsheet: () => control, flush() {} },
     CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v), remove: (k) => cache.delete(k) }) },

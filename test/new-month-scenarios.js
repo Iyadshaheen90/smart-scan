@@ -118,11 +118,37 @@ run('reopenClose()');
 assert.equal(slot(2).pack.exposedTicket, 35); assert.equal(slot(2).pack.lastCloseDate, '2026-10-01');
 run(`submitClose(emp, ${entries({ 2: 30, 3: 70 })})`);
 
-// Nov 1: a copy left by a failed attempt is thrown away and a fresh one registered.
+// Oct 2: the owner moves the month spreadsheets into their "Smart Scan Monthly Sheets" folder (2026-10-01).
+// Nothing found yet: a clear error and nothing moved. A look-alike name doesn't count; any capitals do.
+const folderOf = (id) => google.files[id].folder;
+google.addFolder('decoy', 'Old Monthly Sheets');
+assert.match(code(() => run('moveMonthsToFolder()')), /No Drive folder named "Smart Scan Monthly Sheets"/);
+assert.equal(folderOf('sep'), 'root'); assert.equal(google.props.MONTHS_FOLDER_ID, undefined);
+const monthsBefore = JSON.stringify(run(`monthSummary('2026-10')`));
+google.addFolder('monthly', 'smart scan monthly sheets');
+run('moveMonthsToFolder()');
+assert.equal(folderOf('sep'), 'monthly'); assert.equal(folderOf(octId), 'monthly');
+assert.equal(folderOf('control'), 'root', 'Control stays where it is');
+assert.equal(google.props.MONTHS_FOLDER_ID, 'monthly');
+// The app still finds both months (by id), and running it again changes nothing.
+assert.equal(run('getCurrentMonth()').spreadsheetId, octId);
+assert.equal(JSON.stringify(run(`monthSummary('2026-10')`)), monthsBefore);
+assert.ok(run(`monthSummary('2026-09')`).dollarsSold > 0);
+assert.equal(run('listSlots()').length, 3);
+run('moveMonthsToFolder()');
+assert.equal(folderOf('sep'), 'monthly'); assert.equal(folderOf(octId), 'monthly');
+// Two folders with the name: refused, so it can't guess.
+google.addFolder('twin', 'Smart Scan Monthly Sheets');
+assert.match(code(() => run('moveMonthsToFolder()')), /2 Drive folders are named/);
+google.folders.twin.trashed = true;
+console.log('month spreadsheets moved into Smart Scan Monthly Sheets, app unaffected — OK');
+
+// Nov 1: a copy left by a failed attempt is thrown away and a fresh one registered, in the months folder.
 globalThis.TODAY = '2026-11-01';
-google.add('Smart Scan — 2026-11', fakeSpreadsheet('leftover', {}));
+google.add('Smart Scan — 2026-11', fakeSpreadsheet('leftover', {}), 'monthly');
 r = run(`startNewMonth({ label: '2026-11' })`);
 assert.equal(google.files.leftover.trashed, true);
+assert.equal(folderOf(run('getCurrentMonth()').spreadsheetId), 'monthly');
 assert.deepEqual(col(control.tabs.Months, 'status'), ['archived', 'archived', 'active']);
 assert.deepEqual({ ...r.moved }, { Shipments: 0, ReserveAdjustments: 0, DailyCloseLog: 0, DailySummary: 0, PackHistory: 0, ShiftCloses: 0, ShiftCloseLog: 0 });
 const nov = tabs(run('getCurrentMonth()').spreadsheetId);
@@ -192,3 +218,10 @@ console.log('owner home pass');
   assert.equal(run(`monthSummary('2026-11')`).fullPacks.count, 1);
   console.log('full packs per month pass');
 }
+
+// If the months folder is ever deleted, new months go next to Control again instead of failing.
+google.folders.monthly.trashed = true;
+assert.equal(run('monthsFolder(getControlSpreadsheet())').getId(), 'root');
+delete google.folders.monthly;
+assert.equal(run('monthsFolder(getControlSpreadsheet())').getId(), 'root');
+console.log('months folder gone: falls back to the Control folder — OK');
