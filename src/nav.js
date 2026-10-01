@@ -40,7 +40,10 @@ function renderHeader(el, session) {
   const pill = session
     ? `<a class="user-pill" href="more.html"><span class="name">${navEscape(session.username)}</span><span class="avatar">${navEscape(initials(session.username))}</span></a>`
     : '';
-  el.innerHTML = `<div>${top}<h1${id(el.dataset.titleId)}>${navEscape(el.dataset.title || 'Smart Scan')}</h1></div>${pill}`;
+  const title = `<h1${id(el.dataset.titleId)}>${navEscape(el.dataset.title || 'Smart Scan')}</h1>`;
+  // With a back pill, it and the name pill share the top row (level with each other) and the title goes under them.
+  el.classList.toggle('with-back', Boolean(back));
+  el.innerHTML = back ? `${top}${pill}${title}` : `<div>${top}${title}</div>${pill}`;
 }
 
 function renderTabBar(el, session) {

@@ -220,6 +220,9 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 }
 .app-header .back svg { width: 20px; height: 20px; color: var(--accent-bright); }
 .app-header .back:active { background: var(--card-2); }
+.app-header.with-back { flex-wrap: wrap; row-gap: 12px; }
+.app-header.with-back .back { margin-bottom: 0; }
+.app-header.with-back h1 { flex-basis: 100%; margin: 0; }
 .user-pill {
   display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0;
   padding: 5px 5px 5px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border);

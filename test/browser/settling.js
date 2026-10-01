@@ -40,6 +40,11 @@ const cards = (page) => page.$$eval('#list .settle-card', (els) => els.map((c) =
   assert.deepEqual(await backLinks('activate.html?box=2&slot=4&from=settling'), [['Settling', 'settling.html'], ['Back to settling', 'settling.html']]);
   // The back pill is big enough to tap easily (44px tall).
   assert.ok(await app.page.$eval('#back', (a) => a.getBoundingClientRect().height >= 44));
+  // Level with the name pill (same top row, same middle).
+  assert.ok(await app.page.evaluate(() => {
+    const mid = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
+    return Math.abs(mid(document.getElementById('back')) - mid(document.querySelector('.user-pill'))) <= 1;
+  }), 'back pill level with the name pill');
   if (process.env.SHOTS) await app.page.screenshot({ path: `${process.env.SHOTS}/slot-back.png`, clip: { x: 0, y: 0, width: 390, height: 200 } });
   assert.deepEqual(await backLinks('activate.html?box=2&slot=4'), [['Slots', 'slots.html?box=2'], ['Back to slots', 'slots.html?box=2']]);
   await app.page.goto(app.base + 'settling.html');

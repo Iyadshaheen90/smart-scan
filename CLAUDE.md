@@ -159,8 +159,8 @@ Frontend (`src/`, plain HTML + JS, no build):
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.
   `nav.js` fills `<header class="app-header" data-title=…>` (store name or a `data-back` link, title, name pill → More) and
   `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports · More; employee Home · Slots · More.
-  The slot page (`activate.html`) has a back pill (`.back`: chevron + label, 44px tall, styled like the name pill;
-  owner 2026-09-30) instead of the tab bar; login/setup have no tab bar. `icons.js` inline
+  The slot page (`activate.html`) has a back pill (`.back`: chevron + label, 44px tall, styled like the name pill and on
+  one row with it, title underneath; owner 2026-09-30) instead of the tab bar; login/setup have no tab bar. `icons.js` inline
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
   `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
