@@ -191,7 +191,7 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `shifts.html` (owner, 2026-09-30) Shift Closure: this month's shift closes by day, newest first (`listShiftCloses`, saved
   answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
   (every slot's start → end ticket) and Delete (confirm). Icon `shift` (two block arrows, from the owner's picture).
-- `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack, activate, undo; then (owner's order) slot price, pack size, move or swap
+- `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What happened to it?" unsaved), activate, undo; then (owner's order) slot price, pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
@@ -252,7 +252,7 @@ string "undefined", so check the value first). `SlotState.remaining_count` is a 
 Recent columns: `DailyCloseLog.logged_at`, `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
 `SlotState.last_game_number`.
 
-## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", same Drive folder as Control)
+## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
 
 Users, Sessions, SlotConfig, SlotState, ReserveInventory, Shipments, ReserveAdjustments, DailyCloseLog,
 DailySummary, PackHistory, ShiftCloses, ShiftCloseLog (the last two from Oct 2026; added on first use before that). Columns are in `Schema.js`. The owner reads these after each close but should not
@@ -263,7 +263,7 @@ hand-edit them.
 ```sh
 node --test src/*.test.js                 # barcode parsing
 node test/backend-scenarios.js            # backend against a fake spreadsheet (store scenarios)
-node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js)
+node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
 
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
 node test/browser/offline-close.js        # Close Day with no connection, lost answer, home resend, refusal
@@ -282,6 +282,7 @@ node test/browser/full-packs.js          # Full pack sales page: totals, cards, 
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
+node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-today numbers before saving, Cancel from every step, nothing saved
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"
