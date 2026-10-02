@@ -204,7 +204,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   asks price + pack size; Save sends `saveBackStock` shipment for that one game at once (source "delivery", no notes).
   A scan opens it only after the finger leaves "Press and hold" (`whenHandsFree`): opened under the finger, iPhones
   swallowed the first tap on +.
-  **Count the back** (sets) still uses the list: scan one ticket per game, enter packs, Save count; one **Manage packs** dialog on every game (owner
+  **Manage Stock** (count mode, renamed from "Count the back" 2026-10-02; sets) still uses the list: scan one ticket per game, enter packs, Save count; one **Manage packs** dialog on every game (owner
   2026-09-27: replaced Add pack + Remove packs): − count + with red Cancel / green Save. Save with more packs sends
   them as a shipment; with fewer it shows "Remove N packs (a → b). Why?" with reason buttons (returned, game expired,
   damaged, stolen, other), red Cancel and Back, and nothing changes until a reason is tapped; Game ended / Ended games list.

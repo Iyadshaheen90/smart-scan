@@ -2,7 +2,7 @@
 // The owner scans one ticket per game and types how many packs, instead of scanning every pack.
 //
 // - Shipment received: adds packs, and logs each game in Shipments.
-// - Count the back: sets the packs on hand to what was counted, and logs any difference in
+// - Manage Stock (count mode): sets the packs on hand to what was counted, and logs any difference in
 //   ReserveAdjustments (reason "count").
 // - Remove packs: takes packs out (returned, damaged…), logged in ReserveAdjustments.
 // - Add pack: the + / − dialog on a game. More packs is logged as a shipment (source "add pack"),

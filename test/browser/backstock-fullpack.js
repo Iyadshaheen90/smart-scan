@@ -80,7 +80,7 @@ function handle(body) {
   assert.equal(await page.$eval('#saveArea', (el) => el.classList.contains('hidden')), true);
   // and a reload (no ?mode) goes back to the saved count list, never to a full pack draft
   await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length >= 1);
-  assert.equal(await text('#modeSwitch .active'), 'Count the back');
+  assert.equal(await text('#modeSwitch .active'), 'Manage Stock');
   await shot('fullpack-modes.png');
 
   console.log('BACK STOCK FULL PACK CHECKS PASS');

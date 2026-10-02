@@ -107,7 +107,7 @@ function handle(body) {
   assert.equal(await text('#shipCount'), '2');
   await page.click('#shipCancel');
 
-  // 7. Count the back still uses the list.
+  // 7. Manage Stock still uses the list.
   await page.click('#modeSwitch button[data-mode="count"]');
   await enter('1747');
   assert.equal(await open(), false);
