@@ -45,7 +45,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
   The same packs (50+ days) are listed on the owner's **Settling** page, red from day 60 (owner approved 2026-09-29).
 - Back stock changes and where they're logged: Shipment received (source "delivery") and **Manage packs** (+) (source
-  "add pack", owner approved 2026-09-27) → `Shipments` (both count in the month's "Shipments in"); Count and Manage packs (−)
+  "add pack", owner approved 2026-09-27) → `Shipments` (both count in the month's "Shipments in"); Manage Stock (count) and Manage packs (−)
   → `ReserveAdjustments` (reason count / returned, game expired, damaged, stolen, other; "adjust" only from the API).
 - **Full pack sale** (owner only, 2026-09-30): a customer buys a whole sealed pack from the back. The owner scans a ticket of
   it (pack number needed), and `sellFullPack` takes one pack off `ReserveInventory` (refused with 0 in the back, for a pack
