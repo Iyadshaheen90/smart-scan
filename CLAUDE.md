@@ -160,7 +160,9 @@ Frontend (`src/`, plain HTML + JS, no build):
   `nav.js` fills `<header class="app-header" data-title=…>` (store name or a `data-back` link, title, name pill → More) and
   `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports · More; employee Home · Slots · More.
   The slot page (`activate.html`) has a back pill (`.back`: chevron + label, 44px tall, styled like the name pill and on
-  one row with it, title underneath; owner 2026-09-30) instead of the tab bar; login/setup have no tab bar. `icons.js` inline
+  one row with it, title underneath; owner 2026-09-30) instead of the tab bar; login/setup have no tab bar. Slots, Settling,
+  Full pack sales and Shift Closure have a **Home** back pill → index.html (owner 2026-10-04; on Slots owner only, via
+  `data-back-role="owner"`, since employees reach Slots from the tab bar). `icons.js` inline
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
   `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
@@ -279,6 +281,7 @@ node test/browser/close-layout.js         # Close Day: button stays put and prog
 node test/browser/camera-revive.js        # camera un-freezes after Clear all / a pause / being shut off; stays off once closed
 node test/browser/backstock-fullpack.js # Full pack sale mode: ?mode=fullpack, pop-up, Sell/Cancel, refusals, draft kept (real backend code)
 node test/browser/full-packs.js          # Full pack sales page: totals, cards, Undo, none after close, empty month (real backend code)
+node test/browser/home-pill.js            # Home pill on Slots (owner only), Settling, Full pack sales, Shift Closure
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)

@@ -1,7 +1,7 @@
 // The page header (title + who's signed in) and the bottom tab bar, the same on every page.
 // Needs api.js (getSession) and icons.js loaded first.
 //   <header class="app-header" data-title="Slots" data-back="slots.html"></header>  (data-back: a back pill instead of the store name;
-//   its text is in .back-label)
+//   its text is in .back-label; data-back-role="owner": the back pill only for that role)
 //   <nav class="tabbar" data-active="scan"></nav>
 // Tabs are only links: what each role may do is still checked by the server.
 
@@ -32,7 +32,8 @@ function initials(username) {
 
 // data-back-id / data-title-id give the back link and the title an id, for pages that change them (the slot page).
 function renderHeader(el, session) {
-  const back = el.dataset.back;
+  const forRole = !el.dataset.backRole || (session && session.role === el.dataset.backRole);
+  const back = forRole ? el.dataset.back : '';
   const id = (name) => (name ? ` id="${navEscape(name)}"` : '');
   const top = back
     ? `<a class="back"${id(el.dataset.backId)} href="${navEscape(back)}">${icon('chevronLeft')}<span class="back-label">${navEscape(el.dataset.backLabel || 'Back')}</span></a>`
