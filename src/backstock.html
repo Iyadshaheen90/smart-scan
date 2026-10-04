@@ -736,20 +736,40 @@
 
     // --- Start ---
 
+    // Last load first (dimmed, buttons off), then the fresh one. Scans and search wait for the fresh one,
+    // since they decide from it whether a game is new. A failed load keeps the saved list on screen
+    // (dimmed, buttons off) above the reason and a Try again button.
+    async function loadStock() {
+      try {
+        await loadSaved('backstock', () => api('listBackStock'), (data, fresh) => {
+          stock = data;
+          stockLoaded = fresh;
+          render();
+          renderStock();
+        });
+        return true;
+      } catch (err) {
+        if (!stockLoaded && !document.body.classList.contains('showing-saved')) $('stock').textContent = '';
+        // The camera starts once back stock has loaded, so Try again starts it too.
+        showLoadError($('stockMessage'), err, async () => {
+          if (!(await loadStock())) return false;
+          startCamera().catch(cameraError);
+          return true;
+        });
+        return false;
+      }
+    }
+
     async function start() {
       loadDraft();
       // From the Full pack sales page: start in Full pack sale mode.
       if (new URLSearchParams(location.search).get('mode') === 'fullpack') mode = 'fullpack';
       render();
-      // Last load first (dimmed, buttons off), then the fresh one. Scans and search wait for the fresh one,
-      // since they decide from it whether a game is new.
-      await loadSaved('backstock', () => api('listBackStock'), (data, fresh) => {
-        stock = data;
-        stockLoaded = fresh;
-        render();
-        renderStock();
-      });
-      await startScanner({
+      if (await loadStock()) await startCamera();
+    }
+
+    function startCamera() {
+      return startScanner({
         video: $('video'),
         viewport: $('viewport'),
         holdBtn: $('holdBtn'),
@@ -758,8 +778,9 @@
       });
     }
 
-    // A failed load keeps the saved list on screen (dimmed, buttons off) above the reason.
-    if (session) start().catch((err) => { if (!stockLoaded && !document.body.classList.contains('showing-saved')) $('stock').textContent = ''; showMessage($('stockMessage'), err.message); });
+    function cameraError(err) { showMessage($('stockMessage'), err.message); }
+
+    if (session) start().catch(cameraError);
   </script>
 </body>
 </html>

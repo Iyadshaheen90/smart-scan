@@ -148,6 +148,23 @@ function showMessage(el, text, kind = 'error') {
   el.textContent = text;
 }
 
+// A page that couldn't load shows why, with a Try again button under it (owner 2026-10-04).
+// load is the page's own loader: it returns true once loaded (the message then goes away); on a new
+// failure it calls showLoadError again, which puts back a fresh button.
+function showLoadError(el, err, load) {
+  showMessage(el, err.message);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'try-again';
+  button.textContent = 'Try again';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    button.textContent = 'Loading…';
+    if (await load()) { el.className = 'message'; el.textContent = ''; }
+  });
+  el.append(button);
+}
+
 // CA Lottery settles (charges the store for) a pack 50–60 days after it's activated, sold or not.
 // From this many days live, a pack is marked on Slots and listed on the Settling page.
 const OLD_PACK_DAYS = 50;

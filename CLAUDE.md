@@ -170,6 +170,9 @@ Frontend (`src/`, plain HTML + JS, no build):
   and Months & totals draw the last answer saved on the phone at once, then the fresh one. While it shows, `body.showing-saved`
   dims `.saved-dim` and makes `.saved-lock` untappable (Back stock's list and ended games, Months' Start and past months), and
   Back stock's scans/search wait for the fresh list. A failed refresh keeps the saved answer (still locked) with the error.
+- **Try again** (`showLoadError(el, err, load)` in api.js; owner 2026-10-04): when Slots, Back stock or Months & totals can't
+  load, the reason shows with a Try again button that runs the page's loader again (it returns true once loaded, which
+  clears the message). Back stock starts its camera only after it loads, so its Try again starts the camera too.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not closed / Closed chip, big number = last
@@ -282,6 +285,7 @@ node test/browser/camera-revive.js        # camera un-freezes after Clear all / 
 node test/browser/backstock-fullpack.js # Full pack sale mode: ?mode=fullpack, pop-up, Sell/Cancel, refusals, draft kept (real backend code)
 node test/browser/full-packs.js          # Full pack sales page: totals, cards, Undo, none after close, empty month (real backend code)
 node test/browser/home-pill.js            # Home pill on Slots (owner only), Settling, Full pack sales, Shift Closure
+node test/browser/try-again.js            # Try again on Slots, Back stock, Months when loading fails; Back stock camera starts after
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)

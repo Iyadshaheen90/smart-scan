@@ -176,6 +176,8 @@
       }
     }
 
+    // Returns true once loaded. A failed load keeps the saved page on screen (dimmed) above the reason
+    // and a Try again button.
     async function load() {
       try {
         // One request for the whole page; the last answer shows first (dimmed, Start and past months off).
@@ -185,9 +187,11 @@
           showCurrent(data.summary);
           showPast(data.months);
         });
+        return true;
       } catch (err) {
         if (!status) $('current').textContent = '';
-        showMessage(message, err.message);
+        showLoadError(message, err, load);
+        return false;
       }
     }
 

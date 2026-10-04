@@ -147,11 +147,19 @@
       render();
     }));
 
-    if (session) {
-      // Last load first (dimmed), then the fresh one. A tapped slot's page loads its own fresh data.
-      loadSaved('slots', () => api('listSlots'), (data) => { slots = data; render(); })
-        .catch((err) => { if (!slots.length) listEl.textContent = ''; showMessage(document.getElementById('message'), err.message); });
+    // Last load first (dimmed), then the fresh one. A tapped slot's page loads its own fresh data.
+    // A failed load keeps the saved slots on screen (dimmed) above the reason and a Try again button.
+    async function load() {
+      try {
+        await loadSaved('slots', () => api('listSlots'), (data) => { slots = data; render(); });
+        return true;
+      } catch (err) {
+        if (!slots.length) listEl.textContent = '';
+        showLoadError(document.getElementById('message'), err, load);
+        return false;
+      }
     }
+    if (session) load();
   </script>
 </body>
 </html>
