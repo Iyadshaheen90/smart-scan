@@ -2,8 +2,10 @@
 // Pages and scripts come from the network first, so a new deploy shows up on the next load; the saved
 // copy is only used when the network fails. The scanner library (a pinned version on the CDN) is kept
 // after its first download so the camera starts faster. Backend requests (POSTs) are never touched.
-// Bump CACHE when the list below changes.
-const CACHE = 'smart-scan-v6';
+// Offline, each page comes from the copy saved the last time it loaded, which can be older than the
+// deploy (or older than the api.js beside it). So bump CACHE on every deploy that changes a page or
+// script: the phone then sees a new service worker and downloads the whole list below at once.
+const CACHE = 'smart-scan-v7';
 const SHELL = [
   'index.html', 'login.html', 'close.html', 'slots.html', 'activate.html', 'backstock.html', 'month.html',
   'users.html', 'account.html', 'more.html', 'settling.html', 'full-packs.html', 'shifts.html', 'raw-scanner.html', 'style.css', 'config.js', 'api.js', 'barcode.js', 'scanner.js', 'icons.js', 'nav.js',
@@ -11,7 +13,10 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser's own 10-minute copy, so the files saved are the new deploy's.
+  event.waitUntil(caches.open(CACHE)
+    .then((cache) => cache.addAll(SHELL.map((file) => new Request(file, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {

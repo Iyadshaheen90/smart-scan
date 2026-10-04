@@ -219,7 +219,9 @@ Frontend (`src/`, plain HTML + JS, no build):
   shipment/count draft, and it hides that list.
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
   shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
-  Bump `CACHE` in `sw.js` when its file list changes. The installed app has its own storage on iOS (sign in again there).
+  **Bump `CACHE` in `sw.js` on every deploy that changes a page or script** (or its file list): installing the new worker
+  saves every file at once (`cache: 'reload'`), so offline a page and its api.js match. Without the bump, an offline page
+  is whatever copy last loaded online, maybe from before the deploy (Try again didn't show offline, 2026-10-04). The installed app has its own storage on iOS (sign in again there).
 - `raw-scanner.html` Scanner test (dev) plus the iPhone vibration/sound test buttons 5–8 and A–K (K = the real
   `holdFeedback` code); owner wants them kept for now · `backend-test.html` dev page
 
@@ -286,6 +288,7 @@ node test/browser/backstock-fullpack.js # Full pack sale mode: ?mode=fullpack, p
 node test/browser/full-packs.js          # Full pack sales page: totals, cards, Undo, none after close, empty month (real backend code)
 node test/browser/home-pill.js            # Home pill on Slots (owner only), Settling, Full pack sales, Shift Closure
 node test/browser/try-again.js            # Try again on Slots, Back stock, Months when loading fails; Back stock camera starts after
+node test/browser/sw-offline.js           # real service worker: every file saved on install; offline Slots shows Try again
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
