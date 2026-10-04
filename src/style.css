@@ -92,6 +92,7 @@ button:disabled { opacity: 0.5; }
 .message.error { background: var(--error-bg); border-color: #5a2a27; }
 .message.ok { background: var(--ok-bg); border-color: #1f4a33; }
 .message .try-again { margin-top: 12px; }
+#loadMessage { margin-bottom: 14px; }
 .topbar {
   display: flex;
   justify-content: space-between;

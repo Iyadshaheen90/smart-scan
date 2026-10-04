@@ -75,13 +75,13 @@ const monthsPage = (dollars, canStart) => ({ status: { current: '2026-09', curre
   assert.match(await txt('#current'), /\$900/);
   assert.ok(await page.$eval('#startBox', (e) => e.classList.contains('hidden')), 'fresh answer: not the 1st, no Start');
 
-  // No connection: the saved answer stays (dimmed, buttons off) with the reason.
+  // No connection: the saved answer stays (dimmed, buttons off) with the reason at the top.
   hold = null;
   app.setHandle(() => { throw { code: 'network', message: 'Could not reach the server.' }; });
   await page.goto(base + 'backstock.html'); await sleep(400);
   assert.ok(await saved());
   assert.match(await txt('#stock'), /7 packs/);
-  assert.match(await txt('#stockMessage'), /Could not reach/);
+  assert.match(await txt('#loadMessage'), /Could not reach/);
 
   console.log('SAVED PAGES CHECKS PASS');
   await app.close();

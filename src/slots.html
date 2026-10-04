@@ -15,6 +15,8 @@
 </head>
 <body>
   <header class="app-header" data-title="Slots" data-back="index.html" data-back-label="Home" data-back-role="owner"></header>
+  <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
+  <div id="loadMessage" class="message"></div>
   <p class="sub" id="hint"></p>
 
   <div class="segmented" id="boxSwitch">
@@ -23,7 +25,6 @@
   </div>
   <div id="summary" class="sub saved-dim"></div>
   <div id="list" class="saved-dim">Loading…</div>
-  <div id="message" class="message"></div>
 
   <nav class="tabbar" data-active="slots"></nav>
 
@@ -155,7 +156,7 @@
         return true;
       } catch (err) {
         if (!slots.length) listEl.textContent = '';
-        showLoadError(document.getElementById('message'), err, load);
+        showLoadError(document.getElementById('loadMessage'), err, load);
         return false;
       }
     }

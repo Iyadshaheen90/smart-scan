@@ -40,7 +40,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
     // Offline: Slots opens from the saved copy and offers Try again.
     await page.setOfflineMode(true);
     await page.goto(base + 'slots.html');
-    await page.waitForFunction(() => document.querySelector('#message button.try-again'), { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelector('#loadMessage button.try-again'), { timeout: 15000 });
     console.log('SW OFFLINE CHECKS PASS');
   } finally {
     await browser.close(); server.close();

@@ -171,7 +171,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   dims `.saved-dim` and makes `.saved-lock` untappable (Back stock's list and ended games, Months' Start and past months), and
   Back stock's scans/search wait for the fresh list. A failed refresh keeps the saved answer (still locked) with the error.
 - **Try again** (`showLoadError(el, err, load)` in api.js; owner 2026-10-04): when Slots, Back stock or Months & totals can't
-  load, the reason shows with a Try again button that runs the page's loader again (it returns true once loaded, which
+  load, the reason shows at the top of the page (`#loadMessage`, under the header, seen without scrolling) with a Try again button that runs the page's loader again (it returns true once loaded, which
   clears the message). Back stock starts its camera only after it loads, so its Try again starts the camera too.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows

@@ -15,6 +15,8 @@
 </head>
 <body>
   <header class="app-header" data-title="Months &amp; totals"></header>
+  <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
+  <div id="loadMessage" class="message"></div>
   <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook. Totals come from each day's close.</p>
 
   <div id="current" class="saved-dim">Loading…</div>
@@ -190,7 +192,7 @@
         return true;
       } catch (err) {
         if (!status) $('current').textContent = '';
-        showLoadError(message, err, load);
+        showLoadError($('loadMessage'), err, load);
         return false;
       }
     }
