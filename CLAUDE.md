@@ -195,8 +195,11 @@ Frontend (`src/`, plain HTML + JS, no build):
   the latest "3:02 PM · today by sara", from `ownerHome.shifts`; opens `shifts.html`), a quieter **Close my shift** button
   (`.action-shift`) under Close Day, Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
   Scan tickets button → Close Day, and under it Close my shift (hidden once the day is closed; a greyed "Shift closed at
-  2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`); no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
-  `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner)
+  2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
+  permission the owner turned on (Load / Return packs → Slots; Receive a shipment, Manage Stock, Sell a full pack →
+  `backstock.html?mode=…`); no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
+  `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner; each employee card has a switch per permission,
+  `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn all on/off)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
   `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page (`&from=settling`, so its back pill and
@@ -215,7 +218,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   close). Views: scanning, closed (summary, with "Submitted at 10:52 PM by <username>" from
   `DailySummary.closed_by`/`closed_at`, server time when saved; closes before 2026-09-27 have no line), and pending ("saved, not sent yet": Try sending now / Stop sending).
 - `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals
-- `backstock.html` (owner) **Find a game** search at the top (by game number as you type; packs in the back and the
+- `backstock.html` (owner; an employee with Receive shipments / Manage Stock / Full pack sale gets only those modes — no
+  search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment received**: a scanned/typed game opens a
   pop-up (owner 2026-09-28): "Packs received" − count + starting at 1 (− stops at 0, Save greyed there), a new game also
   asks price + pack size; Save sends `saveBackStock` shipment for that one game at once (source "delivery", no notes).
