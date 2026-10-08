@@ -78,6 +78,14 @@
     <!-- One shift close a day; once used it shows when, until the owner deletes it. Hidden once the day is closed. -->
     <a class="action-main action-shift" id="shiftBtn" href="close.html?shift=1"><span data-icon="shift"></span>Close my shift</a>
     <div class="action-main action-shift done hidden" id="shiftDone"></div>
+    <!-- What the owner turned on for this employee (Manage employees); hidden when nothing is. -->
+    <div id="extraActions" class="hidden">
+      <div class="section-label">Also allowed</div>
+      <a class="list-card hidden" id="loadPacksLink" href="slots.html"><span class="icon-box" data-icon="grid"></span><span class="grow" id="loadPacksText">Load packs</span><span class="chev" data-icon="chevronRight"></span></a>
+      <a class="list-card hidden" data-permission="receive_shipments" href="backstock.html?mode=shipment"><span class="icon-box" data-icon="box"></span><span class="grow">Receive a shipment</span><span class="chev" data-icon="chevronRight"></span></a>
+      <a class="list-card hidden" data-permission="count_stock" href="backstock.html?mode=count"><span class="icon-box" data-icon="box"></span><span class="grow">Manage Stock</span><span class="chev" data-icon="chevronRight"></span></a>
+      <a class="list-card hidden" data-permission="full_pack_sale" href="backstock.html?mode=fullpack"><span class="icon-box" data-icon="ticket"></span><span class="grow">Sell a full pack</span><span class="chev" data-icon="chevronRight"></span></a>
+    </div>
   </div>
 
   <nav class="tabbar" data-active="home"></nav>
@@ -107,8 +115,24 @@
       fitText(el);
     }
 
+    // Employee: a link for each thing the owner turned on (from the saved sign-in first, then closeStatus).
+    function showExtraActions(current) {
+      const load = can(current, 'load_packs');
+      const ret = can(current, 'return_packs');
+      $('loadPacksLink').classList.toggle('hidden', !load && !ret);
+      $('loadPacksText').textContent = load && ret ? 'Load or return packs' : load ? 'Load packs' : 'Return packs';
+      let any = load || ret;
+      document.querySelectorAll('[data-permission]').forEach((el) => {
+        const on = can(current, el.dataset.permission);
+        el.classList.toggle('hidden', !on);
+        any = any || on;
+      });
+      $('extraActions').classList.toggle('hidden', !any);
+    }
+
     if (session) {
       document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
+      if (!isOwner) showExtraActions(session);
       $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
       loadStatus();
     }
@@ -145,6 +169,8 @@
       } else {
         try {
           const status = await api('closeStatus');
+          updateSessionPermissions(status.permissions);
+          showExtraActions(getSession());
           $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
           setChip(Boolean(status.closed));
           showMyShift(status);

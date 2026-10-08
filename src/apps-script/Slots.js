@@ -1,7 +1,8 @@
 // The 48 slots on the counter: listing them, activating a pack into one, and ending a pack.
 //
-// Who does what: all of this is the owner's. Employees only see the slots; they mark packs sold
-// out during Close Day (submitClose), so there is one place to do it.
+// Who does what: all of this is the owner's. Employees see the slots and mark packs sold out during
+// Close Day (submitClose), unless the owner turned on Load packs (sold out, put a pack in, undo a wrong
+// slot, put back a sold out pack) or Return packs for them (see PERMISSIONS in Auth.js).
 //
 // Inventory rules:
 // - Activating a pack takes one pack of its game out of back stock (ReserveInventory). The pack
@@ -133,7 +134,7 @@ function activatePack(user, req) {
     const slotPrice = Number(config.price_per_ticket);
     const priceChanged = gamePrice !== slotPrice;
     if (priceChanged) {
-      if (user.role !== 'owner') {
+      if (!can(user, 'load_packs')) {
         throw new ApiError('price_mismatch', `Game ${ticket.gameNumber} is $${gamePrice}, but this is a $${slotPrice} slot. Ask the owner.`);
       }
       if (req.overridePrice !== true) {
@@ -147,6 +148,7 @@ function activatePack(user, req) {
       if (!END_REASONS.includes(req.oldPackEnd)) {
         throw new ApiError('slot_occupied', `This slot still has pack ${current.pack_key}. Was it sold out or returned?`);
       }
+      requireEndPermission(user, req.oldPackEnd);
       oldPack = endPackInSlot(user, current, req.oldPackEnd, req.oldPackTicket);
     }
 
@@ -198,7 +200,7 @@ function validateTicket(gameNumber, packNumber, ticketNumber) {
 function addGameToReserve(user, gameNumber, gamePrice, ticketsPerPack) {
   gamePrice = Number(gamePrice);
   ticketsPerPack = ticketsPerPack === '' || ticketsPerPack == null ? STANDARD_PACK_SIZES[gamePrice] : Number(ticketsPerPack);
-  if (user.role !== 'owner') {
+  if (!['load_packs', 'receive_shipments', 'count_stock'].some((p) => can(user, p))) {
     throw new ApiError('unknown_game', `Game ${gameNumber} isn't in back stock yet. Ask the owner to activate this pack.`);
   }
   if (!(gamePrice > 0) || !Number.isInteger(ticketsPerPack) || ticketsPerPack <= 0) {
@@ -217,9 +219,15 @@ function endPack(user, req) {
     const current = readTable(monthSheet('SlotState')).find(isSlot(req.box, req.slot));
     if (!current || !current.pack_key) throw new ApiError('slot_empty', 'This slot has no pack.');
     if (!END_REASONS.includes(req.reason)) throw new ApiError('bad_request', 'Say whether the pack sold out or was returned.');
-    if (user.role !== 'owner') throw new ApiError('forbidden', 'Only the owner can end a pack outside Close Day.');
+    requireEndPermission(user, req.reason);
     return endPackInSlot(user, current, req.reason, req.ticketNumber);
   });
+}
+
+// Sold out outside Close Day needs Load packs; Returned needs Return packs (owner: both).
+function requireEndPermission(user, reason) {
+  if (reason === 'returned') requirePermission(user, 'return_packs', 'The owner hasn\'t turned on returning packs for you.');
+  else requirePermission(user, 'load_packs', 'Mark it sold out in Close Day. The owner hasn\'t turned on loading packs for you.');
 }
 
 // Logs the pack's sales since the last close, records it in PackHistory, and clears the slot.
@@ -342,9 +350,9 @@ function setSlotPrice(req) {
   });
 }
 
-// Owner only: puts back a pack marked sold out or returned by mistake today. Removes that
-// ending's DailyCloseLog and PackHistory rows and restores the slot as it was.
-function undoEndPack(req) {
+// Puts back a pack marked sold out or returned by mistake today (needs the same permission as ending it).
+// Removes that ending's DailyCloseLog and PackHistory rows and restores the slot as it was.
+function undoEndPack(user, req) {
   return withLock(() => {
     const today = todayLabel();
     const state = readTable(slotStateSheet()).find(isSlot(req.box, req.slot));
@@ -355,6 +363,7 @@ function undoEndPack(req) {
     const ended = readTable(monthSheet('PackHistory'))
       .filter((p) => isSlot(req.box, req.slot)(p) && dateLabel(p.end_date) === today).pop();
     if (!ended) throw new ApiError('nothing_to_undo', 'No pack was marked sold out or returned in this slot today.');
+    requireEndPermission(user, ended.end_reason);
     const packKey = `${ended.game_number}-${ended.pack_number}`;
     const isEnding = (row) => row.pack_key === packKey && END_REASONS.includes(row.close_type);
     const log = readTable(monthSheet('DailyCloseLog')).find(isEnding);

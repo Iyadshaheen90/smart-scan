@@ -8,7 +8,7 @@ const { fakeSheet } = require('./fakes');
 const ctx = { console, Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${globalThis.TODAY} ${globalThis.CLOCK || '12:00:00'}` : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
+for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Permissions.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
   const sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h, n === 'SlotState' ? h.slice(0, 10) : null);
   function monthSheet(n) { return sheets[n]; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet }));
@@ -17,7 +17,11 @@ S.SlotConfig.rows.push([1, 1, 20], [1, 2, 10]);
 S.SlotState.rows.push([1, 1], [1, 2]);
 S.ReserveInventory.rows.push(['1747', 20, 30, 3, 90]);
 const owner = { username: 'o', role: 'owner' }, emp = { username: 'e', role: 'employee' };
-const run = (code) => vm.runInContext(code, Object.assign(ctx, { owner, emp }));
+// Employees the owner gave permissions to (Manage employees).
+const loader = { username: 'e', role: 'employee', permissions: ['load_packs'] };
+const returner = { username: 'e', role: 'employee', permissions: ['return_packs'] };
+const both = { username: 'e', role: 'employee', permissions: ['load_packs', 'return_packs'] };
+const run = (code) => vm.runInContext(code, Object.assign(ctx, { owner, emp, loader, returner, both }));
 const code = (fn) => { try { fn(); } catch (e) { return e.code; } return 'none'; };
 
 let r = run(`activatePack(emp, { box: 1, slot: 1, gameNumber: '1747', packNumber: '1263622', ticketNumber: 29 })`);
@@ -33,13 +37,23 @@ assert.equal(code(() => run(`activatePack(owner, { box: 1, slot: 2, gameNumber: 
 r = run(`activatePack(owner, { box: 1, slot: 2, gameNumber: '1111', packNumber: '0000001', ticketNumber: 59, gamePrice: 10, ticketsPerPack: 60 })`);
 assert.equal(r.packsInBack, 0); assert.equal(r.backWasEmpty, true);
 // replace slot 1: returned with top ticket 20 -> 9 sold today, 21 going back
-assert.equal(code(() => run(`activatePack(emp, { box: 1, slot: 1, gameNumber: '1747', packNumber: '1263623', ticketNumber: 29, oldPackEnd: 'returned', oldPackTicket: '' })`)), 'bad_ticket');
-r = run(`activatePack(emp, { box: 1, slot: 1, gameNumber: '1747', packNumber: '1263623', ticketNumber: 29, oldPackEnd: 'returned', oldPackTicket: 20 })`);
+// a return needs Return packs (Load packs alone isn't enough)
+assert.equal(code(() => run(`activatePack(loader, { box: 1, slot: 1, gameNumber: '1747', packNumber: '1263623', ticketNumber: 29, oldPackEnd: 'returned', oldPackTicket: 20 })`)), 'forbidden');
+assert.equal(code(() => run(`activatePack(both, { box: 1, slot: 1, gameNumber: '1747', packNumber: '1263623', ticketNumber: 29, oldPackEnd: 'returned', oldPackTicket: '' })`)), 'bad_ticket');
+r = run(`activatePack(both, { box: 1, slot: 1, gameNumber: '1747', packNumber: '1263623', ticketNumber: 29, oldPackEnd: 'returned', oldPackTicket: 20 })`);
 assert.deepEqual({ ...r.oldPack }, { packKey: '1747-1263622', reason: 'returned', ticketsSoldToday: 9, remainingReturned: 21 });
 assert.equal(r.packsInBack, 1);
 assert.equal(code(() => run(`activatePack(emp, { box: 1, slot: 2, gameNumber: '1747', packNumber: '1263622', ticketNumber: 29 })`)), 'pack_ended');
 // empty slot 2 as sold out
 assert.equal(code(() => run(`endPack(emp, { box: 1, slot: 2, reason: 'sold_out' })`)), 'forbidden'); // employees: only in Close Day
+assert.equal(code(() => run(`endPack(returner, { box: 1, slot: 2, reason: 'sold_out' })`)), 'forbidden'); // sold out needs Load packs
+assert.equal(code(() => run(`endPack(loader, { box: 1, slot: 2, reason: 'returned', ticketNumber: 10 })`)), 'forbidden'); // returned needs Return packs
+// Load packs: sold out, then put back (undo) — but not a pack someone returned
+r = run(`endPack(loader, { box: 1, slot: 2, reason: 'sold_out' })`);
+assert.equal(r.ticketsSoldToday, 60);
+assert.equal(code(() => run(`undoEndPack(emp, { box: 1, slot: 2 })`)), 'forbidden');
+assert.equal(code(() => run(`undoEndPack(returner, { box: 1, slot: 2 })`)), 'forbidden');
+run(`undoEndPack(loader, { box: 1, slot: 2 })`);
 r = run(`endPack(owner, { box: 1, slot: 2, reason: 'sold_out' })`);
 assert.equal(r.ticketsSoldToday, 60);
 slots = run('listSlots()'); assert.equal(slots[1].pack, null); assert.equal(slots[0].pack.packNumber, '1263623');
@@ -89,21 +103,21 @@ assert.equal(run('listSlots()').find((x) => x.box === 2 && x.slot === 6).lastGam
   row[lg] = '2222'; }
 assert.deepEqual({ ...ls.endedToday }, { packKey: '2222-5555556', reason: 'sold_out' });
 const logRows = S.DailyCloseLog.rows.length, histRows = S.PackHistory.rows.length;
-r = run(`undoEndPack({ box: 3, slot: 1 })`);
+r = run(`undoEndPack(owner, { box: 3, slot: 1 })`);
 assert.equal(r.exposedTicket, 49);
 assert.equal(S.DailyCloseLog.rows.length, logRows - 1); assert.equal(S.PackHistory.rows.length, histRows - 1);
 ls = run('listSlots()').find((x) => x.box === 3);
 assert.equal(ls.pack.packNumber, '5555556'); assert.equal(ls.pack.remaining, 50); assert.equal(ls.endedToday, null);
-assert.equal(code(() => run(`undoEndPack({ box: 3, slot: 1 })`)), 'slot_occupied');
+assert.equal(code(() => run(`undoEndPack(owner, { box: 3, slot: 1 })`)), 'slot_occupied');
 // returned then replaced: must undo activation first
 r = run(`activatePack(owner, { box: 3, slot: 1, gameNumber: '2222', packNumber: '5555557', ticketNumber: 49, oldPackEnd: 'returned', oldPackTicket: 40 })`);
-assert.equal(code(() => run(`undoEndPack({ box: 3, slot: 1 })`)), 'slot_occupied');
+assert.equal(code(() => run(`undoEndPack(owner, { box: 3, slot: 1 })`)), 'slot_occupied');
 run(`undoActivation(owner, { box: 3, slot: 1 })`);
-r = run(`undoEndPack({ box: 3, slot: 1 })`); assert.equal(r.reason, 'returned'); assert.equal(r.exposedTicket, 49);
-assert.equal(code(() => run(`undoEndPack({ box: 2, slot: 6 })`)), 'nothing_to_undo');
+r = run(`undoEndPack(owner, { box: 3, slot: 1 })`); assert.equal(r.reason, 'returned'); assert.equal(r.exposedTicket, 49);
+assert.equal(code(() => run(`undoEndPack(owner, { box: 2, slot: 6 })`)), 'nothing_to_undo');
 S.DailySummary.rows.push(['2026-09-24']);
 run(`endPack(owner, { box: 3, slot: 1, reason: 'sold_out' })`); // after today's close: counts toward tomorrow
-assert.equal(code(() => run(`undoEndPack({ box: 3, slot: 1 })`)), 'none');
+assert.equal(code(() => run(`undoEndPack(owner, { box: 3, slot: 1 })`)), 'none');
 // swap: box 2 slot 10 (2222 pack, $10) <-> box 2 slot 6 (empty, $30)
 const at = (b, n) => run('listSlots()').find((x) => x.box === b && x.slot === n);
 const before10 = at(2, 10);
@@ -167,11 +181,11 @@ let s0 = st.slots.find((x) => x.box === live[0].box && x.slot === live[0].slot);
 assert.equal(s0.pack.exposedTicket, live[0].pack.exposedTicket - 5); assert.equal(s0.pack.lastCloseDate, '2026-09-24');
 assert.equal(code(() => run(`undoActivation(owner, { box: ${live[0].box}, slot: ${live[0].slot} })`)), 'already_closed');
 // can't undo the sold out done in the close
-assert.equal(code(() => run(`undoEndPack({ box: ${live[1].box}, slot: ${live[1].slot} })`)), 'already_closed');
+assert.equal(code(() => run(`undoEndPack(owner, { box: ${live[1].box}, slot: ${live[1].slot} })`)), 'already_closed');
 // sold out after close goes to tomorrow, and can be undone
 r = run(`endPack(owner, { box: ${live[0].box}, slot: ${live[0].slot}, reason: 'sold_out' })`);
 assert.equal(S.DailyCloseLog.rows[S.DailyCloseLog.rows.length - 1][0], '2026-09-25');
-run(`undoEndPack({ box: ${live[0].box}, slot: ${live[0].slot} })`);
+run(`undoEndPack(owner, { box: ${live[0].box}, slot: ${live[0].slot} })`);
 // reopen restores tickets; swap after close is followed by pack
 const other = st.slots.find((x) => !x.pack && !(x.box === live[1].box && x.slot === live[1].slot));
 run(`swapSlots({ box: ${live[0].box}, slot: ${live[0].slot}, toBox: ${other.box}, toSlot: ${other.slot} })`);
@@ -346,7 +360,7 @@ console.log('game ended scenarios pass');
   const saved = globalThis.TODAY; globalThis.TODAY = '2026-10-20';
   S.ReserveInventory.rows.push(['3333', 20, 30, 2, 60]);
   const back = () => run('findReserve("3333")');
-  assert.equal(run('SIGNED_IN_ACTIONS.sellFullPack.owner'), true); assert.equal(run('SIGNED_IN_ACTIONS.undoFullPackSale.owner'), true);
+  assert.deepEqual([...run('SIGNED_IN_ACTIONS.sellFullPack.allow')], ['full_pack_sale']); assert.equal(run('SIGNED_IN_ACTIONS.undoFullPackSale.owner'), true);
   assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '3333' })`)), 'bad_request');          // pack number needed
   assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '9898', packNumber: '1' })`)), 'unknown_game');
   r = run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000001' })`);
@@ -487,6 +501,60 @@ console.log('game ended scenarios pass');
   assert.equal(r.ticketsSold, 5);
   globalThis.TODAY = saved; delete globalThis.CLOCK;
   console.log('shift close scenarios pass');
+}
+// ---- Employee permissions (owner's toggles on Manage employees, 2026-10-08) ----
+{
+  // The router: allow lets in the owner or an employee with one of the listed permissions.
+  const users = { o: owner, e: emp, ship: { username: 'ship', role: 'employee', permissions: ['receive_shipments'] },
+    count: { username: 'count', role: 'employee', permissions: ['count_stock'] },
+    sell: { username: 'sell', role: 'employee', permissions: ['full_pack_sale'] } };
+  Object.assign(ctx, { users, ContentService: { MimeType: {}, createTextOutput: (t) => ({ setMimeType() { return JSON.parse(t); } }) } });
+  vm.runInContext(`requireSession = (token, role) => { const u = users[token]; if (role === 'owner' && u.role !== 'owner') throw new ApiError('forbidden', 'Only the owner can do that.'); return u; };
+    currentMonthMemo = null; openedMonth = null;`, ctx);
+  const post = (token, action, params = {}) => run(`doPost({ postData: { contents: ${JSON.stringify(JSON.stringify({ action, token, ...params }))} } })`);
+  const errorOf = (res) => (res.ok ? 'ok' : res.code);
+  assert.equal(errorOf(post('e', 'listBackStock')), 'forbidden');
+  assert.equal(errorOf(post('e', 'activatePack', { box: 1, slot: 2 })), 'forbidden');
+  assert.equal(errorOf(post('ship', 'removeBackStock', { gameNumber: '1747', packs: 1, reason: 'other' })), 'forbidden'); // owner only
+  assert.equal(errorOf(post('ship', 'setUserPermissions', { username: 'e', permissions: [] })), 'forbidden');
+  // Employees get back stock without $; the owner with.
+  let res = post('ship', 'listBackStock');
+  assert.equal(res.ok, true); assert.ok(res.data.length > 0);
+  assert.ok(res.data.every((g) => !('valueInBack' in g) && 'packsInBack' in g));
+  assert.ok(post('o', 'listBackStock').data.every((g) => 'valueInBack' in g));
+  // Receive shipments can't count, and Manage Stock can't receive.
+  const line = [{ gameNumber: '1747', packs: 1 }];
+  assert.equal(errorOf(post('ship', 'saveBackStock', { mode: 'count', lines: line })), 'forbidden');
+  assert.equal(errorOf(post('count', 'saveBackStock', { mode: 'shipment', lines: line })), 'forbidden');
+  const before = run('packsInBack(findReserve("1747"))');
+  res = post('ship', 'saveBackStock', { mode: 'shipment', lines: line });
+  assert.equal(res.ok, true); assert.equal(res.data.results[0].after, before + 1);
+  assert.ok(res.data.backStock.every((g) => !('valueInBack' in g)));
+  assert.equal(S.Shipments.rows.at(-1)[S.Shipments.rows[0].indexOf('performed_by')], 'ship');
+  // A new game: an employee with Receive shipments enters its price, like the owner.
+  res = post('ship', 'saveBackStock', { mode: 'shipment', lines: [{ gameNumber: '4242', packs: 2, gamePrice: 5 }] });
+  assert.equal(res.ok, true); assert.equal(run('findReserve("4242")').tickets_per_pack, 80);
+  res = post('count', 'saveBackStock', { mode: 'count', lines: [{ gameNumber: '1747', packs: before }] });
+  assert.equal(res.ok, true); assert.equal(res.data.results[0].after, before);
+  // Full pack sale: no $ in the answer for an employee.
+  assert.equal(errorOf(post('ship', 'sellFullPack', { gameNumber: '4242', packNumber: '0000001' })), 'forbidden');
+  res = post('sell', 'sellFullPack', { gameNumber: '4242', packNumber: '0000001' });
+  assert.equal(res.ok, true); assert.equal(res.data.dollars, undefined); assert.equal(res.data.after, 1);
+  assert.ok(res.data.backStock.every((g) => !('valueInBack' in g)));
+  // Load packs lets an employee put in a new game and change the slot price, like the owner.
+  const free = run('listSlots()').find((x) => !x.pack);
+  assert.equal(code(() => run(`activatePack(loader, { box: ${free.box}, slot: ${free.slot}, gameNumber: '5151', packNumber: '0000001', ticketNumber: 29 })`)), 'unknown_game');
+  assert.equal(code(() => run(`activatePack(loader, { box: ${free.box}, slot: ${free.slot}, gameNumber: '5151', packNumber: '0000001', ticketNumber: 29, gamePrice: ${free.slotPrice === 30 ? 20 : 30} })`)), 'price_mismatch');
+  r = run(`activatePack(loader, { box: ${free.box}, slot: ${free.slot}, gameNumber: '5151', packNumber: '0000001', ticketNumber: 29, overridePrice: true })`);
+  assert.equal(r.packKey, '5151-0000001');
+  run(`undoActivation(loader, { box: ${free.box}, slot: ${free.slot} })`);
+  assert.equal(run('listSlots()').find((x) => x.box === free.box && x.slot === free.slot).slotPrice, free.slotPrice);
+  // An employee without Load packs still can't add a new game or change a slot's price.
+  assert.equal(code(() => run(`activatePack(emp, { box: ${free.box}, slot: ${free.slot}, gameNumber: '6161', packNumber: '0000001', ticketNumber: 29, gamePrice: 30 })`)), 'unknown_game');
+  // Permissions saved in Users as a comma list; old rows (no column) have none.
+  assert.deepEqual([...run(`permissionsOf({ permissions: 'load_packs, count_stock,bogus' })`)], ['load_packs', 'count_stock']);
+  assert.deepEqual([...run('permissionsOf({})')], []);
+  console.log('employee permission scenarios pass');
 }
 console.log('back stock scenarios pass');
 console.log('all slot, close and pack-size scenarios pass');

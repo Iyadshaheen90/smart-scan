@@ -1,4 +1,5 @@
-// Back stock (the packs in the back, not yet in a slot) — owner only.
+// Back stock (the packs in the back, not yet in a slot) — owner only, except what the owner turned on for an
+// employee: Receive shipments, Manage Stock count, Full pack sale (see PERMISSIONS in Auth.js; no $ for them).
 // The owner scans one ticket per game and types how many packs, instead of scanning every pack.
 //
 // - Shipment received: adds packs, and logs each game in Shipments.
@@ -43,6 +44,8 @@ function listBackStock() {
 // only for a game not set up yet.
 function saveBackStock(user, mode, lines, notes) {
   if (!['shipment', 'count'].includes(mode)) throw new ApiError('bad_request', 'Unknown back stock action.');
+  if (mode === 'shipment') requirePermission(user, 'receive_shipments', 'The owner hasn\'t turned on receiving shipments for you.');
+  else requirePermission(user, 'count_stock', 'The owner hasn\'t turned on Manage Stock for you.');
   if (!Array.isArray(lines) || lines.length === 0) throw new ApiError('bad_request', 'Scan at least one game.');
   return withLock(() => {
     // Check every line before writing anything.

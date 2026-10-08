@@ -123,18 +123,32 @@ function sendPendingClose() {
   return sendingClose;
 }
 
-// Sends the user to the sign-in page unless signed in (and, with 'owner', the owner).
+// Sends the user to the sign-in page unless signed in (and, with 'owner', the owner). A list of
+// permissions instead lets in the owner or an employee the owner gave one of them to.
 function requireLogin(role) {
   const session = getSession();
   if (!session) {
     location.replace('login.html');
     return null;
   }
-  if (role === 'owner' && session.role !== 'owner') {
+  const allowed = Array.isArray(role) ? role.some((p) => can(session, p)) : role !== 'owner' || session.role === 'owner';
+  if (!allowed) {
     location.replace('index.html');
     return null;
   }
   return session;
+}
+
+// What the owner turned on for an employee on Manage employees (the owner can do it all): load_packs,
+// return_packs, receive_shipments, count_stock, full_pack_sale. The server checks it again on every request.
+function can(session, permission) {
+  return Boolean(session) && (session.role === 'owner' || (session.permissions || []).includes(permission));
+}
+
+// The employee home learns the current permissions on each load (the owner may have changed them).
+function updateSessionPermissions(permissions) {
+  const session = getSession();
+  if (session && Array.isArray(permissions)) saveSession({ ...session, permissions });
 }
 
 async function signOut() {

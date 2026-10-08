@@ -9,19 +9,21 @@ const PUBLIC_ACTIONS = {
   claimOwner: (req) => claimOwner(req.setupCode, req.username, req.password),
 };
 
-// Actions that need a signed-in user; `owner: true` also requires the owner role.
+// Actions that need a signed-in user; `owner: true` also requires the owner role, and `allow: [...]`
+// the owner or an employee with one of those permissions (each action checks the exact one it needs).
 const SIGNED_IN_ACTIONS = {
   me: { run: (req, user) => user },
   changePassword: { run: (req, user) => changeOwnPassword(user, req.currentPassword, req.newPassword) },
   listUsers: { owner: true, run: () => listUsers() },
   createUser: { owner: true, run: (req) => createUser(req.username, req.password, req.role) },
   setUserActive: { owner: true, run: (req, user) => setUserActive(user, req.username, req.active) },
+  setUserPermissions: { owner: true, run: (req) => setUserPermissions(req.username, req.permissions) },
   resetPassword: { owner: true, run: (req) => resetPassword(req.username, req.newPassword) },
   listSlots: { run: () => listSlots() },
-  activatePack: { owner: true, run: (req, user) => activatePack(user, req) },
-  endPack: { owner: true, run: (req, user) => endPack(user, req) },
-  undoActivation: { owner: true, run: (req, user) => undoActivation(user, req) },
-  undoEndPack: { owner: true, run: (req) => undoEndPack(req) },
+  activatePack: { allow: ['load_packs'], run: (req, user) => activatePack(user, req) },
+  endPack: { allow: ['load_packs', 'return_packs'], run: (req, user) => endPack(user, req) },
+  undoActivation: { allow: ['load_packs'], run: (req, user) => undoActivation(user, req) },
+  undoEndPack: { allow: ['load_packs', 'return_packs'], run: (req, user) => undoEndPack(user, req) },
   swapSlots: { owner: true, run: (req) => swapSlots(req) },
   closeStatus: { run: (req, user) => closeStatus(user) },
   ownerHome: { owner: true, run: (req, user) => ownerHome(user) },
@@ -32,11 +34,11 @@ const SIGNED_IN_ACTIONS = {
   listShiftCloses: { owner: true, run: (req, user) => listShiftCloses(user) },
   deleteShiftClose: { owner: true, run: (req, user) => deleteShiftClose(user, req) },
   setPackSize: { owner: true, run: (req) => setPackSize(req) },
-  listBackStock: { owner: true, run: () => listBackStock() },
-  saveBackStock: { owner: true, run: (req, user) => saveBackStock(user, req.mode, req.lines, req.notes) },
+  listBackStock: { allow: ['receive_shipments', 'count_stock', 'full_pack_sale'], run: (req, user) => withoutDollars(user, listBackStock()) },
+  saveBackStock: { allow: ['receive_shipments', 'count_stock'], run: (req, user) => withoutDollars(user, saveBackStock(user, req.mode, req.lines, req.notes)) },
   removeBackStock: { owner: true, run: (req, user) => removeBackStock(user, req) },
   adjustBackStock: { owner: true, run: (req, user) => adjustBackStock(user, req) },
-  sellFullPack: { owner: true, run: (req, user) => sellFullPack(user, req) },
+  sellFullPack: { allow: ['full_pack_sale'], run: (req, user) => withoutDollars(user, sellFullPack(user, req)) },
   undoFullPackSale: { owner: true, run: (req) => undoFullPackSale(req) },
   listFullPackSales: { owner: true, run: () => listFullPackSales() },
   endGame: { owner: true, run: (req) => endGame(req.gameNumber) },
@@ -67,6 +69,9 @@ function doPost(e) {
     const action = SIGNED_IN_ACTIONS[req.action];
     if (!action) throw new ApiError('unknown_action', `Unknown action "${req.action}".`);
     const user = requireSession(req.token, action.owner ? 'owner' : undefined);
+    if (action.allow && !action.allow.some((p) => can(user, p))) {
+      throw new ApiError('forbidden', 'The owner hasn\'t turned this on for you.');
+    }
     return json({ ok: true, data: action.run(req, user) });
   } catch (err) {
     if (err instanceof ApiError) return json({ ok: false, code: err.code, error: err.message });
@@ -84,6 +89,16 @@ function doGet() {
   } catch (err) {
     return json({ ok: false, error: String(err) });
   }
+}
+
+// Employees never see dollar amounts: drops back stock value and a full pack's sale price from an answer.
+function withoutDollars(user, data) {
+  if (user.role === 'owner') return data;
+  const strip = (g) => { const { valueInBack, ...rest } = g; return rest; };
+  if (Array.isArray(data)) return data.map(strip);
+  const { dollars, ...rest } = data;
+  if (rest.backStock) rest.backStock = rest.backStock.map(strip);
+  return rest;
 }
 
 function json(body) {

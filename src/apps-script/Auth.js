@@ -81,7 +81,7 @@ function startSession(user) {
   const sessions = monthSheet('Sessions');
   deleteRowsWhere(sessions, (s) => new Date(s.expires_at) < now);
   appendObject(sessions, { token: hashToken(token), username: user.username, issued_at: now, expires_at: expires });
-  return { token, username: user.username, role: user.role, expiresAt: expires.toISOString() };
+  return { token, username: user.username, role: user.role, permissions: permissionsOf(user), expiresAt: expires.toISOString() };
 }
 
 function login(username, password) {
@@ -109,7 +109,7 @@ function logout(token) {
   return {};
 }
 
-// Returns { username, role } for a valid session, or throws. Pass 'owner' to require the owner.
+// Returns { username, role, permissions } for a valid session, or throws. Pass 'owner' to require the owner.
 function requireSession(token, requiredRole) {
   if (!token) throw new ApiError('unauthorized', 'Please sign in.');
   const hash = hashToken(token);
@@ -124,7 +124,7 @@ function requireSession(token, requiredRole) {
   if (requiredRole === 'owner' && user.role !== 'owner') {
     throw new ApiError('forbidden', 'Only the owner can do that.');
   }
-  return { username: user.username, role: user.role };
+  return { username: user.username, role: user.role, permissions: permissionsOf(user) };
 }
 
 function endSessionsFor(username) {

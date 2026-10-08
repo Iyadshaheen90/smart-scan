@@ -23,6 +23,7 @@
       <div>This slot still has pack <strong class="mono" id="oldKey"></strong></div>
       <div class="slot-detail" id="oldDetail"></div>
     </div>
+    <!-- Sold out needs Load packs, Returned needs Return packs (an employee gets the ones the owner turned on). -->
     <div class="owner-only hidden">
       <p class="sub" style="margin-top: 12px;">What happened to it?</p>
       <div class="choices">
@@ -33,10 +34,10 @@
     </div>
   </div>
 
-  <!-- Owner: an empty slot whose pack was ended today can have that undone. -->
+  <!-- An empty slot whose pack was ended today can have that undone (owner, or the permission that ended it). -->
   <button type="button" class="hidden" id="undoEndBtn"></button>
 
-  <!-- Owner, after the old pack is ended: replace it now, or leave the slot out of stock. -->
+  <!-- After the old pack is ended: replace it now (needs Load packs), or leave the slot out of stock. -->
   <div id="nextStep" class="hidden">
     <p class="sub" style="margin-top: 12px;" id="nextPrompt"></p>
     <button type="button" class="primary" id="replaceBtn">Scan a replacement pack</button>
@@ -77,7 +78,7 @@
     <button type="button" id="rescanBtn">Scan a different ticket</button>
   </div>
 
-  <!-- Owner, after tapping Sold out or Returned: back out before anything is saved. -->
+  <!-- After tapping Sold out or Returned: back out before anything is saved. -->
   <button type="button" class="cancel hidden" id="cancelEndBtn">Cancel</button>
 
   <div id="message" class="message"></div>
@@ -124,7 +125,8 @@
   <script type="module">
     import { startScanner, afterLift } from './scanner.js';
 
-    const session = requireLogin('owner');
+    // The owner, or an employee the owner gave Load packs or Return packs to (Manage employees).
+    const session = requireLogin(['load_packs', 'return_packs']);
     const params = new URLSearchParams(location.search);
     const box = Number(params.get('box'));
     const slotNumber = Number(params.get('slot'));
@@ -137,7 +139,7 @@
     let oldTop = null;      // the returned pack's top ticket
     let newTicket = null;
     let overridePrice = false;
-    let replacing = false;  // owner chose to put a new pack in after ending the old one
+    let replacing = false;  // chose to put a new pack in after ending the old one
     let finished = false;
     let scannerStarted = false;
 
@@ -150,6 +152,8 @@
     $('doneBtn').textContent = `Back to ${backTo.label.toLowerCase()}`;
     $('title').textContent = `Box ${box} · Slot ${slotNumber}`;
     const isOwner = session && session.role === 'owner';
+    const canLoad = can(session, 'load_packs');
+    const canReturn = can(session, 'return_packs');
     if (session) {
       document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
     }
@@ -158,7 +162,8 @@
     function show(id, visible) { $(id).classList.toggle('hidden', !visible); }
     const waitingForOldTop = () => oldEnd === 'returned' && oldTop === null;
     // "30 sold today ($150)": what ending the pack will count as today's sales (same math as endPack).
-    const soldText = (tickets, price) => `${tickets} sold today ($${(tickets * price).toLocaleString()})`;
+    // Employees never see dollars, so theirs is just "30 sold today".
+    const soldText = (tickets, price) => `${tickets} sold today` + (isOwner ? ` ($${(tickets * price).toLocaleString()})` : '');
 
     function render() {
       const pack = slot.pack;
@@ -186,29 +191,38 @@
       }
 
       show('oldStep', pack && !oldEnd);
-      show('undoBtn', pack && !pack.lastCloseDate);
+      show('soldOutBtn', canLoad);
+      show('returnedBtn', canReturn);
+      show('undoBtn', canLoad && pack && !pack.lastCloseDate);
       if (pack) {
         $('oldKey').textContent = `${pack.gameNumber}-${pack.packNumber}`;
         $('oldDetail').textContent = `Top ticket ${pad3(pack.exposedTicket)} · activated ${pack.activationDate || '—'}`;
       }
 
-      const canUndoEnd = isOwner && !pack && slot.endedToday && !newTicket;
+      const canUndoEnd = !pack && slot.endedToday && !newTicket
+        && (slot.endedToday.reason === 'sold_out' ? canLoad : canReturn);
       show('undoEndBtn', canUndoEnd);
       if (canUndoEnd) {
         const how = slot.endedToday.reason === 'sold_out' ? 'sold out' : 'returned';
         $('undoEndBtn').textContent = `Mistake? Put back pack ${slot.endedToday.packKey} (marked ${how} today)`;
       }
       const oldPackDealtWith = pack && oldEnd && !waitingForOldTop();
-      show('nextStep', isOwner && oldPackDealtWith && !replacing);
+      show('nextStep', oldPackDealtWith && !replacing);
+      // Without Load packs (Return packs only) the slot can only be left out of stock.
+      show('replaceBtn', canLoad);
       if (oldPackDealtWith) {
+        const ask = canLoad ? ' Put a new pack in now?' : '';
         $('nextPrompt').textContent = oldEnd === 'sold_out'
-          ? `Pack ${pack.gameNumber}-${pack.packNumber} sold out: ${soldText(pack.remaining, pack.price)}. Put a new pack in now?`
+          ? `Pack ${pack.gameNumber}-${pack.packNumber} sold out: ${soldText(pack.remaining, pack.price)}.${ask}`
           : `Pack ${pack.gameNumber}-${pack.packNumber} returned with top ticket ${pad3(oldTop)}: `
-            + `${soldText(pack.exposedTicket - oldTop, pack.price)}, ${oldTop + 1} going back. Put a new pack in now?`;
+            + `${soldText(pack.exposedTicket - oldTop, pack.price)}, ${oldTop + 1} going back.${ask}`;
       }
-      show('cancelEndBtn', isOwner && Boolean(pack) && Boolean(oldEnd));
+      show('cancelEndBtn', Boolean(pack) && Boolean(oldEnd));
 
-      const scanning = isOwner && !newTicket && (!pack || waitingForOldTop() || replacing);
+      const scanning = !newTicket && (waitingForOldTop() || (canLoad && (!pack || replacing)));
+      if (!pack && !canLoad && !canUndoEnd) {
+        showMessage(messageEl, "The owner hasn't turned on loading packs for you, so this slot stays out of stock.");
+      }
       show('scanStep', scanning);
       if (scanning) {
         if (waitingForOldTop()) {
@@ -464,10 +478,10 @@
         showMessage(messageEl, lines.join(' '), 'ok');
         await loadSlots();
       } catch (err) {
-        if (err.code === 'unknown_game' && isOwner) {
+        if (err.code === 'unknown_game' && canLoad) {
           show('newGame', true);
           showMessage(messageEl, err.message);
-        } else if (err.code === 'price_mismatch' && isOwner && !overridePrice) {
+        } else if (err.code === 'price_mismatch' && canLoad && !overridePrice) {
           if (confirm(err.message)) {
             overridePrice = true;
             activate();

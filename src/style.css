@@ -338,3 +338,15 @@ a.banner { display: block; color: inherit; text-decoration: none; }
 .legend { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; font-size: 14px; color: var(--muted); }
 .legend .chip { margin-right: 6px; }
 .settle-card .stat-value { font-size: 18px; }
+
+/* Manage employees: a permission the owner turns on or off for one employee (users.html). */
+.perm-row { display: flex; align-items: center; gap: 12px; margin: 0; padding: 10px 0; border-top: 1px solid var(--border); color: var(--text); font-weight: 400; cursor: pointer; }
+.perm-row .grow { flex: 1; min-width: 0; }
+.perm-row strong { display: block; font-size: 15px; }
+.perm-row .slot-detail { margin-top: 2px; }
+input.toggle { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 51px; height: 31px; margin: 0; padding: 0;
+  border-radius: 999px; border: none; background: #3a4040; transition: background 0.15s; cursor: pointer; }
+input.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+input.toggle:checked { background: var(--accent); }
+input.toggle:checked::after { transform: translateX(20px); }
+input.toggle:disabled { opacity: 0.5; }

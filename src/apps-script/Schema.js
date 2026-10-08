@@ -6,7 +6,7 @@ const CONTROL_TABS = {
 };
 
 const MONTHLY_TABS = {
-  Users: ['username', 'password_hash', 'salt', 'role', 'active', 'created_date'],
+  Users: ['username', 'password_hash', 'salt', 'role', 'active', 'created_date', 'permissions'],
   Sessions: ['token', 'username', 'issued_at', 'expires_at'],
   SlotConfig: ['box', 'slot_number', 'price_per_ticket'],
   SlotState: [

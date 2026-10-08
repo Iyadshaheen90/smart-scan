@@ -15,7 +15,7 @@
 </head>
 <body>
   <header class="app-header" data-title="Employees"></header>
-  <p class="sub">Employees can close the day (marking packs sold out as they go) and view the slots. They can't put new packs in, return packs, see dollar totals, manage back stock, or change slot prices.</p>
+  <p class="sub">Employees can close the day (marking packs sold out as they go) and view the slots. Anything more is off until you turn it on for that employee below (for example while you're away), and they never see dollar amounts.</p>
 
   <div id="list">Loading…</div>
   <div id="listMessage" class="message"></div>
@@ -44,7 +44,75 @@
     const addForm = document.getElementById('addForm');
     const addMessage = document.getElementById('addMessage');
 
+    // The permissions the owner can turn on per employee (same names as PERMISSIONS on the server).
+    const PERMISSIONS = [
+      { key: 'load_packs', name: 'Load packs', what: 'Mark a pack sold out and put a new pack in a slot, including a new game or a slot price change to fit it. Can undo a wrong slot and put back a pack marked sold out by mistake.' },
+      { key: 'return_packs', name: 'Return packs', what: 'Mark a pack returned (scan its top ticket).' },
+      { key: 'receive_shipments', name: 'Receive shipments', what: 'Scan in a delivery on Back stock. Only the shipment scanner, not the back stock list.' },
+      { key: 'count_stock', name: 'Manage Stock', what: 'Count the back and set how many packs are there.' },
+      { key: 'full_pack_sale', name: 'Full pack sale', what: 'Sell a sealed pack from the back.' },
+    ];
+
+    // Each switch saves at once; the list comes back from the server, so the screen shows what's saved.
+    function permissionsBox(user) {
+      const box = document.createElement('div');
+      box.style.marginTop = '12px';
+      const on = new Set(user.permissions || []);
+      const switches = [];
+      const save = async (changed, wanted) => {
+        listMessage.className = 'message';
+        switches.forEach((s) => { s.disabled = true; });
+        try {
+          const users = await api('setUserPermissions', { username: user.username, permissions: wanted });
+          render(users);
+          showMessage(listMessage, `${user.username}: ${changed}. It applies the next time their app loads a page.`, 'ok');
+        } catch (err) {
+          render(lastUsers);
+          showMessage(listMessage, err.message);
+        }
+      };
+      for (const p of PERMISSIONS) {
+        const row = document.createElement('label');
+        row.className = 'perm-row';
+        const text = document.createElement('span');
+        text.className = 'grow';
+        const name = document.createElement('strong');
+        name.textContent = p.name;
+        const what = document.createElement('span');
+        what.className = 'slot-detail';
+        what.textContent = p.what;
+        text.append(name, what);
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.className = 'toggle';
+        input.checked = on.has(p.key);
+        input.disabled = !user.active;
+        input.setAttribute('aria-label', `${p.name} for ${user.username}`);
+        input.addEventListener('change', () => {
+          const wanted = PERMISSIONS.map((x) => x.key).filter((k) => (k === p.key ? input.checked : on.has(k)));
+          save(`${p.name} turned ${input.checked ? 'on' : 'off'}`, wanted);
+        });
+        switches.push(input);
+        row.append(text, input);
+        box.append(row);
+      }
+      // Turn everything on (e.g. before travelling) or off again in one tap.
+      const allOn = on.size === PERMISSIONS.length;
+      const all = document.createElement('button');
+      all.type = 'button';
+      all.className = 'small perm-all';
+      all.textContent = allOn ? 'Turn all off' : 'Turn all on';
+      all.disabled = !user.active;
+      all.addEventListener('click', () => save(allOn ? 'everything turned off' : 'everything turned on',
+        allOn ? [] : PERMISSIONS.map((x) => x.key)));
+      switches.push(all);
+      box.append(all);
+      return box;
+    }
+
+    let lastUsers = [];
     function render(users) {
+      lastUsers = users;
       listEl.innerHTML = '';
       for (const user of users) {
         const card = document.createElement('div');
@@ -78,6 +146,7 @@
             }),
           );
           card.append(actions);
+          if (user.role !== 'owner') card.append(permissionsBox(user));
         }
         listEl.append(card);
       }

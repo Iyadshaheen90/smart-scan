@@ -23,13 +23,25 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 
 ## Business rules
 
-**Roles** (enforced server-side with `owner: true` in `WebApp.js`, and hidden in the UI)
-- Employees: Close Day (where they mark packs **Sold out**) and a view-only Slots page. Nothing else — `endPack`
-  outside Close Day is owner-only (owner's choice 2026-09-25: one place to mark sold out, fewer mis-taps).
+**Roles** (enforced server-side with `owner: true` / `allow: [...]` in `WebApp.js`, and hidden in the UI)
+- Employees: Close Day (where they mark packs **Sold out**) and a view-only Slots page. Nothing else unless the owner
+  turns on a permission for them (below) — by default `endPack` outside Close Day is owner-only (owner's choice
+  2026-09-25: one place to mark sold out, fewer mis-taps).
 - Owner: activate packs, returns, all undos, slot prices, pack sizes, move/swap, back stock (including its
   **Find a game** search and **Game ended**; owner's choice 2026-09-26: no employee version), reopen a close,
   months, employees, the Settling list.
 - Employees never see dollar totals (`summaryFor` strips them).
+- **Employee permissions** (owner's request 2026-10-08, e.g. while travelling): on Manage employees the owner turns on,
+  per employee, any of `PERMISSIONS` (`Permissions.js`): **load_packs** (slot page: Sold out + put a pack in, incl. a new
+  game's price and changing the slot price to fit; undo a wrong slot; put back a pack marked *sold out* today),
+  **return_packs** (Returned, and putting back a returned pack), **receive_shipments** (Back stock shipment mode only),
+  **count_stock** (Manage Stock), **full_pack_sale** (sell only; Undo stays the owner's). Saved as a comma list in
+  `Users.permissions` (column added on first save, `ensureHeaders`); `setUserPermissions` (owner). The router's
+  `allow: [...]` lets in the owner or an employee with one of them; each function checks the exact one (`can`,
+  `requirePermission`, `requireEndPermission`). Never $ for employees: `withoutDollars` strips `valueInBack`/`dollars`;
+  pages hide Find a game, the back stock list and $ amounts. Search, Manage packs, Game ended, slot price/pack size/swap,
+  reports stay owner-only. The session carries `permissions` (login); `closeStatus.permissions` refreshes it on the
+  employee home, which shows an "Also allowed" link per permission. Slots cards are tappable with load/return.
 
 **Inventory**
 - Back stock = `ReserveInventory` (packs in the back). Live = packs in slots (`SlotState`).
@@ -243,7 +255,8 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   `shiftHomeSummary` (for `ownerHome.shifts`), `shiftStarts`, `endedInShift`, `nowStamp` (also used for `logged_at`).
   `closeStatus` also returns `myShiftToday` (an employee's own shift close today).
 - `FullPacks.js` `sellFullPack`, `undoFullPackSale`, `listFullPackSales`, `fullPackTotals` (also used by `monthSummary`). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
-- `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management
+- `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management (`setUserPermissions`)
+- `Permissions.js` `PERMISSIONS`, `permissionsOf`, `can`, `requirePermission` (employee permissions; loaded by the tests)
 - `Slots.js` `listSlots`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
   `swapSlots`, `setSlotPrice`, `setPackSize`, `addGameToReserve`, `dateLabel`
 - `Close.js` `closeStatus`, `submitClose(user, entries, closeId, date)` (validates everything before writing),
@@ -257,7 +270,7 @@ errors are `ApiError(code, message)` with a message the person at the counter ca
 New columns go at the **end** of a tab. Existing month sheets don't have them yet: call `ensureHeaders` before
 writing one, and read them defensively (a missing column reads as `undefined`, and `dateLabel(undefined)` is the
 string "undefined", so check the value first). `SlotState.remaining_count` is a formula column that must not move.
-Recent columns: `DailyCloseLog.logged_at`, `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
+Recent columns: `Users.permissions`, `DailyCloseLog.logged_at`, `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
 `SlotState.last_game_number`.
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
@@ -294,6 +307,7 @@ node test/browser/settling.js             # Settling: 50+ day packs, order, colo
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
 node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-today numbers before saving, Cancel from every step, nothing saved
+node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"

@@ -18,10 +18,13 @@
   <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
   <div id="loadMessage" class="message"></div>
 
-  <label for="search">Find a game</label>
-  <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Game number, e.g. 1747">
-  <div id="searchResults"></div>
-  <div id="searchMessage" class="message" style="margin-bottom: 14px;"></div>
+  <!-- Owner only (owner's choice 2026-09-26), like the list of what's in the back below. -->
+  <div id="searchSection" class="hidden">
+    <label for="search">Find a game</label>
+    <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Game number, e.g. 1747">
+    <div id="searchResults"></div>
+    <div id="searchMessage" class="message" style="margin-bottom: 14px;"></div>
+  </div>
 
   <div class="segmented" id="modeSwitch">
     <button type="button" data-mode="shipment">Shipment received</button>
@@ -51,9 +54,11 @@
   </div>
   <div id="saveMessage" class="message"></div>
 
-  <h2>In the back now</h2>
-  <p class="sub saved-dim" id="totals"></p>
-  <div id="stock" class="saved-dim saved-lock">Loading…</div>
+  <div id="stockSection" class="hidden">
+    <h2>In the back now</h2>
+    <p class="sub saved-dim" id="totals"></p>
+    <div id="stock" class="saved-dim saved-lock">Loading…</div>
+  </div>
   <div id="stockMessage" class="message"></div>
 
   <!-- Games CA Lottery has stopped, hidden from the list above. -->
@@ -153,7 +158,12 @@
     // Scan one ticket from each game, type how many packs, and save the whole list at once.
     // The list is kept on this phone until saved.
 
-    const session = requireLogin('owner');
+    // The owner, or an employee the owner gave Receive shipments, Manage Stock or Full pack sale to. An employee
+    // gets only those modes, with no Find a game, no list of what's in the back and no dollar amounts.
+    const MODE_PERMISSIONS = { shipment: 'receive_shipments', count: 'count_stock', fullpack: 'full_pack_sale' };
+    const session = requireLogin(Object.values(MODE_PERMISSIONS));
+    const isOwner = Boolean(session) && session.role === 'owner';
+    const modes = Object.keys(MODE_PERMISSIONS).filter((m) => can(session, MODE_PERMISSIONS[m]));
     const $ = (id) => document.getElementById(id);
     const money = (n) => `$${Number(n).toLocaleString()}`;
     const DRAFT_KEY = 'smartScanBackStockDraft';
@@ -430,6 +440,7 @@
     }
 
     function renderStock() {
+      if (!isOwner) return;
       const games = active();
       const total = games.reduce((sum, g) => sum + g.valueInBack, 0);
       const packs = games.reduce((sum, g) => sum + g.packsInBack, 0);
@@ -635,8 +646,8 @@
       sell = { game, packNumber };
       const value = game.price * game.ticketsPerPack;
       $('sellPack').textContent = `Game ${game.gameNumber} · Pack ${packNumber}`;
-      $('sellValue').textContent = money(value);
-      $('sellMath').textContent = `$${game.price} × ${game.ticketsPerPack} tickets`;
+      $('sellValue').textContent = isOwner ? money(value) : `${game.ticketsPerPack} tickets`;
+      $('sellMath').textContent = isOwner ? `$${game.price} × ${game.ticketsPerPack} tickets` : '';
       $('sellBack').textContent = `Back: ${game.packsInBack} → ${game.packsInBack - 1}`;
       $('sellDialog').classList.remove('hidden');
     }
@@ -658,7 +669,7 @@
         stock = r.backStock;
         closeSellDialog();
         renderStock();
-        flash(`Sold full pack ${r.packKey} for ${money(r.dollars)}. Game ${r.gameNumber}: ${r.before} → ${r.after} in the back.`);
+        flash(`Sold full pack ${r.packKey}${isOwner ? ` for ${money(r.dollars)}` : ''}. Game ${r.gameNumber}: ${r.before} → ${r.after} in the back.`);
       } catch (err) {
         closeSellDialog();
         flash(err.message, 'error');
@@ -763,9 +774,16 @@
     }
 
     async function start() {
+      $('searchSection').classList.toggle('hidden', !isOwner);
+      $('stockSection').classList.toggle('hidden', !isOwner);
+      // Only the modes this person may use; one mode needs no switch.
+      document.querySelectorAll('#modeSwitch button').forEach((b) => b.classList.toggle('hidden', !modes.includes(b.dataset.mode)));
+      $('modeSwitch').classList.toggle('hidden', modes.length < 2);
       loadDraft();
-      // From the Full pack sales page: start in Full pack sale mode.
-      if (new URLSearchParams(location.search).get('mode') === 'fullpack') mode = 'fullpack';
+      // ?mode= opens that mode (Full pack sales page → fullpack; the employee home's links → theirs).
+      const asked = new URLSearchParams(location.search).get('mode');
+      if (asked in MODE_PERMISSIONS) mode = asked;
+      if (!modes.includes(mode)) mode = modes[0];
       render();
       if (await loadStock()) await startCamera();
     }

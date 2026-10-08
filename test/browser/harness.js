@@ -18,7 +18,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // handle(body) gets the request ({ action, ...params }) and returns the response data, throws
 // { code, message } for an error answer, or returns ABORT. onDialog answers alert/confirm/prompt
 // (default: accept). setHandle swaps in a different handle for later requests.
-async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e', handle, onDialog }) {
+async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e', permissions, handle, onDialog }) {
   const server = http.createServer((req, res) => {
     const file = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]));
     if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -54,7 +54,7 @@ async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e'
   await page.evaluate((session) => {
     localStorage.clear();
     localStorage.setItem('smartScanSession', JSON.stringify(session));
-  }, { token: 't', username, role, expiresAt: '2099-01-01' });
+  }, { token: 't', username, role, permissions, expiresAt: '2099-01-01' });
 
   return { page, base, setHandle: (h) => { handle = h; }, close: async () => { await browser.close(); server.close(); } };
 }
@@ -67,7 +67,7 @@ function backendInVm(today, clock = () => '12:00:00') {
     Session: { getScriptTimeZone: () => 'x' }, LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     fakeSheetFn: fakeSheet };
   vm.createContext(ctx);
-  for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js']) {
+  for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Permissions.js']) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'apps-script', f), 'utf8'), ctx);
   }
   vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }

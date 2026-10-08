@@ -34,10 +34,15 @@
   <script src="nav.js"></script>
   <script>
     const session = requireLogin();
+    // An employee the owner gave Load packs or Return packs to can open a slot too (no $ there).
+    const canOpenSlot = can(session, 'load_packs') || can(session, 'return_packs');
     if (session) {
       document.getElementById('hint').textContent = session.role === 'owner'
         ? 'Tap a slot to put a new pack in it, end a pack, or change its price.'
-        : 'View only. Packs that sold out are marked during Close Day. Tell the owner when a slot needs a new pack.';
+        : can(session, 'load_packs') && can(session, 'return_packs') ? 'Tap a slot to mark its pack sold out or returned and put a new pack in.'
+          : can(session, 'load_packs') ? 'Tap a slot to mark its pack sold out and put a new pack in.'
+            : can(session, 'return_packs') ? 'Tap a slot to mark its pack returned.'
+              : 'View only. Packs that sold out are marked during Close Day. Tell the owner when a slot needs a new pack.';
     }
 
     // From OLD_PACK_DAYS (api.js) on, the owner sees a yellow mark on the slot so the pack gets pushed.
@@ -61,10 +66,10 @@
 
       listEl.innerHTML = '';
       for (const s of inBox) {
-        // Only the owner can open a slot; employees just see it.
-        const card = document.createElement(session.role === 'owner' ? 'a' : 'div');
+        // The owner (and an employee allowed to load or return packs) can open a slot; other employees just see it.
+        const card = document.createElement(canOpenSlot ? 'a' : 'div');
         card.className = 'card';
-        if (session.role === 'owner') card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
+        if (canOpenSlot) card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
 
         const top = document.createElement('div');
         top.className = 'row';

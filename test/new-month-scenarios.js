@@ -12,7 +12,7 @@ const ctx = { console, ...google, Session: { getScriptTimeZone: () => 'x' },
   Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${globalThis.TODAY} 12:00:00` : globalThis.TODAY },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Home.js']) {
+for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Home.js', 'Permissions.js', 'Users.js']) {
   vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 }
 const run = (code) => vm.runInContext(code, ctx);
@@ -156,7 +156,7 @@ assert.equal(nov.DailyCloseLog.rows.length, 1);
 
 // Undoing a sold-out across the boundary keeps the pack's Oct 2 close, so its activation can't be undone.
 run(`endPack(owner, { box: 1, slot: 2, reason: 'sold_out' })`);
-run(`undoEndPack({ box: 1, slot: 2 })`);
+run(`undoEndPack(owner, { box: 1, slot: 2 })`);
 assert.equal(slot(2).pack.lastCloseDate, '2026-10-02'); assert.equal(slot(2).pack.exposedTicket, 30);
 assert.equal(code(() => run(`undoActivation(owner, { box: 1, slot: 2 })`)), 'already_closed');
 // Same for reopening November's first close.
@@ -225,3 +225,22 @@ assert.equal(run('monthsFolder(getControlSpreadsheet())').getId(), 'root');
 delete google.folders.monthly;
 assert.equal(run('monthsFolder(getControlSpreadsheet())').getId(), 'root');
 console.log('months folder gone: falls back to the Control folder — OK');
+
+// Employee permissions in a month sheet made before Users.permissions existed: the column is added on the
+// first save, the owner can't be given any, and the next sign-in check reads them.
+{
+  const users = run('monthSheet("Users")');
+  const at = users.rows[0].indexOf('permissions');
+  users.rows.forEach((r) => r.splice(at, 1));
+  users.rows.push(['e', 'hash', 'salt', 'employee', true, '2026-10-01']);
+  const plain = (x) => JSON.parse(JSON.stringify(x));
+  assert.deepEqual(plain(run('listUsers()')).find((u) => u.username === 'e').permissions, []);
+  assert.equal(code(() => run(`setUserPermissions('e', ['load_packs', 'fly'])`)), 'bad_request');
+  assert.equal(code(() => run(`setUserPermissions('o', ['load_packs'])`)), 'bad_request');
+  const list = plain(run(`setUserPermissions('E', ['full_pack_sale', 'load_packs'])`));
+  assert.deepEqual(list.find((u) => u.username === 'e').permissions, ['load_packs', 'full_pack_sale']);
+  assert.equal(list.find((u) => u.username === 'o').permissions.length, 5);
+  assert.deepEqual(plain(run('permissionsOf(findUser("e"))')), ['load_packs', 'full_pack_sale']);
+  assert.deepEqual(plain(run(`setUserPermissions('e', [])`)).find((u) => u.username === 'e').permissions, []);
+  console.log('employee permissions saved in an older month sheet — OK');
+}

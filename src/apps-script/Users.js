@@ -20,6 +20,7 @@ function listUsers() {
     username: u.username,
     role: u.role,
     active: u.active === true,
+    permissions: u.role === 'owner' ? PERMISSIONS.slice() : permissionsOf(u),
     createdDate: u.created_date ? new Date(u.created_date).toISOString() : null,
   }));
 }
@@ -40,6 +41,25 @@ function setUserActive(currentUser, username, active) {
       throw new ApiError('no_user', 'No such user.');
     }
     if (active !== true) endSessionsFor(username);
+  });
+  return listUsers();
+}
+
+// The owner's toggles on an employee (see PERMISSIONS). Takes effect on the employee's next request.
+function setUserPermissions(username, permissions) {
+  username = normalizeUsername(username);
+  if (!Array.isArray(permissions) || permissions.some((p) => !PERMISSIONS.includes(p))) {
+    throw new ApiError('bad_request', 'Unknown permission.');
+  }
+  const list = PERMISSIONS.filter((p) => permissions.includes(p)).join(',');
+  withLock(() => {
+    const sheet = monthSheet('Users');
+    const user = findUser(username);
+    if (!user) throw new ApiError('no_user', 'No such user.');
+    if (user.role === 'owner') throw new ApiError('bad_request', 'The owner can already do everything.');
+    // Months started before this column existed don't have it yet.
+    ensureHeaders(sheet, MONTHLY_TABS.Users);
+    updateRowsWhere(sheet, (u) => u.username === username, { permissions: list });
   });
   return listUsers();
 }

@@ -62,6 +62,8 @@ function closeStatus(user) {
     largeSaleTickets: LARGE_SALE_TICKETS,
     closed: summary ? summaryFor(user, summary) : null,
     myShiftToday: mine ? shiftFor(user, mine) : null,
+    // So the employee's home shows what the owner turned on since they signed in.
+    permissions: user.permissions,
     slots: listSlots(),
   };
 }
