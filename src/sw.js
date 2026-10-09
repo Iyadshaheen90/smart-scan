@@ -5,7 +5,7 @@
 // Offline, each page comes from the copy saved the last time it loaded, which can be older than the
 // deploy (or older than the api.js beside it). So bump CACHE on every deploy that changes a page or
 // script: the phone then sees a new service worker and downloads the whole list below at once.
-const CACHE = 'smart-scan-v10';
+const CACHE = 'smart-scan-v11';
 const SHELL = [
   'index.html', 'login.html', 'close.html', 'slots.html', 'activate.html', 'backstock.html', 'month.html',
   'users.html', 'account.html', 'more.html', 'settling.html', 'full-packs.html', 'shifts.html', 'raw-scanner.html', 'style.css', 'config.js', 'api.js', 'barcode.js', 'scanner.js', 'icons.js', 'nav.js',

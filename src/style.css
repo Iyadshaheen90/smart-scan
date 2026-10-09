@@ -137,6 +137,8 @@ a.card { display: block; color: inherit; text-decoration: none; }
 .order-arrow { display: inline-flex; color: var(--muted); }
 .order-arrow svg { width: 18px; height: 18px; }
 .order-icon svg { width: 16px; height: 16px; vertical-align: -3px; }
+/* Slot page Ticket order: the chosen order is the app's green (same as Save and the chosen reason). */
+#orderSwitch button.active { background: var(--accent); color: var(--accent-text); }
 /* The mark is a badge on the card's top-left corner, so it doesn't indent the slot name (owner's choice). */
 .card.has-old-mark { position: relative; }
 .old-mark { position: absolute; top: -7px; left: -7px; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px;
