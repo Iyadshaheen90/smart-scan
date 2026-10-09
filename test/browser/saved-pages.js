@@ -31,7 +31,7 @@ const monthsPage = (dollars, canStart) => ({ status: { current: '2026-09', curre
   await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length === 1);
   calls.length = 0;
   await page.goto(base + 'month.html'); await page.waitForFunction(() => !document.getElementById('startBox').classList.contains('hidden'));
-  assert.deepEqual(calls, ['monthsPage'], 'Months & totals is one request');
+  assert.deepEqual(calls, ['monthsPage'], 'Months & Totals is one request');
   assert.match(await txt('#current'), /\$500/);
   assert.match(await txt('#past'), /August 2026/);
   assert.ok(!(await txt('#past')).includes('September'), 'this month is not in past months');
@@ -53,16 +53,16 @@ const monthsPage = (dollars, canStart) => ({ status: { current: '2026-09', curre
   slow();
   await page.goto(base + 'slots.html'); await sleep(400);
   assert.ok(await saved());
-  assert.match(await txt('#list'), /2 days|60 days/, 'Slots shows the answer Settling saved');
+  assert.match(await txt('#list'), /2 Days|60 Days/, 'Slots shows the answer Settling saved');
   release(); await page.waitForFunction(() => !document.body.classList.contains('showing-saved'));
 
   slow();
   await page.goto(base + 'backstock.html'); await sleep(400);
   assert.ok(await saved());
-  assert.match(await txt('#stock'), /3 packs/);
+  assert.match(await txt('#stock'), /3 Packs/);
   assert.equal(await page.$eval('#stock', (e) => getComputedStyle(e).pointerEvents), 'none', 'buttons off on the saved list');
   release(); await page.waitForFunction(() => !document.body.classList.contains('showing-saved'));
-  assert.match(await txt('#stock'), /7 packs/);
+  assert.match(await txt('#stock'), /7 Packs/);
   assert.equal(await page.$eval('#stock', (e) => getComputedStyle(e).pointerEvents), 'auto');
 
   slow();
@@ -80,7 +80,7 @@ const monthsPage = (dollars, canStart) => ({ status: { current: '2026-09', curre
   app.setHandle(() => { throw { code: 'network', message: 'Could not reach the server.' }; });
   await page.goto(base + 'backstock.html'); await sleep(400);
   assert.ok(await saved());
-  assert.match(await txt('#stock'), /7 packs/);
+  assert.match(await txt('#stock'), /7 Packs/);
   assert.match(await txt('#loadMessage'), /Could not reach/);
 
   console.log('SAVED PAGES CHECKS PASS');

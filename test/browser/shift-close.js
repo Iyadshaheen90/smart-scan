@@ -40,23 +40,23 @@ const review = (page) => page.$$eval('#review .review-row', (els) => els.map((el
   await page.setViewport({ width: 390, height: 844 });
   await page.goto(base + 'close.html?shift=1');
   await page.waitForSelector('#closeView:not(.hidden)'); await sleep(200);
-  assert.equal(await text(page, 'header h1'), 'Close shift');
-  assert.equal(await page.title(), 'Smart Scan — Close shift');
+  assert.equal(await text(page, 'header h1'), 'Close Shift');
+  assert.equal(await page.title(), 'Smart Scan — Close Shift');
   assert.equal(await text(page, '#dateLine'), "2026-11-10 · since last night's close");
   assert.equal(await text(page, '#curLast'), 'Shift start ticket 025 (26 left)');
-  assert.equal(await text(page, '#submitBtn'), 'Submit shift close (3 left)');
+  assert.equal(await text(page, '#submitBtn'), 'Submit Shift Close (3 Left)');
   await typed(page, '1747-0000001-0-020');
   await page.click('#soldOutBtn'); await sleep(150);             // slot 2 (dialog accepted)
   await typed(page, '5555-0000001-0-071');                        // above the start ticket: refused
   assert.match(await text(page, '#flash'), /above the shift's start ticket \(070\)/);
   await typed(page, '5555-0000001-0-070');
-  assert.deepEqual(await review(page), ['B1 · S1 · $20 5 sold · top 020', 'B1 · S2 · $10 sold out · 46', 'B1 · S3 · $5 0 sold · top 070']);
-  assert.equal(await text(page, '#submitBtn'), 'Submit shift close');
+  assert.deepEqual(await review(page), ['B1 · S1 · $20 5 Sold · Top 020', 'B1 · S2 · $10 Sold Out · 46', 'B1 · S3 · $5 0 Sold · Top 070']);
+  assert.equal(await text(page, '#submitBtn'), 'Submit Shift Close');
   if (shots) await page.screenshot({ path: `${shots}/shift-close-employee.png`, fullPage: true });
   await page.click('#submitBtn');
   await page.waitForSelector('#closedView:not(.hidden)');
   let summary = await text(page, '#summary');
-  assert.match(summary, /Shift closed at 2:00 PM by e/); assert.match(summary, /From last night's close to 2:00 PM/);
+  assert.match(summary, /Shift Closed at 2:00 PM by e/); assert.match(summary, /From last night's close to 2:00 PM/);
   assert.match(summary, /51 tickets sold this shift/); assert.ok(!summary.includes('$'), 'employees see no dollars');
   assert.ok(!(await page.$eval('#reopenBtn', (b) => b.offsetParent)), 'no Reopen on a shift close');
   if (shots) await page.screenshot({ path: `${shots}/shift-close-done.png`, fullPage: true });
@@ -77,14 +77,14 @@ const review = (page) => page.$$eval('#review .review-row', (els) => els.map((el
   await page.goto(base + 'close.html?shift=1');
   await page.waitForSelector('#closeView:not(.hidden)'); await sleep(200);
   assert.equal(await text(page, '#dateLine'), '2026-11-10 · since the 2:00 PM shift close by e');
-  assert.equal(await text(page, '#progressText'), '1 of 3 slots done');
+  assert.equal(await text(page, '#progressText'), '1 of 3 Slots Done');
   assert.equal(await text(page, '#curLast'), 'Shift start ticket 020 (21 left)');
-  assert.deepEqual((await review(page))[1], 'B1 · S2 · $10 sold out · 0');
+  assert.deepEqual((await review(page))[1], 'B1 · S2 · $10 Sold Out · 0');
   await typed(page, '1111-0000001-0-040');
   assert.match(await text(page, '#flash'), /was marked sold out at the 2:00 PM shift close\. Not saved\./);
   await typed(page, '1747-0000001-0-015');
   await typed(page, '5555-0000001-0-060');
-  assert.equal(await text(page, '#submitBtn'), 'Submit shift close');
+  assert.equal(await text(page, '#submitBtn'), 'Submit Shift Close');
   // Tap the sold-out slot: nothing to scan, and no Sold out button.
   await page.click('#review .review-row:nth-child(2)'); await sleep(100);
   assert.equal(await text(page, '#curLast'), 'Sold out at the 2:00 PM shift close');
@@ -93,7 +93,7 @@ const review = (page) => page.$$eval('#review .review-row', (els) => els.map((el
   await page.click('#submitBtn');
   await page.waitForSelector('#closedView:not(.hidden)');
   summary = await text(page, '#summary');
-  assert.match(summary, /Shift closed at 4:00 PM by o/); assert.match(summary, /From the 2:00 PM shift close to 4:00 PM/);
+  assert.match(summary, /Shift Closed at 4:00 PM by o/); assert.match(summary, /From the 2:00 PM shift close to 4:00 PM/);
   assert.match(summary, /15 tickets sold this shift/); assert.match(summary, /\$150 sold this shift/); // 5 × $20 + 10 × $5
   const sent = requests.filter((r) => r.action === 'submitShiftClose').pop();
   assert.deepEqual(sent.entries.map((e) => e.slot), [1, 3], 'the earlier sold out is not sent');
@@ -104,8 +104,8 @@ const review = (page) => page.$$eval('#review .review-row', (els) => els.map((el
   await page.goto(base + 'close.html'); await page.waitForSelector('#closeView:not(.hidden)'); await sleep(200);
   assert.equal(await text(page, 'header h1'), 'Close Day');
   assert.equal(await text(page, '#curLast'), 'Last top ticket 025 (26 left)');
-  assert.deepEqual(await review(page), ['B1 · S1 · $20 not done', 'B1 · S2 · $10 not done', 'B1 · S3 · $5 not done']);
-  assert.equal(await text(page, '#submitBtn'), 'Submit close (3 left)');
+  assert.deepEqual(await review(page), ['B1 · S1 · $20 Not Done', 'B1 · S2 · $10 Not Done', 'B1 · S3 · $5 Not Done']);
+  assert.equal(await text(page, '#submitBtn'), 'Submit Close (3 Left)');
 
   // Once the day is closed there's no shift left to close.
   addRow('DailySummary', { close_date: '2026-11-10', total_tickets_sold: 1 });

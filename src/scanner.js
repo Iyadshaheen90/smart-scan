@@ -170,7 +170,7 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   const release = () => {
     holding = false;
     holdBtn.classList.remove('holding');
-    hold.setText('Press and hold to scan');
+    hold.setText('Press and Hold to Scan');
   };
   holdBtn.addEventListener('pointerup', release);
   holdBtn.addEventListener('pointercancel', release);
@@ -182,7 +182,7 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     if (mode === 'hold') {
       if (!holding || done) return; // a decode can finish after release
       done = true;
-      hold.setText('Got it — release');
+      hold.setText('Got It — Release');
     } else {
       const stillInView = text === lastText && now - lastSeenAt < SAME_TICKET_GONE_MS;
       if (text === lastText) lastSeenAt = now;

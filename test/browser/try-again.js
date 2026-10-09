@@ -41,7 +41,7 @@ const pages = [
     offline = true;
     await page.goto(base + p.url);
     await page.waitForFunction((sel) => document.querySelector(`${sel} button.try-again`), {}, p.message);
-    assert.deepEqual(await button(p.message), { text: 'Try again', disabled: false, reason: true }, p.url);
+    assert.deepEqual(await button(p.message), { text: 'Try Again', disabled: false, reason: true }, p.url);
     assert.ok(await onTop(p.message), `${p.url} message at the top`);
     assert.ok(!(await page.evaluate(p.loaded)), `${p.url} empty`);
     if (process.env.SHOTS && p.url === 'slots.html') await page.screenshot({ path: `${process.env.SHOTS}/try-again.png`, clip: { x: 0, y: 0, width: 390, height: 360 } });
@@ -51,7 +51,7 @@ const pages = [
     await page.click(`${p.message} button.try-again`);
     await sleep(400);
     assert.equal(calls.length, 1, `${p.url} asked again`);
-    assert.deepEqual(await button(p.message), { text: 'Try again', disabled: false, reason: true }, `${p.url} again`);
+    assert.deepEqual(await button(p.message), { text: 'Try Again', disabled: false, reason: true }, `${p.url} again`);
 
     // Back online: the page fills in and the message goes away.
     offline = false;
@@ -61,7 +61,7 @@ const pages = [
     assert.equal(await page.$eval(p.message, (m) => m.textContent), '', `${p.url} message cleared`);
     if (p.url === 'backstock.html') {
       await sleep(500);
-      assert.ok(await page.$eval('#video', (v) => Boolean(v.srcObject)), 'camera started after Try again');
+      assert.ok(await page.$eval('#video', (v) => Boolean(v.srcObject)), 'camera started after Try Again');
     }
   }
 

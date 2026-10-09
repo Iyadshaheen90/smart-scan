@@ -21,8 +21,8 @@
   <div class="status-card saved-dim" id="totals">
     <div class="stat-grid">
       <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs</div></div>
-      <div class="stat"><div class="stat-value fit" id="ticketCount">…</div><div class="stat-label">Tickets left</div></div>
-      <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Value left</div></div>
+      <div class="stat"><div class="stat-value fit" id="ticketCount">…</div><div class="stat-label">Tickets Left</div></div>
+      <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Value Left</div></div>
     </div>
     <div class="legend">
       <span><span class="chip amber">50–59 days</span> settles soon</span>
@@ -71,11 +71,11 @@
       card.href = `activate.html?box=${s.box}&slot=${s.slot}&from=settling`; // back goes to Settling
       const top = el('div', 'row');
       top.append(el('span', 'slot-num', `Box ${s.box} · Slot ${s.slot}`),
-        el('span', `chip ${p.daysActive >= SETTLED_PACK_DAYS ? 'red' : 'amber'}`, `${p.daysActive} days`));
+        el('span', `chip ${p.daysActive >= SETTLED_PACK_DAYS ? 'red' : 'amber'}`, `${p.daysActive} Days`));
       const ids = el('div', 'slot-detail mono', `Game ${p.gameNumber} · Pack ${p.packNumber}`);
       const stats = el('div', 'stat-grid');
-      stats.append(stat(money(p.price), 'Ticket price'), stat(String(p.remaining), 'Tickets left'),
-        stat(money(p.remaining * p.price), 'Value left'));
+      stats.append(stat(money(p.price), 'Ticket Price'), stat(String(p.remaining), 'Tickets Left'),
+        stat(money(p.remaining * p.price), 'Value Left'));
       const dates = [`Activated ${shortDate(p.activationDate)}`];
       if (shortDate(p.lastCloseDate)) dates.push(`left as of the ${shortDate(p.lastCloseDate)} close`);
       card.append(top, ids, stats, el('div', 'slot-detail', dates.join(' · ')));

@@ -26,12 +26,12 @@ function handle(body) {
   const { page, base } = app;
   const cards = () => page.$$eval('#list .card', (els) => els.map((el) => el.innerText.replace(/\s+/g, ' ').trim()));
   await page.goto(base + 'full-packs.html'); await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 2);
-  assert.equal(await page.$eval('#packCount', (el) => el.textContent), '2 packs');
+  assert.equal(await page.$eval('#packCount', (el) => el.textContent), '2 Packs');
   assert.equal(await page.$eval('#dollarCount', (el) => el.textContent), '$1,100');
   let c = await cards();
   // newest first; every useful detail on the card
   assert.match(c[0], /Mon, Oct 5/); assert.match(c[0], /Game 1111 · Pack 0000009/);
-  assert.match(c[0], /\$10 Ticket price/); assert.match(c[0], /50 Pack size/); assert.match(c[0], /\$500 Total value/);
+  assert.match(c[0], /\$10 Ticket Price/); assert.match(c[0], /50 Pack Size/); assert.match(c[0], /\$500 Total Value/);
   assert.match(c[1], /Game 1747 · Pack 0000001/); assert.match(c[1], /\$600/);
   assert.equal(await page.$eval('a.button.primary', (a) => a.getAttribute('href')), 'backstock.html?mode=fullpack');
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT, fullPage: true });
@@ -54,7 +54,7 @@ function handle(body) {
   S.DailyCloseLog.rows.splice(1);
   await page.reload(); await page.waitForFunction(() => !document.body.classList.contains('showing-saved'));
   await page.waitForFunction(() => document.getElementById('list').innerText.includes('No full packs sold this month yet.'));
-  assert.equal(await page.$eval('#packCount', (el) => el.textContent), '0 packs');
+  assert.equal(await page.$eval('#packCount', (el) => el.textContent), '0 Packs');
   console.log('FULL PACKS PAGE CHECKS PASS');
   await app.close();
 })().catch((e) => { console.error(e); process.exit(1); });

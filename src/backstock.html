@@ -14,22 +14,22 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header" data-title="Back stock"></header>
+  <header class="app-header" data-title="Back Stock"></header>
   <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
   <div id="loadMessage" class="message"></div>
 
   <!-- Owner only (owner's choice 2026-09-26), like the list of what's in the back below. -->
   <div id="searchSection" class="hidden">
-    <label for="search">Find a game</label>
+    <label for="search">Find a Game</label>
     <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Game number, e.g. 1747">
     <div id="searchResults"></div>
     <div id="searchMessage" class="message" style="margin-bottom: 14px;"></div>
   </div>
 
   <div class="segmented" id="modeSwitch">
-    <button type="button" data-mode="shipment">Shipment received</button>
+    <button type="button" data-mode="shipment">Shipment Received</button>
     <button type="button" data-mode="count">Manage Stock</button>
-    <button type="button" data-mode="fullpack">Full pack sale</button>
+    <button type="button" data-mode="fullpack">Full Pack Sale</button>
   </div>
   <p class="sub" id="modeHint"></p>
 
@@ -37,25 +37,25 @@
     <video id="video" playsinline muted autoplay></video>
     <div class="scan-guide"></div>
   </div>
-  <label class="button hold-button" id="holdBtn">Press and hold to scan</label>
+  <label class="button hold-button" id="holdBtn">Press and Hold to Scan</label>
   <form id="typedForm">
-    <label for="typed">Or type a ticket number, or just the 4-digit game number</label>
+    <label for="typed">Or Type a Ticket Number, or Just the 4-Digit Game Number</label>
     <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075 or 1747">
-    <button type="submit">Add game</button>
+    <button type="submit">Add Game</button>
   </form>
   <div id="flash" class="message"></div>
 
   <div id="lines"></div>
   <div id="saveArea" class="hidden">
-    <label for="notes">Notes (optional)</label>
+    <label for="notes">Notes (Optional)</label>
     <input id="notes" autocomplete="off" placeholder="e.g. invoice number">
     <button type="button" class="primary" id="saveBtn">Save</button>
-    <button type="button" id="clearBtn">Clear list</button>
+    <button type="button" id="clearBtn">Clear List</button>
   </div>
   <div id="saveMessage" class="message"></div>
 
   <div id="stockSection" class="hidden">
-    <h2>In the back now</h2>
+    <h2>In the Back Now</h2>
     <p class="sub saved-dim" id="totals"></p>
     <div id="stock" class="saved-dim saved-lock">Loading…</div>
   </div>
@@ -74,7 +74,7 @@
     <div class="dialog">
       <div class="dialog-title" id="packTitle"></div>
       <div id="packCountStep">
-        <div class="slot-detail">Packs in the back</div>
+        <div class="slot-detail">Packs in the Back</div>
         <div class="stepper">
           <button type="button" id="packMinus" aria-label="One pack less">−</button>
           <div class="stepper-count" id="packCount"></div>
@@ -90,7 +90,7 @@
         <div class="dialog-label" id="packReasonTitle"></div>
         <div class="reasons" id="removeReasons">
           <button type="button" data-reason="returned">Returned</button>
-          <button type="button" data-reason="game expired">Game expired</button>
+          <button type="button" data-reason="game expired">Game Expired</button>
           <button type="button" data-reason="damaged">Damaged</button>
           <button type="button" data-reason="stolen">Stolen</button>
           <button type="button" data-reason="other">Other</button>
@@ -110,12 +110,12 @@
       <div class="dialog-title" id="shipTitle"></div>
       <div class="slot-detail" id="shipInfo"></div>
       <div id="shipNewGame" class="hidden" style="text-align: left;">
-        <label for="shipPrice">Price per ticket ($)</label>
+        <label for="shipPrice">Price per Ticket ($)</label>
         <input id="shipPrice" type="number" min="0" step="1" inputmode="decimal" autocomplete="off">
-        <label for="shipSize">Tickets per pack</label>
+        <label for="shipSize">Tickets per Pack</label>
         <input id="shipSize" type="number" min="1" step="1" inputmode="numeric" autocomplete="off">
       </div>
-      <div class="slot-detail">Packs received</div>
+      <div class="slot-detail">Packs Received</div>
       <div class="stepper">
         <button type="button" id="shipMinus" aria-label="One pack less">−</button>
         <div class="stepper-count" id="shipCount"></div>
@@ -133,7 +133,7 @@
        back stock and counts it in today's sales (listed on the owner's Full pack sales page). -->
   <div id="sellDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sellTitle">
     <div class="dialog">
-      <div class="dialog-title" id="sellTitle">Sell full pack</div>
+      <div class="dialog-title" id="sellTitle">Sell Full Pack</div>
       <div class="slot-detail mono" id="sellPack"></div>
       <div class="stepper-count" id="sellValue"></div>
       <div class="slot-detail" id="sellMath"></div>
@@ -250,10 +250,10 @@
       if (mode !== 'fullpack') for (const line of lines) list.append(lineCard(line));
       $('saveArea').classList.toggle('hidden', lines.length === 0 || mode === 'fullpack');
       const packs = lines.reduce((sum, l) => sum + (Number(l.packs) || 0), 0);
-      const games = `${lines.length} game${lines.length === 1 ? '' : 's'}`;
+      const games = `${lines.length} Game${lines.length === 1 ? '' : 's'}`;
       $('saveBtn').textContent = mode === 'shipment'
-        ? `Save shipment (${games}, ${packs} pack${packs === 1 ? '' : 's'})`
-        : `Save count (${games})`;
+        ? `Save Shipment (${games}, ${packs} Pack${packs === 1 ? '' : 's'})`
+        : `Save Count (${games})`;
     }
 
     function lineCard(line) {
@@ -265,7 +265,7 @@
       const top = document.createElement('div');
       top.className = 'row';
       const name = document.createElement('strong');
-      name.textContent = game ? `Game ${line.gameNumber} · $${game.price}` : `Game ${line.gameNumber} · new`;
+      name.textContent = game ? `Game ${line.gameNumber} · $${game.price}` : `Game ${line.gameNumber} · New`;
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'small';
@@ -282,7 +282,7 @@
       card.append(info);
 
       if (!game) {
-        card.append(field('Price per ticket ($)', line.gamePrice, 'decimal', (v) => {
+        card.append(field('Price per Ticket ($)', line.gamePrice, 'decimal', (v) => {
           line.gamePrice = v;
           const standard = STANDARD_PACK_SIZES[Number(v)];
           if (standard) {
@@ -290,10 +290,10 @@
             card.querySelector('input.size').value = standard;
           }
         }));
-        card.append(field('Tickets per pack', line.ticketsPerPack, 'numeric', (v) => { line.ticketsPerPack = v; }, 'size'));
+        card.append(field('Tickets per Pack', line.ticketsPerPack, 'numeric', (v) => { line.ticketsPerPack = v; }, 'size'));
       }
 
-      const label = mode === 'shipment' ? 'Packs received' : 'Packs counted';
+      const label = mode === 'shipment' ? 'Packs Received' : 'Packs Counted';
       card.append(field(label, line.packs, 'numeric', (v) => { line.packs = v; }, 'packs'));
 
       if (mode === 'count' && game && line.packs !== '' && Number(line.packs) !== game.packsInBack) {
@@ -326,7 +326,7 @@
 
     function updateSaveLabel() {
       const packs = lines.reduce((sum, l) => sum + (Number(l.packs) || 0), 0);
-      if (mode === 'shipment') $('saveBtn').textContent = `Save shipment (${lines.length} game${lines.length === 1 ? '' : 's'}, ${packs} pack${packs === 1 ? '' : 's'})`;
+      if (mode === 'shipment') $('saveBtn').textContent = `Save Shipment (${lines.length} Game${lines.length === 1 ? '' : 's'}, ${packs} Pack${packs === 1 ? '' : 's'})`;
     }
 
     // Quick lookup: games whose number contains what's typed (a typed ticket number uses its game).
@@ -362,7 +362,7 @@
       name.textContent = `Game ${g.gameNumber} · $${g.price}`;
       const tag = document.createElement('span');
       tag.className = g.packsInBack === 0 ? 'tag warn' : 'tag live';
-      tag.textContent = g.packsInBack === 0 ? 'none in the back' : `${g.packsInBack} pack${g.packsInBack === 1 ? '' : 's'}`;
+      tag.textContent = g.packsInBack === 0 ? 'None in the Back' : `${g.packsInBack} Pack${g.packsInBack === 1 ? '' : 's'}`;
       top.append(name, tag);
       const detail = document.createElement('div');
       detail.className = 'slot-detail';
@@ -396,12 +396,12 @@
       name.textContent = `Game ${g.gameNumber} · $${g.price}`;
       const tag = document.createElement('span');
       tag.className = 'tag';
-      tag.textContent = `ended ${g.endedDate}`;
+      tag.textContent = `Ended ${g.endedDate}`;
       top.append(name, tag);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'small';
-      button.textContent = 'Bring back';
+      button.textContent = 'Bring Back';
       button.addEventListener('click', () => changeGame(button, 'bringBackGame', g, messageEl, `Game ${g.gameNumber} is back in back stock.`));
       card.append(top, actionRow(button));
       return card;
@@ -412,10 +412,10 @@
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'small';
-      button.textContent = 'Game ended…';
+      button.textContent = 'Game Ended…';
       button.addEventListener('click', () => {
         if (!confirm(`Mark game ${g.gameNumber} as ended? Do this when CA Lottery has stopped the game. It disappears from back stock. Its sales history stays, and receiving a pack of it later brings it back.`)) return;
-        changeGame(button, 'endGame', g, messageEl, `Game ${g.gameNumber} marked ended and hidden. It's under "Ended games" at the bottom if you need it back.`);
+        changeGame(button, 'endGame', g, messageEl, `Game ${g.gameNumber} marked ended and hidden. It's under "Ended Games" at the bottom if you need it back.`);
       });
       return button;
     }
@@ -452,7 +452,7 @@
 
       const gone = ended();
       $('endedBox').classList.toggle('hidden', gone.length === 0);
-      $('endedTitle').textContent = `Ended games (${gone.length})`;
+      $('endedTitle').textContent = `Ended Games (${gone.length})`;
       $('ended').innerHTML = '';
       for (const g of gone) $('ended').append(endedCard(g, $('stockMessage')));
       renderSearch();
@@ -466,7 +466,7 @@
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'small';
-      button.textContent = 'Manage packs';
+      button.textContent = 'Manage Packs';
       button.addEventListener('click', () => openPackDialog(g, messageEl));
       return button;
     }
@@ -488,7 +488,7 @@
       const change = dialog.count - dialog.g.packsInBack;
       $('packCount').textContent = dialog.count;
       $('packMinus').disabled = dialog.count === 0;
-      $('packChange').textContent = change === 0 ? 'No change'
+      $('packChange').textContent = change === 0 ? 'No Change'
         : `${change > 0 ? '+' : '−'}${Math.abs(change)} pack${Math.abs(change) === 1 ? '' : 's'} (was ${dialog.g.packsInBack})`;
     }
 
@@ -535,7 +535,7 @@
         return;
       }
       const packs = -change;
-      $('packReasonTitle').textContent = `Remove ${packs} pack${packs === 1 ? '' : 's'} (${g.packsInBack} → ${count} in the back). Why?`;
+      $('packReasonTitle').textContent = `Remove ${packs} Pack${packs === 1 ? '' : 's'} (${g.packsInBack} → ${count} in the Back). Why?`;
       $('packCountStep').classList.add('hidden');
       $('packReasonStep').classList.remove('hidden');
     });
@@ -575,7 +575,7 @@
     function openShipDialog(gameNumber) {
       const game = known(gameNumber);
       ship = { gameNumber, game, count: 1 };
-      $('shipTitle').textContent = game ? `Game ${gameNumber} · $${game.price}` : `Game ${gameNumber} · new`;
+      $('shipTitle').textContent = game ? `Game ${gameNumber} · $${game.price}` : `Game ${gameNumber} · New`;
       $('shipInfo').textContent = !game ? 'Not in back stock yet. Enter its price; the pack size fills in.'
         : game.endedDate ? `Marked ended on ${game.endedDate}. Saving brings it back.` : '';
       $('shipNewGame').classList.toggle('hidden', !!game);
@@ -589,7 +589,7 @@
       const before = ship.game ? ship.game.packsInBack : 0;
       $('shipCount').textContent = ship.count;
       $('shipMinus').disabled = ship.count === 0;
-      $('shipChange').textContent = ship.count === 0 ? 'No packs received'
+      $('shipChange').textContent = ship.count === 0 ? 'No Packs Received'
         : `Back will have ${before + ship.count} (now ${before})`;
       const priced = ship.game || (Number($('shipPrice').value) > 0 && Number($('shipSize').value) > 0);
       $('shipSave').disabled = ship.count === 0 || !priced;

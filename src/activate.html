@@ -20,17 +20,17 @@
   <!-- Step 1: the slot still has a pack — what happened to it? -->
   <div id="oldStep" class="hidden">
     <div class="card">
-      <div>This slot still has pack <strong class="mono" id="oldKey"></strong></div>
+      <div>This Slot Still Has Pack <strong class="mono" id="oldKey"></strong></div>
       <div class="slot-detail" id="oldDetail"></div>
     </div>
     <!-- Sold out needs Load packs, Returned needs Return packs (an employee gets the ones the owner turned on). -->
     <div class="owner-only hidden">
-      <p class="sub" style="margin-top: 12px;">What happened to it?</p>
+      <p class="sub" style="margin-top: 12px;">What Happened to It?</p>
       <div class="choices">
-        <button type="button" id="soldOutBtn">Sold out</button>
+        <button type="button" id="soldOutBtn">Sold Out</button>
         <button type="button" id="returnedBtn">Returned</button>
       </div>
-      <button type="button" id="undoBtn" class="hidden">Wrong slot — undo this activation</button>
+      <button type="button" id="undoBtn" class="hidden">Wrong Slot — Undo This Activation</button>
     </div>
   </div>
 
@@ -40,8 +40,8 @@
   <!-- After the old pack is ended: replace it now (needs Load packs), or leave the slot out of stock. -->
   <div id="nextStep" class="hidden">
     <p class="sub" style="margin-top: 12px;" id="nextPrompt"></p>
-    <button type="button" class="primary" id="replaceBtn">Scan a replacement pack</button>
-    <button type="button" id="leaveEmptyBtn">Mark out of stock</button>
+    <button type="button" class="primary" id="replaceBtn">Scan a Replacement Pack</button>
+    <button type="button" id="leaveEmptyBtn">Mark Out of Stock</button>
   </div>
 
   <!-- Step 2: scan a ticket (the returned pack's top ticket, or the new pack's). -->
@@ -52,52 +52,52 @@
       <video id="video" playsinline muted autoplay></video>
       <div class="scan-guide"></div>
     </div>
-    <label class="button hold-button" id="holdBtn">Press and hold to scan</label>
+    <label class="button hold-button" id="holdBtn">Press and Hold to Scan</label>
     <form id="typedForm">
-      <label for="typed">Or type the number printed on the ticket</label>
+      <label for="typed">Or Type the Number Printed on the Ticket</label>
       <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
-      <button type="submit">Use this number</button>
+      <button type="submit">Use This Number</button>
     </form>
   </div>
 
   <!-- Step 3: confirm the new pack. -->
   <div id="confirmStep" class="hidden">
-    <h2>New pack</h2>
+    <h2>New Pack</h2>
     <div class="card">
       <div class="mono" id="newKey"></div>
       <div class="slot-detail" id="newDetail"></div>
     </div>
     <div id="newGame" class="hidden">
       <p class="sub" style="margin-top: 12px;">First time this game has been seen. Enter its details once.</p>
-      <label for="gamePrice">Price per ticket ($)</label>
+      <label for="gamePrice">Price per Ticket ($)</label>
       <input id="gamePrice" type="number" inputmode="decimal" min="1" step="1">
-      <label for="ticketsPerPack">Tickets per pack</label>
+      <label for="ticketsPerPack">Tickets per Pack</label>
       <input id="ticketsPerPack" type="number" inputmode="numeric" min="1" step="1">
     </div>
-    <button type="button" class="primary" id="activateBtn">Activate pack</button>
-    <button type="button" id="rescanBtn">Scan a different ticket</button>
+    <button type="button" class="primary" id="activateBtn">Activate Pack</button>
+    <button type="button" id="rescanBtn">Scan a Different Ticket</button>
   </div>
 
   <!-- After tapping Sold out or Returned: back out before anything is saved. -->
   <button type="button" class="cancel hidden" id="cancelEndBtn">Cancel</button>
 
   <div id="message" class="message"></div>
-  <a class="button hidden" id="doneBtn" href="slots.html">Back to slots</a>
+  <a class="button hidden" id="doneBtn" href="slots.html">Back to Slots</a>
 
   <!-- Owner only: the slot's price tier. -->
   <form id="priceForm" class="hidden">
-    <h2>Slot price</h2>
+    <h2>Slot Price</h2>
     <p class="sub">The price this slot expects from the next pack. A pack already in it keeps its own price.</p>
-    <label for="slotPrice">Price per ticket ($)</label>
+    <label for="slotPrice">Price per Ticket ($)</label>
     <input id="slotPrice" type="number" inputmode="decimal" min="1" step="1" required>
-    <button type="submit">Save slot price</button>
+    <button type="submit">Save Slot Price</button>
     <div id="priceMessage" class="message"></div>
   </form>
 
   <!-- Owner, or an employee with Ticket order: which way this slot's packs are sold. Only while the slot is empty
        (a pack keeps the order it started with). -->
   <form id="orderForm" class="hidden">
-    <h2>Ticket order</h2>
+    <h2>Ticket Order</h2>
     <p class="sub" id="orderInfo"></p>
     <div class="segmented" id="orderSwitch">
       <button type="button" data-order="descending"><span data-icon="arrowDown" class="order-icon"></span> Descending</button>
@@ -108,17 +108,17 @@
 
   <!-- Owner only: the pack size of the game in this slot, to fix a mistake made at setup. -->
   <form id="sizeForm" class="hidden">
-    <h2>Pack size</h2>
+    <h2>Pack Size</h2>
     <p class="sub" id="sizeInfo"></p>
-    <label for="packSize" id="sizeLabel">Tickets per pack</label>
+    <label for="packSize" id="sizeLabel">Tickets per Pack</label>
     <input id="packSize" type="number" inputmode="numeric" min="1" step="1" required>
-    <button type="submit">Save pack size</button>
+    <button type="submit">Save Pack Size</button>
     <div id="sizeMessage" class="message"></div>
   </form>
 
   <!-- Owner only: move this slot's pack, or swap it with another slot's. -->
   <form id="swapForm" class="hidden">
-    <h2>Move or swap</h2>
+    <h2>Move or Swap</h2>
     <p class="sub">For rearranging the boxes. The pack, its top ticket, and this slot's price all go to the other slot, and whatever is there comes here. Swap the same two slots again to undo.</p>
     <div class="choices">
       <select id="swapBox" aria-label="Box"><option value="1">Box 1</option><option value="2">Box 2</option></select>
@@ -161,7 +161,7 @@
     $('back').href = backTo.href;
     $('back').querySelector('.back-label').textContent = backTo.label;
     $('doneBtn').href = backTo.href;
-    $('doneBtn').textContent = `Back to ${backTo.label.toLowerCase()}`;
+    $('doneBtn').textContent = `Back to ${backTo.label}`;
     $('title').textContent = `Box ${box} · Slot ${slotNumber}`;
     const isOwner = session && session.role === 'owner';
     const canLoad = can(session, 'load_packs');
@@ -197,14 +197,14 @@
 
     function render() {
       const pack = slot.pack;
-      $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock')
-        + (!pack && slot.lastGame ? ` · ${backStockText(slot.lastGame.gameNumber, slot.lastGame.packsInBack)} (last game here)` : '');
+      $('slotInfo').textContent = `$${slot.slotPrice} Slot · ` + (pack ? `${pack.remaining} Tickets Left` : 'Out of Stock')
+        + (!pack && slot.lastGame ? ` · ${backStockText(slot.lastGame.gameNumber, slot.lastGame.packsInBack)} (Last Game Here)` : '');
       renderOrder();
       if (isOwner) {
         show('sizeForm', Boolean(pack));
         if (pack) {
           const standard = pack.standardPackSize;
-          $('sizeLabel').textContent = `Tickets per pack for game ${pack.gameNumber}`;
+          $('sizeLabel').textContent = `Tickets per Pack for Game ${pack.gameNumber}`;
           $('sizeInfo').textContent = (pack.ticketsPerPack ? `Set to ${pack.ticketsPerPack} (numbered ${pack.order === 'ascending' ? `0 to ${pack.ticketsPerPack - 1}` : `${pack.ticketsPerPack - 1} to 0`}). ` : 'Not set. ')
             + (standard ? `$${pack.price} packs usually have ${standard}.` : '')
             + (pack.ticketsPerPack && standard && pack.ticketsPerPack !== standard ? ' This one is different — check it.' : '');
@@ -234,8 +234,8 @@
         && (slot.endedToday.reason === 'sold_out' ? canLoad : canReturn);
       show('undoEndBtn', canUndoEnd);
       if (canUndoEnd) {
-        const how = slot.endedToday.reason === 'sold_out' ? 'sold out' : 'returned';
-        $('undoEndBtn').textContent = `Mistake? Put back pack ${slot.endedToday.packKey} (marked ${how} today)`;
+        const how = slot.endedToday.reason === 'sold_out' ? 'Sold Out' : 'Returned';
+        $('undoEndBtn').textContent = `Mistake? Put Back Pack ${slot.endedToday.packKey} (Marked ${how} Today)`;
       }
       const oldPackDealtWith = pack && oldEnd && !waitingForOldTop();
       show('nextStep', oldPackDealtWith && !replacing);
@@ -258,10 +258,10 @@
       show('scanStep', scanning);
       if (scanning) {
         if (waitingForOldTop()) {
-          $('scanPrompt').textContent = 'Scan the returned pack';
+          $('scanPrompt').textContent = 'Scan the Returned Pack';
           $('scanHint').textContent = `Scan the top ticket still in pack ${pack.gameNumber}-${pack.packNumber}. Tickets above it count as sold today.`;
         } else {
-          $('scanPrompt').textContent = 'Scan the new pack';
+          $('scanPrompt').textContent = 'Scan the New Pack';
           $('scanHint').textContent = 'Scan the top ticket of the pack going into this slot (the one customers get next).';
         }
         startScannerOnce();
@@ -384,7 +384,7 @@
       if (!confirm(`Put pack ${ended.packKey} back in this slot? Today's sales entry for it will be removed.`)) return;
       clearMessage();
       try {
-        const result = await whileBusy($('undoEndBtn'), 'Putting back…', () => api('undoEndPack', { box, slot: slotNumber }));
+        const result = await whileBusy($('undoEndBtn'), 'Putting Back…', () => api('undoEndPack', { box, slot: slotNumber }));
         oldEnd = null;
         oldTop = null;
         replacing = false;

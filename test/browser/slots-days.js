@@ -19,9 +19,9 @@ const cards = (page) => page.$$eval('#list .card', (els) => els.map((el) => ({
   let app = await openApp({ role: 'owner', handle: (body) => (body.action === 'listSlots' ? slots : {}) });
   await app.page.goto(app.base + 'slots.html'); await app.page.waitForFunction(() => document.querySelectorAll('#list .card').length === 7);
   let c = await cards(app.page); console.log('owner →', JSON.stringify(c.map((x) => [x.days, x.mark])));
-  assert.deepEqual(c.map((x) => x.days), ['Activated today', '1 day', '49 days', '50 days', '75 days', null, null]);
+  assert.deepEqual(c.map((x) => x.days), ['Activated Today', '1 Day', '49 Days', '50 Days', '75 Days', null, null]);
   assert.deepEqual(c.map((x) => x.mark), [false, false, false, true, true, false, false]);
-  assert.equal(c[0].left, '10 left'); assert.equal(c[6].left, 'Out of stock');
+  assert.equal(c[0].left, '10 Left'); assert.equal(c[6].left, 'Out of Stock');
   // The mark sits on the card's top-left corner: slot names line up with or without it, and it stays on screen.
   const pos = await app.page.$$eval('#list .card', (els) => els.map((el) => {
     const box = (e) => { const r = e.getBoundingClientRect(); return { left: r.left, top: r.top }; };
@@ -36,6 +36,6 @@ const cards = (page) => page.$$eval('#list .card', (els) => els.map((el) => ({
   app = await openApp({ role: 'employee', handle: (body) => (body.action === 'listSlots' ? slots : {}) });
   await app.page.goto(app.base + 'slots.html'); await app.page.waitForFunction(() => document.querySelectorAll('#list .card').length === 7);
   c = await cards(app.page);
-  assert.ok(c.every((x) => x.days === null && !x.mark)); assert.equal(c[4].left, '10 left');
+  assert.ok(c.every((x) => x.days === null && !x.mark)); assert.equal(c[4].left, '10 Left');
   console.log('SLOTS DAYS CHECKS PASS'); await app.close();
 })().catch((e) => { console.error(e); process.exit(1); });

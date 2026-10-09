@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header" data-title="Months &amp; totals"></header>
+  <header class="app-header" data-title="Months &amp; Totals"></header>
   <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
   <div id="loadMessage" class="message"></div>
   <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook. Totals come from each day's close.</p>
@@ -25,11 +25,11 @@
   <div id="startBox" class="hidden saved-lock">
     <h2 id="startHeading"></h2>
     <div class="card">
-      <strong>Carries over</strong>
+      <strong>Carries Over</strong>
       <div class="slot-detail">Slot prices, the packs in every slot (they keep selling without a break), back stock, and employee logins.</div>
     </div>
     <div class="card">
-      <strong>Starts empty</strong>
+      <strong>Starts Empty</strong>
       <div class="slot-detail">Closes, sales, shipments and pack history. Anything already dated <span class="nextMonth"></span> moves over, so nothing is lost if you start it late: for example, a pack marked sold out after the last close of <span class="currentMonth"></span>.</div>
     </div>
     <p class="sub" style="margin-top: 12px"><span class="currentMonth"></span>'s spreadsheet stays in Google Drive.</p>
@@ -38,7 +38,7 @@
   <div id="message" class="message"></div>
 
   <div id="pastBox" class="hidden saved-dim saved-lock">
-    <h2>Past months</h2>
+    <h2>Past Months</h2>
     <div id="past"></div>
   </div>
 
@@ -92,10 +92,10 @@
       const box = el('div');
       const tiles = el('div', 'tiles');
       for (const [label, value] of [
-        ['Tickets sold', summary.ticketsSold.toLocaleString('en-US')],
+        ['Tickets Sold', summary.ticketsSold.toLocaleString('en-US')],
         ['Sales', money(summary.dollarsSold)],
-        ['Shipments in', money(summary.shipmentValue)],
-        ['Inventory at last close', money(summary.endingInventoryValue)],
+        ['Shipments In', money(summary.shipmentValue)],
+        ['Inventory at Last Close', money(summary.endingInventoryValue)],
       ]) {
         const tile = el('div', 'tile');
         tile.append(el('div', 'tile-label', label), el('div', 'tile-value fit', value));
@@ -125,7 +125,7 @@
 
     function monthHeader(label, url, prefix) {
       const top = el('div', 'row');
-      top.append(el('strong', null, `${prefix}${monthName(label)}`), link(url, 'Open spreadsheet'));
+      top.append(el('strong', null, `${prefix}${monthName(label)}`), link(url, 'Open Spreadsheet'));
       return top;
     }
 
@@ -133,7 +133,7 @@
       const current = $('current');
       current.innerHTML = '';
       const card = el('div', 'card');
-      card.append(monthHeader(status.current, status.currentUrl, 'This month: '));
+      card.append(monthHeader(status.current, status.currentUrl, 'This Month: '));
       const view = summaryView(summary);
       card.append(view);
       current.append(card);
@@ -161,7 +161,7 @@
       for (const m of months) {
         const card = el('div', 'card');
         card.append(monthHeader(m.label, m.url, ''));
-        const button = el('button', 'small', 'Show totals');
+        const button = el('button', 'small', 'Show Totals');
         button.type = 'button';
         button.style.marginTop = '10px';
         button.addEventListener('click', () => whileBusy(button, 'Loading…', async () => {

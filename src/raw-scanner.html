@@ -35,24 +35,24 @@
 </style>
 </head>
 <body>
-  <header class="app-header" data-title="Scanner test"></header>
+  <header class="app-header" data-title="Scanner Test"></header>
   <p class="sub">Point the camera at the barcode on the back of the ticket (under "SCAN FRONT BARCODE FOR VALIDATION"), fill the box with it, and hold steady. Shows exactly what was decoded, plus the parsed game / pack / ticket.</p>
 
   <div id="modeSwitch" class="segmented">
-    <button data-mode="hold">Press to scan</button>
-    <button data-mode="auto">Auto (pause after scan)</button>
+    <button data-mode="hold">Press to Scan</button>
+    <button data-mode="auto">Auto (Pause After Scan)</button>
   </div>
 
   <div id="viewport">
     <video id="video" playsinline muted autoplay></video>
     <div id="guide"></div>
   </div>
-  <button id="holdBtn" class="hold-button">Press to scan</button>
+  <button id="holdBtn" class="hold-button">Press to Scan</button>
   <div id="status">Loading scanner…</div>
 
-  <button id="scanPhotoBtn">Scan from photo</button>
+  <button id="scanPhotoBtn">Scan from Photo</button>
   <input type="file" id="fileInput" accept="image/*" style="display:none;">
-  <button id="clearBtn">Clear log</button>
+  <button id="clearBtn">Clear Log</button>
   <!-- iPhones buzz only when a finger flips a switch (tested 2026-09-29), so the scan buttons are labels around a
        hidden switch (see scanner.js). These check that, and the beeps, on a phone. -->
   <div class="card" style="margin-top: 14px;">
@@ -76,8 +76,8 @@
     <label class="hold-button switch-button" data-test="final" data-sound="ambient"><input type="checkbox" switch class="finger-switch"><span>J. G + beep (setting 3, silent switch mutes it)</span></label>
     <div class="sub" style="margin-top: 12px;">K is the real scan button's own code (a "scan" 1 second into the hold). Hold it, then let go.</div>
     <label class="button hold-button" id="realHold" style="margin-top: 8px;">K. Real scan button: hold 1 second, let go</label>
-    <button type="button" id="beepOk">Beep: scan saved</button>
-    <button type="button" id="beepError">Beep: scan not saved</button>
+    <button type="button" id="beepOk">Beep: Scan Saved</button>
+    <button type="button" id="beepError">Beep: Scan Not Saved</button>
   </div>
   <style>
     .switch-button { display: block; position: relative; text-align: center; font-weight: 700; margin-top: 8px; color: var(--text); font-size: 16px;
@@ -350,7 +350,7 @@
     function release() {
       holding = false;
       holdBtn.classList.remove('holding');
-      holdBtn.textContent = 'Press to scan';
+      holdBtn.textContent = 'Press to Scan';
     }
     holdBtn.addEventListener('pointerup', release);
     holdBtn.addEventListener('pointercancel', release);

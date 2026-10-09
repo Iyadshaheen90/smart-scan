@@ -67,7 +67,7 @@ const arrows = (page) => page.$$eval('#list .card', (cards) => cards.slice(0, 4)
     'This pack is sold ↑ ascending (000 up). Change it when the slot is empty.');
   assert.deepEqual(await page.$$eval('#orderSwitch button', (bs) => bs.map((b) => [b.dataset.order, b.disabled, b.classList.contains('active')])),
     [['descending', true, false], ['ascending', true, true]]);
-  assert.match(await page.$eval('#slotInfo', (el) => el.textContent), /25 tickets left/);
+  assert.match(await page.$eval('#slotInfo', (el) => el.textContent), /25 Tickets Left/);
 
   await page.goto(app.base + 'activate.html?box=1&slot=4');
   await page.waitForFunction(() => !document.getElementById('orderForm').classList.contains('hidden'));
@@ -121,7 +121,7 @@ const arrows = (page) => page.$$eval('#list .card', (cards) => cards.slice(0, 4)
   assert.match(await page.$eval('#flash', (el) => el.textContent), /Ticket 004 is below the last top ticket \(005\)/);
   await page.$eval('#typed', (el) => { el.value = ''; });
   await page.type('#typed', '1747-0000002-4-009'); await page.click('#typedForm button'); await sleep(300);
-  assert.match(await page.$eval('#review', (el) => el.textContent), /4 sold/);
+  assert.match(await page.$eval('#review', (el) => el.textContent), /4 Sold/);
   await app.close();
 
   // --- Employee with Ticket order only: slot page shows just that section; home and More link to it.

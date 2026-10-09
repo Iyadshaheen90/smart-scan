@@ -57,7 +57,7 @@ const slot = { box: 1, slot: 7, slotPrice: 5, endedToday: null, lastGame: null,
 
   // After Cancel, Returned asks for the top ticket again (the old scan is forgotten).
   await page.click('#returnedBtn'); await sleep(100);
-  assert.equal(await text('scanPrompt'), 'Scan the returned pack');
+  assert.equal(await text('scanPrompt'), 'Scan the Returned Pack');
   assert.deepEqual(saves, [], 'nothing was saved');
 
   // Saving still works and hides Cancel.

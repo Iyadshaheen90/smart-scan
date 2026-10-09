@@ -31,7 +31,7 @@ function handle(body) {
   const enter = async (game) => { await page.type('#typed', game); await page.click('#typedForm button'); };
   const shot = async (name) => { if (process.env.SHOT) await page.screenshot({ path: path.join(process.env.SHOT, name) }); };
 
-  assert.match(await page.$eval('#modeSwitch .active', (b) => b.textContent), /Shipment received/);
+  assert.match(await page.$eval('#modeSwitch .active', (b) => b.textContent), /Shipment Received/);
 
   // 1. A known game: pop-up starts at 1, − left and + right, red Cancel left of green Save.
   await enter('1747');
@@ -50,7 +50,7 @@ function handle(body) {
 
   // 2. − stops at 0 and greys out Save; Cancel saves nothing.
   await page.click('#shipMinus');
-  assert.equal(await text('#shipCount'), '0'); assert.equal(await text('#shipChange'), 'No packs received');
+  assert.equal(await text('#shipCount'), '0'); assert.equal(await text('#shipChange'), 'No Packs Received');
   assert.equal(await disabled('#shipMinus'), true); assert.equal(await disabled('#shipSave'), true);
   await page.click('#shipMinus'); assert.equal(await text('#shipCount'), '0');
   await page.click('#shipCancel');
@@ -72,7 +72,7 @@ function handle(body) {
 
   // 4. A new game: price and pack size first (Save greyed until then); $10 fills in 50 per pack.
   await enter('1900');
-  assert.equal(await text('#shipTitle'), 'Game 1900 · new');
+  assert.equal(await text('#shipTitle'), 'Game 1900 · New');
   assert.equal(await page.$eval('#shipNewGame', (el) => el.classList.contains('hidden')), false);
   assert.equal(await disabled('#shipSave'), true);
   await page.type('#shipPrice', '10');

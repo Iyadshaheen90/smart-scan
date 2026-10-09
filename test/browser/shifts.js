@@ -38,7 +38,7 @@ function handle(body) {
   assert.deepEqual(await page.$$eval('#list .section-label', (els) => els.map((el) => el.textContent)), ['Tue, Nov 10']);
   let c = await cards();
   assert.match(c[0], /^o · 6:00 PM \$640/); assert.match(c[0], /From the 2:00 PM shift close to 6:00 PM/);
-  assert.match(c[0], /32 Tickets sold \$640 Sold 2 Slots scanned/);
+  assert.match(c[0], /32 Tickets Sold \$640 Sold 2 Slots Scanned/);
   assert.match(c[0], /Includes 30 tickets \(\$600\) from packs ended or sold whole during the shift\./);
   assert.match(c[1], /^e · 2:00 PM \$150/); assert.match(c[1], /From last night's close to 2:00 PM/);
   // Slots: every slot's start → end ticket, and the full pack.
@@ -47,7 +47,7 @@ function handle(body) {
   assert.match(c[0], /Slots \(3\)/);
   assert.match(c[0], /Box 1 · Slot 1 · 1747-0000001 020 → 018 · 2 sold · \$40/);
   assert.match(c[0], /Box 1 · Slot 2 · 5555-0000001 060 → 060 · 0 sold · \$0/);
-  assert.match(c[0], /From the back · 3333-0000001 full pack sold · 30 sold · \$600/);
+  assert.match(c[0], /From the Back · 3333-0000001 full pack sold · 30 sold · \$600/);
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT, fullPage: true });
 
   // Delete the 2 PM one.

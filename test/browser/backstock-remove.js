@@ -32,13 +32,13 @@ function handle(body) {
   const disabled = (sel) => page.$eval(sel, (b) => b.disabled);
   const listCard = (g) => page.$$eval('#stock .card', (cards, g) => cards.find((c) => c.innerText.includes(`Game ${g}`)).innerText, g);
   const openRemove = (sel, g) => page.$$eval(`${sel} .card`, (cards, g) =>
-    [...cards.find((c) => c.innerText.includes(`Game ${g}`)).querySelectorAll('button')].find((b) => b.textContent === 'Manage packs').click(), g);
+    [...cards.find((c) => c.innerText.includes(`Game ${g}`)).querySelectorAll('button')].find((b) => b.textContent === 'Manage Packs').click(), g);
   const waitMsg = (sel) => page.waitForFunction((sel) => document.querySelector(sel).textContent !== '', {}, sel);
   const clearMsg = (sel) => page.$eval(sel, (el) => { el.textContent = ''; });
 
   assert.equal(await text('#totals'), '5 packs · $2,800 at ticket price');   // 3×30×$20 + 2×50×$10
   await page.type('#search', '1747');
-  assert.match(await text('#searchResults'), /3 packs/);
+  assert.match(await text('#searchResults'), /3 Packs/);
 
   // 1. − then Save shows the "why" step (reason buttons, red Cancel, Back); nothing is sent yet.
   await openRemove('#searchResults', '1747');
@@ -47,8 +47,8 @@ function handle(body) {
   assert.equal(await text('#packCount'), '3');
   await page.click('#packMinus'); await page.click('#packMinus'); await page.click('#packSave');
   assert.equal(await visible('#packReasonStep'), true); assert.equal(await visible('#packCountStep'), false);
-  assert.equal(await text('#packReasonTitle'), 'Remove 2 packs (3 → 1 in the back). Why?');
-  assert.deepEqual(await page.$$eval('#removeReasons button', (b) => b.map((x) => x.textContent)), ['Returned', 'Game expired', 'Damaged', 'Stolen', 'Other']);
+  assert.equal(await text('#packReasonTitle'), 'Remove 2 Packs (3 → 1 in the Back). Why?');
+  assert.deepEqual(await page.$$eval('#removeReasons button', (b) => b.map((x) => x.textContent)), ['Returned', 'Game Expired', 'Damaged', 'Stolen', 'Other']);
   const bg = (sel) => page.$eval(sel, (el) => getComputedStyle(el).backgroundColor);
   assert.equal(await bg('#reasonCancel'), 'rgb(198, 40, 40)');
   assert.equal(calls, 0); assert.equal(reserve('1747').packs_in_reserve, 3);
@@ -69,8 +69,8 @@ function handle(body) {
   assert.match(await text('#searchMessage'), /Removed 1 pack of game 1747 \(damaged\)/);
   assert.deepEqual([reserve('1747').packs_in_reserve, reserve('1747').tickets_in_reserve], [2, 60]);
   assert.deepEqual(lastAdjustment().slice(0, 5), ['2026-09-26', '1747', 1, 30, 'damaged']); assert.equal(lastAdjustment()[6], 'o');
-  assert.match(await text('#searchResults'), /2 packs/); assert.match(await text('#searchResults'), /60 tickets · \$1,200/);
-  assert.match(await listCard('1747'), /2 packs/);
+  assert.match(await text('#searchResults'), /2 Packs/); assert.match(await text('#searchResults'), /60 tickets · \$1,200/);
+  assert.match(await listCard('1747'), /2 Packs/);
   assert.equal(await text('#totals'), '4 packs · $2,200 at ticket price');
   assert.equal(await page.$eval('#search', (el) => el.value), '1747');            // search stays open
   assert.match(await text('#searchResults'), /On display: Box 1 · Slot 2/);       // the slot out front is untouched
@@ -81,9 +81,9 @@ function handle(body) {
   await openRemove('#searchResults', '1747'); await removeInDialog(page, 2, 'game expired'); await waitMsg('#searchMessage');
   assert.deepEqual([reserve('1747').packs_in_reserve, reserve('1747').tickets_in_reserve], [0, 0]);
   assert.deepEqual(lastAdjustment().slice(1, 5), ['1747', 2, 60, 'game expired']);
-  assert.match(await text('#searchResults'), /none in the back/);
-  assert.deepEqual(await page.$$eval('#searchResults .card button', (b) => b.map((x) => x.textContent)), ['Manage packs']);
-  assert.match(await listCard('1747'), /none in the back/);
+  assert.match(await text('#searchResults'), /None in the Back/);
+  assert.deepEqual(await page.$$eval('#searchResults .card button', (b) => b.map((x) => x.textContent)), ['Manage Packs']);
+  assert.match(await listCard('1747'), /None in the Back/);
   assert.equal(await text('#totals'), '2 packs · $1,000 at ticket price');
   assert.equal(S.ReserveAdjustments.rows.length, 3);
 

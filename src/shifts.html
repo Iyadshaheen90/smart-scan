@@ -54,7 +54,7 @@
 
     // One line per slot (or pack ended during the shift): where, which pack, and what sold.
     function rowText(r) {
-      const where = r.box == null ? 'From the back' : `Box ${r.box} · Slot ${r.slot}`;
+      const where = r.box == null ? 'From the Back' : `Box ${r.box} · Slot ${r.slot}`;
       const what = {
         scan: () => `${pad3(r.start)} → ${pad3(r.end)}`,
         sold_out: () => `${pad3(r.start)} → sold out`,
@@ -72,8 +72,8 @@
       top.append(el('span', 'slot-num', `${shift.closedBy} · ${shift.closedAt}`), el('span', 'chip green', money(shift.dollarsSold)));
       const from = shift.since ? `the ${shift.since} shift close` : "last night's close";
       const stats = el('div', 'stat-grid');
-      stats.append(stat(String(shift.ticketsSold), 'Tickets sold'), stat(money(shift.dollarsSold), 'Sold'),
-        stat(String(shift.slotsScanned), 'Slots scanned'));
+      stats.append(stat(String(shift.ticketsSold), 'Tickets Sold'), stat(money(shift.dollarsSold), 'Sold'),
+        stat(String(shift.slotsScanned), 'Slots Scanned'));
       card.append(top, el('div', 'slot-detail', `From ${from} to ${shift.closedAt}`), stats);
       if (shift.endedTickets) {
         card.append(el('div', 'slot-detail', `Includes ${shift.endedTickets} tickets (${money(shift.endedDollars)}) from packs ended or sold whole during the shift.`));

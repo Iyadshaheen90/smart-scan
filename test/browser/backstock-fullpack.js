@@ -31,7 +31,7 @@ function handle(body) {
 
   // 1. Opened from the Full pack sales page: already in Full pack sale mode.
   await page.goto(base + 'backstock.html?mode=fullpack'); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length >= 1);
-  assert.equal(await text('#modeSwitch .active'), 'Full pack sale');
+  assert.equal(await text('#modeSwitch .active'), 'Full Pack Sale');
   assert.match(await text('#modeHint'), /whole sealed pack/);
 
   // 2. A bare game number isn't enough.
@@ -62,7 +62,7 @@ function handle(body) {
   await page.waitForFunction(() => document.getElementById('sellDialog').classList.contains('hidden'));
   assert.equal(sells, 1); assert.equal(packs('1747'), 1);
   assert.match(await text('#flash'), /Sold full pack 1747-1263622 for \$600\. Game 1747: 2 → 1 in the back\./);
-  assert.match(await text('#stock'), /1 pack/);
+  assert.match(await text('#stock'), /1 Pack/);
   assert.equal(call(() => ctx.listFullPackSales()).count, 1);
 
   // 6. The same pack again: the server refuses, shown in the message.

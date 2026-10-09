@@ -20,8 +20,8 @@
     // shift close. It saves only that shift's numbers and never changes anything Close Day uses.
     const SHIFT_MODE = new URLSearchParams(location.search).get('shift') === '1';
     if (SHIFT_MODE) {
-      document.currentScript.previousElementSibling.dataset.title = 'Close shift';
-      document.title = 'Smart Scan — Close shift';
+      document.currentScript.previousElementSibling.dataset.title = 'Close Shift';
+      document.title = 'Smart Scan — Close Shift';
     }
   </script>
   <p class="sub" id="dateLine">Loading…</p>
@@ -29,19 +29,19 @@
   <!-- Today is already closed. -->
   <div id="closedView" class="hidden">
     <div class="card" id="summary"></div>
-    <button type="button" class="hidden" id="reopenBtn">Reopen today's close to fix it</button>
+    <button type="button" class="hidden" id="reopenBtn">Reopen Today's Close to Fix It</button>
     <a class="button" href="index.html">Done</a>
   </div>
 
   <!-- Submitted and saved on this phone, but the server hasn't got it yet. -->
   <div id="pendingView" class="hidden">
     <div class="card">
-      <strong>Close saved on this phone. Not sent yet.</strong>
+      <strong>Close Saved on This Phone. Not Sent Yet.</strong>
       <div class="slot-detail" id="pendingInfo"></div>
     </div>
     <div id="pendingMessage" class="message"></div>
-    <button type="button" class="primary" id="retryBtn">Try sending now</button>
-    <button type="button" class="danger" id="cancelPendingBtn">Stop sending and change scans</button>
+    <button type="button" class="primary" id="retryBtn">Try Sending Now</button>
+    <button type="button" class="danger" id="cancelPendingBtn">Stop Sending and Change Scans</button>
   </div>
 
   <!-- Scanning. -->
@@ -56,7 +56,7 @@
       <div class="slot-detail cur-done" id="curDone"></div>
     </div>
     <div class="choices">
-      <button type="button" id="soldOutBtn">Sold out</button>
+      <button type="button" id="soldOutBtn">Sold Out</button>
       <button type="button" id="skipBtn">Skip</button>
     </div>
 
@@ -67,23 +67,23 @@
            and the progress bar, the slot card and the scan button all stay in view. -->
       <div id="flash" class="message scan-flash"></div>
     </div>
-    <label class="button hold-button" id="holdBtn">Press and hold to scan</label>
+    <label class="button hold-button" id="holdBtn">Press and Hold to Scan</label>
     <div class="segmented" id="modeSwitch" style="margin-top: 10px;">
-      <button type="button" data-mode="hold">Press and hold</button>
-      <button type="button" data-mode="auto">Auto scan</button>
+      <button type="button" data-mode="hold">Press and Hold</button>
+      <button type="button" data-mode="auto">Auto Scan</button>
     </div>
     <form id="typedForm">
-      <label for="typed">Or type the number printed on the ticket</label>
+      <label for="typed">Or Type the Number Printed on the Ticket</label>
       <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
-      <button type="submit">Use this number</button>
+      <button type="submit">Use This Number</button>
     </form>
 
-    <h2>All slots</h2>
+    <h2>All Slots</h2>
     <p class="sub">Tap a slot to go back to it. A new scan replaces the old one.</p>
     <div id="review"></div>
-    <button type="button" class="primary" id="submitBtn" disabled>Submit close</button>
+    <button type="button" class="primary" id="submitBtn" disabled>Submit Close</button>
     <div id="submitMessage" class="message"></div>
-    <button type="button" class="danger hidden" id="clearBtn">Clear all scans and start over</button>
+    <button type="button" class="danger hidden" id="clearBtn">Clear All Scans and Start Over</button>
   </div>
 
   <div id="message" class="message"></div>
@@ -233,8 +233,8 @@
 
     function render() {
       const done = live.filter((s) => entries[keyOf(s)]).length;
-      $('progressText').textContent = `${done} of ${live.length} slots done`;
-      $('leftTag').textContent = done === live.length ? 'Ready to submit' : `${live.length - done} left`;
+      $('progressText').textContent = `${done} of ${live.length} Slots Done`;
+      $('leftTag').textContent = done === live.length ? 'Ready to Submit' : `${live.length - done} Left`;
       $('progressBar').style.width = live.length ? `${(100 * done) / live.length}%` : '100%';
 
       const current = live.find((s) => keyOf(s) === currentKey);
@@ -242,7 +242,7 @@
       ['soldOutBtn', 'skipBtn'].forEach((id) => { $(id).disabled = !current; });
       if (current && current.pack.soldOutAtShift) $('soldOutBtn').disabled = true;
       if (!current) {
-        $('curWhere').textContent = 'All slots done';
+        $('curWhere').textContent = 'All Slots Done';
         $('curPack').textContent = '\u00a0'; // a blank line the same height as a pack line
         $('curLast').textContent = `Check the list below, then ${submitLabel()}.`;
         $('curDone').textContent = '';
@@ -268,7 +268,7 @@
         left.textContent = `B${slot.box} · S${slot.slot} · $${slot.pack.price}`;
         const right = document.createElement('span');
         right.className = entry ? (entry.sold >= status.largeSaleTickets ? 'tag warn' : 'tag live') : 'tag';
-        right.textContent = entry ? describe(entry) : 'not done';
+        right.textContent = entry ? describe(entry) : 'Not Done';
         row.append(left, right);
         row.addEventListener('click', () => {
           currentKey = keyOf(slot);
@@ -279,16 +279,16 @@
       }
 
       $('submitBtn').disabled = done !== live.length;
-      $('submitBtn').textContent = done === live.length ? submitLabel() : `${submitLabel()} (${live.length - done} left)`;
+      $('submitBtn').textContent = done === live.length ? submitLabel() : `${submitLabel()} (${live.length - done} Left)`;
       $('clearBtn').classList.toggle('hidden', !live.some((s) => entries[keyOf(s)] && entries[keyOf(s)].type !== 'sold_out_earlier'));
     }
 
-    const submitLabel = () => (SHIFT_MODE ? 'Submit shift close' : 'Submit close');
+    const submitLabel = () => (SHIFT_MODE ? 'Submit Shift Close' : 'Submit Close');
 
     function describe(entry) {
-      if (entry.type === 'sold_out_earlier') return 'sold out · 0';
-      if (entry.type === 'sold_out') return `sold out · ${entry.sold}`;
-      return `${entry.sold} sold · top ${pad3(entry.ticketNumber)}`;
+      if (entry.type === 'sold_out_earlier') return 'Sold Out · 0';
+      if (entry.type === 'sold_out') return `Sold Out · ${entry.sold}`;
+      return `${entry.sold} Sold · Top ${pad3(entry.ticketNumber)}`;
     }
 
     function renderClosed(summary) {
@@ -314,7 +314,7 @@
       $('closeView').classList.add('hidden');
       $('closedView').classList.remove('hidden');
       $('reopenBtn').classList.add('hidden');
-      const lines = [`<strong>Shift closed at ${shift.closedAt} by ${navEscape(shift.closedBy)}</strong>`,
+      const lines = [`<strong>Shift Closed at ${shift.closedAt} by ${navEscape(shift.closedBy)}</strong>`,
         `From ${shift.since ? `the ${shift.since} shift close` : "last night's close"} to ${shift.closedAt}`,
         `${shift.ticketsSold} tickets sold this shift`];
       if ('dollarsSold' in shift) {

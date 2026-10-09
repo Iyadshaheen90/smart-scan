@@ -63,8 +63,8 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
     await typed('1747-1263622-4-035'); await check('a normal scan');
     await typed('1747-1263622-4-030'); await check('scanning a done slot again');
     await page.$$eval('.review-row', (rows) => rows.find((r) => r.textContent.includes('B2 · S3 ·')).click()); await sleep(100);
-    await page.click('#soldOutBtn'); await sleep(200); await check('Sold out, all slots done');
-    assert.equal(await page.$eval('#curWhere', (e) => e.textContent), 'All slots done');
+    await page.click('#soldOutBtn'); await sleep(200); await check('Sold Out, all slots done');
+    assert.equal(await page.$eval('#curWhere', (e) => e.textContent), 'All Slots Done');
     assert.ok(await page.$eval('#soldOutBtn', (b) => b.disabled));
     // The longest message fits its box (smaller text), nothing cut off.
     await typed('1747-1263622-4-099');
@@ -103,7 +103,7 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
     if (during) await app.page.evaluate(during);
     await app.page.mouse.up(); await sleep(300);
   };
-  assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and hold to scan');
+  assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and Hold to Scan');
   let before = await flips();
   await press(null);
   assert.equal(await flips(), before, 'letting go without a scan: no buzz');
@@ -127,12 +127,12 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
   assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300]);
   await app.page.evaluate(async () => { window.tones = []; (await import('./scanner.js')).haptic(); });
   await sleep(200);
-  assert.deepEqual(await app.page.evaluate(() => window.tones), [1800], 'Auto scan saved: one high beep');
+  assert.deepEqual(await app.page.evaluate(() => window.tones), [1800], 'Auto Scan saved: one high beep');
   // A typed number that isn't saved: no held button, so two low beeps.
   await app.page.evaluate(() => { window.tones = []; });
   await app.page.type('#typed', '9999-0000001-6-010'); await app.page.click('#typedForm button'); await sleep(200);
   assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300]);
-  assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and hold to scan', 'text kept, switch not wiped');
+  assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and Hold to Scan', 'text kept, switch not wiped');
   // A scan while the button is held: saved at once, but the screen changes only after the finger lifts (changing the
   // page during the hold stopped the buzz on the owner's iPhone).
   await app.page.evaluate(() => { window.tones = []; });

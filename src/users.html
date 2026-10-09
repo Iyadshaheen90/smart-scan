@@ -20,13 +20,13 @@
   <div id="list">Loading…</div>
   <div id="listMessage" class="message"></div>
 
-  <h2>Add an employee</h2>
+  <h2>Add an Employee</h2>
   <form id="addForm">
     <label for="username">Username</label>
     <input id="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
-    <label for="password">Starting password</label>
+    <label for="password">Starting Password</label>
     <input id="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" minlength="6" required>
-    <button class="primary" type="submit">Add employee</button>
+    <button class="primary" type="submit">Add Employee</button>
   </form>
   <div id="addMessage" class="message"></div>
 
@@ -46,12 +46,12 @@
 
     // The permissions the owner can turn on per employee (same names as PERMISSIONS on the server).
     const PERMISSIONS = [
-      { key: 'load_packs', name: 'Load packs', what: 'Mark a pack sold out and put a new pack in a slot, including a new game or a slot price change to fit it. Can undo a wrong slot and put back a pack marked sold out by mistake.' },
-      { key: 'return_packs', name: 'Return packs', what: 'Mark a pack returned (scan its top ticket).' },
-      { key: 'receive_shipments', name: 'Receive shipments', what: 'Scan in a delivery on Back stock. Only the shipment scanner, not the back stock list.' },
+      { key: 'load_packs', name: 'Load Packs', what: 'Mark a pack sold out and put a new pack in a slot, including a new game or a slot price change to fit it. Can undo a wrong slot and put back a pack marked sold out by mistake.' },
+      { key: 'return_packs', name: 'Return Packs', what: 'Mark a pack returned (scan its top ticket).' },
+      { key: 'receive_shipments', name: 'Receive Shipments', what: 'Scan in a delivery on Back stock. Only the shipment scanner, not the back stock list.' },
       { key: 'count_stock', name: 'Manage Stock', what: 'Count the back and set how many packs are there.' },
-      { key: 'full_pack_sale', name: 'Full pack sale', what: 'Sell a sealed pack from the back.' },
-      { key: 'ticket_order', name: 'Ticket order', what: 'Set a slot to descending or ascending while it\'s empty (slot page), or all slots at once (More).' },
+      { key: 'full_pack_sale', name: 'Full Pack Sale', what: 'Sell a sealed pack from the back.' },
+      { key: 'ticket_order', name: 'Ticket Order', what: 'Set a slot to descending or ascending while it\'s empty (slot page), or all slots at once (More).' },
     ];
 
     // Employees whose Permissions list is open, so it stays open when the list is redrawn after a save.
@@ -72,7 +72,7 @@
       const count = PERMISSIONS.filter((p) => on.has(p.key)).length;
       summary.innerHTML = '<span class="grow"></span><span class="tag"></span><span class="perm-chev" data-icon="chevronRight"></span>';
       summary.children[0].textContent = 'Permissions';
-      summary.children[1].textContent = count ? `${count} of ${PERMISSIONS.length} on` : 'None on';
+      summary.children[1].textContent = count ? `${count} of ${PERMISSIONS.length} On` : 'None On';
       if (count) summary.children[1].classList.add('live');
       summary.children[2].innerHTML = icon('chevronRight');
       box.append(summary);
@@ -119,7 +119,7 @@
       const all = document.createElement('button');
       all.type = 'button';
       all.className = 'small perm-all';
-      all.textContent = allOn ? 'Turn all off' : 'Turn all on';
+      all.textContent = allOn ? 'Turn All Off' : 'Turn All On';
       all.disabled = !user.active;
       all.addEventListener('click', () => save(allOn ? 'everything turned off' : 'everything turned on',
         allOn ? [] : PERMISSIONS.map((x) => x.key)));
@@ -142,7 +142,9 @@
         name.textContent = user.username;
         const tag = document.createElement('span');
         tag.className = 'tag';
-        tag.textContent = user.active ? user.role : `${user.role} · inactive`;
+        // "Employee", "Owner · Inactive"
+        const role = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+        tag.textContent = user.active ? role : `${role} · Inactive`;
         top.append(name, tag);
         card.append(top);
 
@@ -156,7 +158,7 @@
               if (user.active && !confirm(`Deactivate ${user.username}? They'll be signed out and can't sign in until reactivated.`)) return null;
               return api('setUserActive', { username: user.username, active: !user.active });
             }),
-            actionButton('Reset password', () => {
+            actionButton('Reset Password', () => {
               const newPassword = prompt(`New password for ${user.username} (at least 6 characters):`);
               if (!newPassword) return null;
               return api('resetPassword', { username: user.username, newPassword })

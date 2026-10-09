@@ -14,16 +14,16 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header" data-title="Full pack sales" data-back="index.html" data-back-label="Home"></header>
+  <header class="app-header" data-title="Full Pack Sales" data-back="index.html" data-back-label="Home"></header>
   <p class="sub">Sealed packs sold whole from the back this month. Each one is taken off back stock and counted in
     that day's sales. The list starts empty each month; back stock carries over.</p>
 
-  <a class="button primary" href="backstock.html?mode=fullpack">Sell a full pack</a>
+  <a class="button primary" href="backstock.html?mode=fullpack">Sell a Full Pack</a>
 
   <div class="status-card saved-dim" id="totals" style="margin-top: 16px;">
     <div class="stat-grid two">
-      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs this month</div></div>
-      <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Total value</div></div>
+      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs This Month</div></div>
+      <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Total Value</div></div>
     </div>
   </div>
 
@@ -66,8 +66,8 @@
       const top = el('div', 'row');
       top.append(el('span', 'slot-num', dayName(sale.date)), el('span', 'chip green', money(sale.dollars)));
       const stats = el('div', 'stat-grid');
-      stats.append(stat(money(sale.price), 'Ticket price'), stat(String(sale.ticketsPerPack), 'Pack size'),
-        stat(money(sale.dollars), 'Total value'));
+      stats.append(stat(money(sale.price), 'Ticket Price'), stat(String(sale.ticketsPerPack), 'Pack Size'),
+        stat(money(sale.dollars), 'Total Value'));
       card.append(top, el('div', 'slot-detail mono', `Game ${sale.gameNumber} · Pack ${sale.packNumber}`), stats);
       if (sale.canUndo) {
         const undo = el('button', 'small danger', 'Undo');
@@ -80,7 +80,7 @@
     }
 
     function showSales(data) {
-      $('packCount').textContent = `${data.count} ${data.count === 1 ? 'pack' : 'packs'}`;
+      $('packCount').textContent = `${data.count} ${data.count === 1 ? 'Pack' : 'Packs'}`;
       $('dollarCount').textContent = money(data.dollars);
       const list = $('list');
       list.innerHTML = '';

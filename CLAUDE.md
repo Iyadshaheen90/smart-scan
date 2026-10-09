@@ -284,6 +284,13 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   `adjustBackStock` (Add pack: `change` packs; more → Shipments row, source "add pack"; fewer → ReserveAdjustments, reason
   "adjust"), `removeBackStock`, `endGame`, `bringBackGame`
 
+**Wording (owner's rule 2026-10-08): Title Case** for page titles, section titles, pop-up titles, permission names,
+buttons and links, tabs, form labels, stat/tile labels and tags/chips ("Sell a Full Pack", "Shipment Received",
+"Price per Ticket ($)", "25 Left", "Out of Stock", "Not Closed"). Small words (a, an, the, and, or, of, to, in, on, at,
+for, by, per, from, with) stay lowercase unless first. Sentences stay sentence case: explanations (`p.sub`), detail
+lines, messages, confirm() questions, scan flashes. Usernames stay as typed. Scanner test's A–K diagnostic labels are
+left as they are. New screens follow the same rule.
+
 Conventions: every write runs inside `withLock`; validate the whole request before writing anything;
 errors are `ApiError(code, message)` with a message the person at the counter can act on.
 New columns go at the **end** of a tab. Existing month sheets don't have them yet: call `ensureHeaders` before

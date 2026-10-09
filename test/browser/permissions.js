@@ -20,7 +20,7 @@ const visible = (page, sel) => page.$eval(sel, (el) => !el.classList.contains('h
 const text = (page, sel) => page.$eval(sel, (el) => el.textContent);
 const noDollars = async (page, where) => {
   const body = await page.evaluate(() => document.body.innerText);
-  assert.ok(!/\$\d/.test(body.replace(/\$\d+ slot/g, '').replace(/Game \d+ · \$\d+/g, '')), `${where}: no dollar amounts\n${body}`);
+  assert.ok(!/\$\d/.test(body.replace(/\$\d+ [Ss]lot/g, '').replace(/Game \d+ · \$\d+/g, '')), `${where}: no dollar amounts\n${body}`);
 };
 
 async function manageEmployees() {
@@ -54,7 +54,7 @@ async function manageEmployees() {
   // The switches start folded under "Permissions · None on"; tapping the row opens them (and they stay open
   // through each save, which redraws the list).
   const folded = () => page.$$eval('#list details.perm-details', (ds) => ds.map((d) => [d.open, d.querySelector('summary').textContent]));
-  assert.deepEqual(await folded(), [[false, 'PermissionsNone on'], [false, 'PermissionsNone on']]);
+  assert.deepEqual(await folded(), [[false, 'PermissionsNone On'], [false, 'PermissionsNone On']]);
   assert.ok(await page.$eval('#list .card:nth-child(2) details.perm-details', (d) => d.getBoundingClientRect().height < 70), 'folded: just the Permissions row');
   await page.click('#list .card:nth-child(2) details.perm-details summary'); await sleep(100);
 
@@ -66,21 +66,21 @@ async function manageEmployees() {
   await toggle(0);
   await toggle(4);
   assert.deepEqual(sent, [['load_packs'], ['load_packs', 'full_pack_sale']]);
-  assert.deepEqual(await folded(), [[true, 'Permissions2 of 6 on'], [false, 'PermissionsNone on']], 'still open after saving, count updated');
-  assert.match(await text(page, '#listMessage'), /sara: Full pack sale turned on/);
+  assert.deepEqual(await folded(), [[true, 'Permissions2 of 6 On'], [false, 'PermissionsNone On']], 'still open after saving, count updated');
+  assert.match(await text(page, '#listMessage'), /sara: Full Pack Sale turned on/);
   // Tapping the words also flips the switch (the row is its label).
   await page.click('#list .card:nth-child(2) .perm-row:nth-of-type(2) strong'); await sleep(150);
   assert.deepEqual(sent.at(-1), ['load_packs', 'return_packs', 'full_pack_sale']);
   // Turn all on / off.
   let all = await page.$('#list .card:nth-child(2) .perm-all');
-  assert.equal(await page.evaluate((b) => b.textContent, all), 'Turn all on');
+  assert.equal(await page.evaluate((b) => b.textContent, all), 'Turn All On');
   await all.click(); await sleep(150);
   assert.deepEqual(sent.at(-1), ALL);
   const states = await page.$$eval('#list .card:nth-child(2) input.toggle', (els) => els.map((i) => i.checked));
   assert.deepEqual(states, [true, true, true, true, true, true]);
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/permissions-users.png`, fullPage: true });
   all = await page.$('#list .card:nth-child(2) .perm-all');
-  assert.equal(await page.evaluate((b) => b.textContent, all), 'Turn all off');
+  assert.equal(await page.evaluate((b) => b.textContent, all), 'Turn All Off');
   await all.click(); await sleep(150);
   assert.deepEqual(sent.at(-1), []);
   await app.close();
@@ -93,7 +93,7 @@ async function employeeHome() {
   const { page } = app;
   await page.goto(app.base + 'index.html');
   await page.waitForFunction(() => !document.getElementById('extraActions').classList.contains('hidden'));
-  assert.equal(await text(page, '#loadPacksText'), 'Load packs');
+  assert.equal(await text(page, '#loadPacksText'), 'Load Packs');
   const links = await page.$$eval('#extraActions a:not(.hidden)', (els) => els.map((a) => a.getAttribute('href')));
   assert.deepEqual(links, ['slots.html', 'backstock.html?mode=shipment']);
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('smartScanSession')).permissions), perms);
@@ -144,7 +144,7 @@ async function slotPage() {
   await page.type('#typed', '9999-0000001-4-029'); await page.click('#typedForm button'); await sleep(200);
   // A new game: they enter its price, like the owner.
   await page.click('#activateBtn'); await sleep(200);
-  assert.ok(await visible(page, '#newGame'), 'new game fields for a Load packs employee');
+  assert.ok(await visible(page, '#newGame'), 'new game fields for a Load Packs employee');
   await page.type('#gamePrice', '5'); await page.$eval('#ticketsPerPack', (el) => { el.value = '30'; });
   await page.click('#activateBtn'); await sleep(200);
   assert.equal(saves.at(-1).gamePrice, '5'); assert.equal(saves.at(-1).oldPackEnd, 'sold_out');
@@ -161,7 +161,7 @@ async function slotPage() {
   await page.waitForFunction(() => !document.getElementById('oldStep').classList.contains('hidden'));
   assert.equal(await visible(page, '#soldOutBtn'), false);
   assert.ok(await visible(page, '#returnedBtn'));
-  assert.equal(await visible(page, '#undoBtn'), false, 'undo a wrong slot needs Load packs');
+  assert.equal(await visible(page, '#undoBtn'), false, 'undo a wrong slot needs Load Packs');
   await page.click('#returnedBtn'); await sleep(100);
   await page.type('#typed', '1747-1263622-4-045'); await page.click('#typedForm button'); await sleep(200);
   assert.equal(await text(page, '#nextPrompt'), 'Pack 1747-1263622 returned with top ticket 045: 30 sold today, 46 going back.');
@@ -170,7 +170,7 @@ async function slotPage() {
   await noDollars(page, 'slot page (return)');
   await page.goto(app.base + 'activate.html?box=1&slot=8');
   await page.waitForFunction(() => document.getElementById('message').textContent.length > 0);
-  assert.equal(await visible(page, '#undoEndBtn'), false, 'a sold out pack is put back with Load packs only');
+  assert.equal(await visible(page, '#undoEndBtn'), false, 'a sold out pack is put back with Load Packs only');
   assert.equal(await visible(page, '#scanStep'), false);
   assert.match(await text(page, '#message'), /hasn't turned on loading packs/);
   await app.close();

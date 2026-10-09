@@ -63,35 +63,35 @@ async function home(app) {
   let app = await openApp({ role: 'owner', username: 'ishaheen', handle: (body) => { ownerCalls.push(body.action); return ownerBackend(body); } });
   await home(app);
   assert.deepEqual(ownerCalls, ['ownerHome'], 'owner home is one request');
-  assert.equal(await text(app.page, 'closedChip'), 'Not closed');
+  assert.equal(await text(app.page, 'closedChip'), 'Not Closed');
   assert.equal(await text(app.page, 'todayLabel'), 'Today · Mon, Sep 28');
   assert.equal(await text(app.page, 'lastDollars'), '$1,284');
-  assert.equal(await text(app.page, 'lastLabel'), 'Last close · Sun, Sep 27');
+  assert.equal(await text(app.page, 'lastLabel'), 'Last Close · Sun, Sep 27');
   assert.equal(await text(app.page, 'lastTickets'), '214');
   assert.equal(await text(app.page, 'liveSlots'), '3');
   assert.equal(await text(app.page, 'backValue'), '$1,651');      // on the Back stock tile
   assert.equal(await text(app.page, 'liveValue'), '$600');        // 3 packs × 10 left × $20, on the Slots tile
   assert.equal(await text(app.page, 'monthDollars'), '$1,284');   // this month so far, on the Months tile
-  assert.equal(await text(app.page, 'settlingCount'), '2 packs');   // live 50+ days, on the Settling tile
+  assert.equal(await text(app.page, 'settlingCount'), '2 Packs');   // Live 50+ Days, on the Settling tile
   assert.ok(await app.page.$eval('#settlingCount', (e) => e.classList.contains('amber')));
   // Full pack sales card: this month's packs and $, full width under the tiles, opens the list.
-  assert.equal(await text(app.page, 'fullPackCount'), '3 packs');
+  assert.equal(await text(app.page, 'fullPackCount'), '3 Packs');
   assert.equal(await text(app.page, 'fullPackDollars'), '$1,500');
   assert.equal(await app.page.$eval('#fullPackCount', (el) => el.closest('a').getAttribute('href')), 'full-packs.html');
   assert.equal(await app.page.$eval('.tile-wide', (el) => Math.round(el.getBoundingClientRect().width)),
     await app.page.$eval('.tile-grid', (el) => Math.round(el.getBoundingClientRect().width)));
   // Shift Closure card: this month's shift closes and the latest; opens the report. Close my shift under Close Day.
-  assert.equal(await text(app.page, 'shiftCount'), '2 shifts');
+  assert.equal(await text(app.page, 'shiftCount'), '2 Shifts');
   assert.equal(await text(app.page, 'shiftLast'), '3:02 PM');
-  assert.equal(await text(app.page, 'shiftLastSub'), 'today by sara');
+  assert.equal(await text(app.page, 'shiftLastSub'), 'Today by sara');
   assert.equal(await app.page.$eval('#shiftCount', (el) => el.closest('a').getAttribute('href')), 'shifts.html');
   assert.ok(await app.page.$eval('#shiftCount', (el) => el.closest('a').querySelector('[data-icon="shift"] svg path') !== null), 'shift icon drawn');
   const shiftOrder = await app.page.evaluate(() => {
     const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
     return [top('.owner-only a.action-main[href="close.html"]'), top('.owner-only a.action-shift')];
   });
-  assert.ok(shiftOrder[0] < shiftOrder[1], 'Close my shift is under Close Day');
-  assert.equal(await app.page.$eval('.owner-only a.action-shift', (a) => [a.getAttribute('href'), a.textContent.trim()].join(' ')), 'close.html?shift=1 Close my shift');
+  assert.ok(shiftOrder[0] < shiftOrder[1], 'Close My Shift is under Close Day');
+  assert.equal(await app.page.$eval('.owner-only a.action-shift', (a) => [a.getAttribute('href'), a.textContent.trim()].join(' ')), 'close.html?shift=1 Close My Shift');
   assert.equal(await app.page.$$eval('.owner-only a[href="raw-scanner.html"]', (els) => els.length), 0, 'Scanner test is in More only');
   assert.ok(await app.page.$eval('#statusCard', (el) => !el.textContent.includes('Back stock')), 'back stock is not in the top card');
   assert.deepEqual((await tabs(app.page)).map((t) => t[0]), ['Home', 'Scan', 'Stock', 'Reports', 'More']);
@@ -99,7 +99,7 @@ async function home(app) {
   assert.ok((await tabs(app.page))[0][2]);
   assert.ok(await app.page.$eval('.user-pill', (el) => el.textContent.includes('ishaheen') && el.textContent.includes('IS')));
   const ownerText = await visibleText(app.page);
-  for (const label of ['Close Day', 'Slots', 'Back stock & shipments', 'Months & totals', 'Settling', 'Manage employees']) {
+  for (const label of ['Close Day', 'Slots', 'Back Stock & Shipments', 'Months & Totals', 'Settling', 'Manage Employees']) {
     assert.ok(ownerText.includes(label), label);
   }
   assert.ok(await app.page.$eval('#startMonthBtn', (el) => el.classList.contains('hidden')), 'no Start month before the 1st');
@@ -127,9 +127,9 @@ async function home(app) {
     today: '2020-01-01', closed: { date: '2020-01-01', ticketsSold: 5, dollarsSold: 50, liveSlots: 1 }, lastClose: null, slots: [],
     month: { current: '2020-01', next: '2020-02', canStart: true }, monthDollars: 50, backValue: 7 })));
   await app.page.goto(app.base + 'index.html'); await sleep(300);
-  assert.equal(await text(app.page, 'closedChip'), 'Not closed');
+  assert.equal(await text(app.page, 'closedChip'), 'Not Closed');
   assert.equal(await text(app.page, 'lastDollars'), '$50');
-  assert.equal(await text(app.page, 'lastLabel'), 'Last close · Wed, Jan 1');
+  assert.equal(await text(app.page, 'lastLabel'), 'Last Close · Wed, Jan 1');
   assert.ok(await app.page.$eval('#startMonthBtn', (el) => el.classList.contains('hidden')), 'a saved copy never shows Start month');
   await app.close();
 
@@ -158,7 +158,7 @@ async function home(app) {
   assert.equal(await text(app.page, 'monthMessage'), 'October 2026 started.');
   await sleep(300);
   assert.equal(await text(app.page, 'monthDollars'), '$0', 'Months tile shows October');
-  assert.equal(await text(app.page, 'lastLabel'), 'Last close · Sun, Sep 27');
+  assert.equal(await text(app.page, 'lastLabel'), 'Last Close · Sun, Sep 27');
   await app.page.reload(); await sleep(500);
   assert.ok(await app.page.$eval('#startMonthBtn', (el) => el.classList.contains('hidden')), 'stays gone until November 1');
   await app.close();
@@ -185,7 +185,7 @@ async function home(app) {
   await home(app);
   assert.equal(await text(app.page, 'closedChip'), 'Closed');
   assert.equal(await text(app.page, 'lastDollars'), '$2,500');
-  assert.equal(await text(app.page, 'lastLabel'), "Today's close");
+  assert.equal(await text(app.page, 'lastLabel'), "Today's Close");
   assert.equal(await text(app.page, 'lastTickets'), '300');
   await app.close();
 
@@ -194,20 +194,20 @@ async function home(app) {
     '2026-10': [], '2026-09': [{ date: '2026-09-29', ticketsSold: 1, dollarsSold: 5 }, { date: '2026-09-30', ticketsSold: 90, dollarsSold: 700 }] } }) });
   await home(app);
   assert.equal(await text(app.page, 'lastDollars'), '$700');
-  assert.equal(await text(app.page, 'lastLabel'), 'Last close · Wed, Sep 30');
+  assert.equal(await text(app.page, 'lastLabel'), 'Last Close · Wed, Sep 30');
   await app.close();
 
   // Owner, no close anywhere yet.
   app = await openApp({ role: 'owner', handle: backend({ months: { '2026-09': [] } }) });
   await home(app);
-  assert.equal(await text(app.page, 'lastLabel'), 'No close yet');
+  assert.equal(await text(app.page, 'lastLabel'), 'No Close Yet');
   await app.close();
 
   // Owner, no shift closes this month (and an answer saved before the card existed reads as none).
   app = await openApp({ role: 'owner', handle: backend({ shifts: { count: 0, last: null } }) });
   await home(app);
-  assert.equal(await text(app.page, 'shiftCount'), '0 shifts'); assert.equal(await text(app.page, 'shiftLast'), '—');
-  assert.equal(await text(app.page, 'shiftLastSub'), 'none yet');
+  assert.equal(await text(app.page, 'shiftCount'), '0 Shifts'); assert.equal(await text(app.page, 'shiftLast'), '—');
+  assert.equal(await text(app.page, 'shiftLastSub'), 'None Yet');
   await app.close();
   app = await openApp({ role: 'owner', handle: backend({ shifts: { count: 1, last: { date: '2026-09-26', closedAt: '9:15 AM', closedBy: 'e' } } }) });
   await home(app);
@@ -219,14 +219,14 @@ async function home(app) {
   const employee = backend();
   app = await openApp({ role: 'employee', username: 'employee', handle: (body) => { calls.push(body.action); return employee(body); } });
   await home(app);
-  assert.equal(await text(app.page, 'closedChip'), 'Not closed');
-  assert.equal(await text(app.page, 'employeeTitle'), 'Ready to scan');
+  assert.equal(await text(app.page, 'closedChip'), 'Not Closed');
+  assert.equal(await text(app.page, 'employeeTitle'), 'Ready to Scan');
   assert.deepEqual(await tabs(app.page), [['Home', 'index.html', true], ['Slots', 'slots.html', false], ['More', 'more.html', false]]);
   assert.equal(await app.page.$$eval('.employee-only .tile-card', (els) => els.length), 0, 'no Slots card on home');
   const empText = await visibleText(app.page);
   assert.ok(!empText.includes('$'), 'no dollars for employees');
-  for (const label of ['Back stock', 'Months', 'Manage employees', 'Tickets sold']) assert.ok(!empText.includes(label), label);
-  assert.ok(empText.includes('Scan tickets'));
+  for (const label of ['Back Stock', 'Months', 'Manage Employees', 'Tickets Sold']) assert.ok(!empText.includes(label), label);
+  assert.ok(empText.includes('Scan Tickets'));
   const hero = await app.page.$eval('.employee-only .action-hero', (a) => a.getAttribute('href'));
   assert.equal(hero, 'close.html');
   assert.deepEqual(calls.filter((c) => c !== 'closeStatus'), [], 'employee home asks only closeStatus');
@@ -239,14 +239,14 @@ async function home(app) {
   // More page: no Manage employees for employees; Sign out there.
   await app.page.goto(app.base + 'more.html'); await sleep(200);
   const moreText = await visibleText(app.page);
-  assert.ok(!moreText.includes('Manage employees') && moreText.includes('Sign out') && moreText.includes('Change my password'));
+  assert.ok(!moreText.includes('Manage Employees') && moreText.includes('Sign Out') && moreText.includes('Change My Password'));
   await app.close();
 
   // Employee, closed: who submitted it.
   app = await openApp({ role: 'employee', handle: backend({ closed: { date: '2026-09-28', ticketsSold: 300, liveSlots: 3, closedAt: '10:52 PM', closedBy: 'e' } }) });
   await home(app);
   assert.equal(await text(app.page, 'closedChip'), 'Closed');
-  assert.equal(await text(app.page, 'employeeTitle'), 'Day closed');
+  assert.equal(await text(app.page, 'employeeTitle'), 'Day Closed');
   assert.equal(await text(app.page, 'employeeNote'), 'Submitted at 10:52 PM by e');
   assert.ok(await app.page.$eval('#shiftBtn', (el) => !el.offsetParent), 'no shift close once the day is closed');
   await app.close();
@@ -255,7 +255,7 @@ async function home(app) {
   app = await openApp({ role: 'employee', handle: backend({ myShiftToday: { closedAt: '2:00 PM', closedBy: 'e', ticketsSold: 40 } }) });
   await home(app);
   assert.ok(await app.page.$eval('#shiftBtn', (el) => !el.offsetParent));
-  assert.equal(await app.page.$eval('#shiftDone', (el) => (el.offsetParent ? el.textContent : null)), 'Shift closed at 2:00 PM');
+  assert.equal(await app.page.$eval('#shiftDone', (el) => (el.offsetParent ? el.textContent : null)), 'Shift Closed at 2:00 PM');
   if (shots) await app.page.screenshot({ path: `${shots}/home-employee-shift-done.png`, fullPage: true });
   await app.close();
 

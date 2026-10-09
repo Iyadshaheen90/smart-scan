@@ -17,21 +17,21 @@
   <header class="app-header" data-title="More"></header>
   <p class="sub" id="who"></p>
 
-  <a class="list-card owner-only hidden" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage employees</span><span class="chev" data-icon="chevronRight"></span></a>
+  <a class="list-card owner-only hidden" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage Employees</span><span class="chev" data-icon="chevronRight"></span></a>
   <!-- Owner, or an employee with Ticket order: set every slot to descending or ascending at once. -->
-  <button type="button" class="list-card hidden" id="orderRow"><span class="icon-box" data-icon="order"></span><span class="grow">Ticket order</span><span class="chev" data-icon="chevronRight"></span></button>
+  <button type="button" class="list-card hidden" id="orderRow"><span class="icon-box" data-icon="order"></span><span class="grow">Ticket Order</span><span class="chev" data-icon="chevronRight"></span></button>
   <div id="orderResult" class="message"></div>
-  <a class="list-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span><span class="grow">Scanner test</span><span class="chev" data-icon="chevronRight"></span></a>
-  <a class="list-card" href="account.html"><span class="icon-box" data-icon="key"></span><span class="grow">Change my password</span><span class="chev" data-icon="chevronRight"></span></a>
-  <button type="button" class="list-card danger" id="signOut"><span class="icon-box" data-icon="logout"></span><span class="grow">Sign out</span></button>
+  <a class="list-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span><span class="grow">Scanner Test</span><span class="chev" data-icon="chevronRight"></span></a>
+  <a class="list-card" href="account.html"><span class="icon-box" data-icon="key"></span><span class="grow">Change My Password</span><span class="chev" data-icon="chevronRight"></span></a>
+  <button type="button" class="list-card danger" id="signOut"><span class="icon-box" data-icon="logout"></span><span class="grow">Sign Out</span></button>
 
   <div id="orderDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
     <div class="dialog">
-      <div class="dialog-title" id="orderTitle">Ticket order for all slots</div>
+      <div class="dialog-title" id="orderTitle">Ticket Order for All Slots</div>
       <div class="slot-detail">Empty slots switch now. A slot with a pack keeps counting that pack its way and switches when it sells out or is returned.</div>
       <div class="reasons" id="orderChoices">
-        <button type="button" data-order="descending"><span class="order-icon" data-icon="arrowDown"></span> All descending</button>
-        <button type="button" data-order="ascending"><span class="order-icon" data-icon="arrowUp"></span> All ascending</button>
+        <button type="button" data-order="descending"><span class="order-icon" data-icon="arrowDown"></span> All Descending</button>
+        <button type="button" data-order="ascending"><span class="order-icon" data-icon="arrowUp"></span> All Ascending</button>
       </div>
       <div id="orderError" class="message"></div>
       <div class="dialog-buttons">

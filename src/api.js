@@ -170,7 +170,7 @@ function showLoadError(el, err, load) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'try-again';
-  button.textContent = 'Try again';
+  button.textContent = 'Try Again';
   button.addEventListener('click', async () => {
     button.disabled = true;
     button.textContent = 'Loading…';
@@ -223,7 +223,7 @@ function orderIcon(order) {
 // "Game 1747: 2 packs in back stock" — shown where a slot is (or is about to be) out of stock,
 // for the game most likely to go back in it.
 function backStockText(gameNumber, packs) {
-  return `Game ${gameNumber}: ${packs} ${packs === 1 ? 'pack' : 'packs'} in back stock`;
+  return `Game ${gameNumber}: ${packs} ${packs === 1 ? 'Pack' : 'Packs'} in Back Stock`;
 }
 
 // Disables a form's button while a request runs, so a double tap can't submit twice.

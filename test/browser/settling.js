@@ -23,7 +23,7 @@ const cards = (page) => page.$$eval('#list .settle-card', (els) => els.map((c) =
   let c = await cards(app.page);
   console.log(JSON.stringify(c.map((x) => [x.where, x.chip, x.red])));
   assert.deepEqual(c.map((x) => x.where), ['Box 2 · Slot 5', 'Box 2 · Slot 4', 'Box 1 · Slot 3']);
-  assert.deepEqual(c.map((x) => x.chip), ['75 days', '62 days', '50 days']);
+  assert.deepEqual(c.map((x) => x.chip), ['75 Days', '62 Days', '50 Days']);
   assert.deepEqual(c.map((x) => x.red), [true, true, false]);
   assert.equal(c[1].href, 'activate.html?box=2&slot=4&from=settling');
   for (const bit of ['Game 1704 · Pack 1000004', '$30', '7', '$210', 'Activated Aug 1', 'Sep 28 close']) assert.ok(c[1].text.includes(bit), bit);
@@ -37,7 +37,7 @@ const cards = (page) => page.$$eval('#list .settle-card', (els) => els.map((c) =
     await app.page.goto(app.base + url); await sleep(300);
     return app.page.evaluate(() => ['back', 'doneBtn'].map((id) => [document.getElementById(id).textContent.trim(), document.getElementById(id).getAttribute('href')]));
   };
-  assert.deepEqual(await backLinks('activate.html?box=2&slot=4&from=settling'), [['Settling', 'settling.html'], ['Back to settling', 'settling.html']]);
+  assert.deepEqual(await backLinks('activate.html?box=2&slot=4&from=settling'), [['Settling', 'settling.html'], ['Back to Settling', 'settling.html']]);
   // The back pill is big enough to tap easily (44px tall).
   assert.ok(await app.page.$eval('#back', (a) => a.getBoundingClientRect().height >= 44));
   // Level with the name pill (same top row, same middle).
@@ -46,7 +46,7 @@ const cards = (page) => page.$$eval('#list .settle-card', (els) => els.map((c) =
     return Math.abs(mid(document.getElementById('back')) - mid(document.querySelector('.user-pill'))) <= 1;
   }), 'back pill level with the name pill');
   if (process.env.SHOTS) await app.page.screenshot({ path: `${process.env.SHOTS}/slot-back.png`, clip: { x: 0, y: 0, width: 390, height: 200 } });
-  assert.deepEqual(await backLinks('activate.html?box=2&slot=4'), [['Slots', 'slots.html?box=2'], ['Back to slots', 'slots.html?box=2']]);
+  assert.deepEqual(await backLinks('activate.html?box=2&slot=4'), [['Slots', 'slots.html?box=2'], ['Back to Slots', 'slots.html?box=2']]);
   await app.page.goto(app.base + 'settling.html');
   await app.page.waitForFunction(() => document.getElementById('packCount').textContent !== '…');
 
