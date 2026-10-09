@@ -51,6 +51,13 @@ async function manageEmployees() {
   assert.deepEqual(cards[1].toggles.map((t) => t.on), [false, false, false, false, false, false]);
   assert.ok(cards[2].toggles.every((t) => t.locked), 'inactive employee: locked');
 
+  // The switches start folded under "Permissions · None on"; tapping the row opens them (and they stay open
+  // through each save, which redraws the list).
+  const folded = () => page.$$eval('#list details.perm-details', (ds) => ds.map((d) => [d.open, d.querySelector('summary').textContent]));
+  assert.deepEqual(await folded(), [[false, 'PermissionsNone on'], [false, 'PermissionsNone on']]);
+  assert.ok(await page.$eval('#list .card:nth-child(2) details.perm-details', (d) => d.getBoundingClientRect().height < 70), 'folded: just the Permissions row');
+  await page.click('#list .card:nth-child(2) details.perm-details summary'); await sleep(100);
+
   // Turn on Load packs, then Full pack sale: each saves the whole list at once.
   const toggle = async (i) => {
     const sw = await page.$$('#list .card:nth-child(2) input.toggle');
@@ -59,6 +66,7 @@ async function manageEmployees() {
   await toggle(0);
   await toggle(4);
   assert.deepEqual(sent, [['load_packs'], ['load_packs', 'full_pack_sale']]);
+  assert.deepEqual(await folded(), [[true, 'Permissions2 of 6 on'], [false, 'PermissionsNone on']], 'still open after saving, count updated');
   assert.match(await text(page, '#listMessage'), /sara: Full pack sale turned on/);
   // Tapping the words also flips the switch (the row is its label).
   await page.click('#list .card:nth-child(2) .perm-row:nth-of-type(2) strong'); await sleep(150);

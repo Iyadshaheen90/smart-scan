@@ -212,7 +212,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   permission the owner turned on (Load / Return packs → Slots; Receive a shipment, Manage Stock, Sell a full pack →
   `backstock.html?mode=…`); no dollars. · `more.html` Manage employees (owner), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner; each employee card has a switch per permission,
-  `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn all on/off)
+  `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn all on/off; folded under a
+  "Permissions · N of 6 on" row, `details.perm-details`, closed at first and kept open across saves — owner 2026-10-08)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
   `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page (`&from=settling`, so its back pill and

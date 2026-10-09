@@ -347,6 +347,14 @@ a.banner { display: block; color: inherit; text-decoration: none; }
 .settle-card .stat-value { font-size: 18px; }
 
 /* Manage employees: a permission the owner turns on or off for one employee (users.html). */
+/* Manage employees: each employee's permission switches fold under one "Permissions · N of 6 on" row. */
+.perm-details { margin-top: 12px; border-top: 1px solid var(--border); }
+.perm-details summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; list-style: none; color: var(--text); }
+.perm-details summary::-webkit-details-marker { display: none; }
+.perm-details summary .grow { flex: 1; font-size: 15px; }
+.perm-chev { display: inline-flex; color: var(--muted); transition: transform 0.15s; }
+.perm-chev svg { width: 18px; height: 18px; }
+.perm-details[open] .perm-chev { transform: rotate(90deg); }
 .perm-row { display: flex; align-items: center; gap: 12px; margin: 0; padding: 10px 0; border-top: 1px solid var(--border); color: var(--text); font-weight: 400; cursor: pointer; }
 .perm-row .grow { flex: 1; min-width: 0; }
 .perm-row strong { display: block; font-size: 15px; }

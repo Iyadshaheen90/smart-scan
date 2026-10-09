@@ -54,11 +54,28 @@
       { key: 'ticket_order', name: 'Ticket order', what: 'Set a slot to descending or ascending while it\'s empty (slot page), or all slots at once (More).' },
     ];
 
+    // Employees whose Permissions list is open, so it stays open when the list is redrawn after a save.
+    const openPermissions = new Set();
+
     // Each switch saves at once; the list comes back from the server, so the screen shows what's saved.
+    // The switches fold away under "Permissions · N of 6 on" (closed at first, owner 2026-10-08), so the
+    // page stays short with many employees.
     function permissionsBox(user) {
-      const box = document.createElement('div');
-      box.style.marginTop = '12px';
+      const box = document.createElement('details');
+      box.className = 'perm-details';
+      box.open = openPermissions.has(user.username);
+      box.addEventListener('toggle', () => {
+        if (box.open) openPermissions.add(user.username); else openPermissions.delete(user.username);
+      });
       const on = new Set(user.permissions || []);
+      const summary = document.createElement('summary');
+      const count = PERMISSIONS.filter((p) => on.has(p.key)).length;
+      summary.innerHTML = '<span class="grow"></span><span class="tag"></span><span class="perm-chev" data-icon="chevronRight"></span>';
+      summary.children[0].textContent = 'Permissions';
+      summary.children[1].textContent = count ? `${count} of ${PERMISSIONS.length} on` : 'None on';
+      if (count) summary.children[1].classList.add('live');
+      summary.children[2].innerHTML = icon('chevronRight');
+      box.append(summary);
       const switches = [];
       const save = async (changed, wanted) => {
         listMessage.className = 'message';
