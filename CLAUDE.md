@@ -54,7 +54,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   `requirePermission`, `requireEndPermission`). Never $ for employees: `withoutDollars` strips `valueInBack`/`dollars`;
   pages hide Find a game, the back stock list and $ amounts. Search, Manage packs, Game ended, slot price/pack size/swap,
   reports stay owner-only. The session carries `permissions` (login); `closeStatus.permissions` refreshes it on the
-  employee home, which shows an "Also allowed" link per permission. Slots cards are tappable with load/return.
+  employee home, which shows an "Also Allowed" link per permission. Slots cards are tappable with load/return/ticket order.
 
 **Inventory**
 - Back stock = `ReserveInventory` (packs in the back). Live = packs in slots (`SlotState`).
@@ -64,7 +64,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   of the game last in it (`SlotState.last_game_number`, set when a pack sells out or is returned; falls back to this
   month's PackHistory) on Slots and the slot page (not in Close Day), unless that game has ended.
 - **Days since activation** (owner only, Slots page only; owner's choice 2026-09-27): each live slot shows a yellow
-  "Activated today" / "N days" under its green "N left" (`listSlots` → `pack.daysActive`, from
+  "Activated Today" / "N Days" under its green "N Left" (`listSlots` → `pack.daysActive`, from
   `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`, api.js) a yellow `!`
   badge sits on the slot card's top-left corner (not before the name, so the name isn't indented; owner 2026-09-30): CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
@@ -200,19 +200,19 @@ Frontend (`src/`, plain HTML + JS, no build):
   again button that runs the page's loader again (it returns true once loaded, which clears the message). Back stock starts its camera only after it loads, so its Try again starts the camera too.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
-  that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not closed / Closed chip, big number = last
+  that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not Closed / Closed chip, big number = last
   close's $ — today's once closed, else this month's last closed day, else last month's; Tickets sold; Slots active), amber Start <Month>
   button (from the 1st until the month is started; confirm, then `startNewMonth`, then it hides), Close Day button, tiles Slots ($ on display = remaining × price), Back stock & shipments ($ in the back), Months & totals ($ sold this
   month), Settling (packs live 50+ days, amber when any), a full-width Full pack sales card (`.tile-wide`: packs sold this month
   and their $, from `ownerHome.fullPacks`; opens `full-packs.html`), a full-width Shift Closure card (shift closes this month and
-  the latest "3:02 PM · today by sara", from `ownerHome.shifts`; opens `shifts.html`), a quieter **Close my shift** button
+  the latest "3:02 PM · Today by sara", from `ownerHome.shifts`; opens `shifts.html`), a quieter **Close My Shift** button
   (`.action-shift`) under Close Day, Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
-  Scan tickets button → Close Day, and under it Close my shift (hidden once the day is closed; a greyed "Shift closed at
+  Scan Tickets button → Close Day, and under it Close My Shift (hidden once the day is closed; a greyed "Shift Closed at
   2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
-  permission the owner turned on (Load / Return packs → Slots; Receive a shipment, Manage Stock, Sell a full pack →
+  permission the owner turned on (Load / Return Packs → Slots; Ticket Order → More; Receive a Shipment, Manage Stock, Sell a Full Pack →
   `backstock.html?mode=…`); no dollars. · `more.html` Manage employees (owner), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner; each employee card has a switch per permission,
-  `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn all on/off; folded under a
+  `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn All On/Off; folded under a
   "Permissions · N of 6 on" row, `details.perm-details`, closed at first and kept open across saves — owner 2026-10-08)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
@@ -220,12 +220,12 @@ Frontend (`src/`, plain HTML + JS, no build):
   "Back to settling" return to Settling; opened from Slots they return to Slots, owner 2026-09-30).
   Icon `settle` (handshake under a $ coin) in icons.js.
 - `full-packs.html` (owner, 2026-09-30) this month's full pack sales (`listFullPackSales`, saved answer first): green
-  **Sell a full pack** → `backstock.html?mode=fullpack`, totals (packs, $), one card per sale newest first (day, game ·
+  **Sell a Full Pack** → `backstock.html?mode=fullpack`, totals (packs, $), one card per sale newest first (day, game ·
   pack, ticket price, pack size, total value) with Undo until that day is closed. Icon `ticket`.
 - `shifts.html` (owner, 2026-09-30) Shift Closure: this month's shift closes by day, newest first (`listShiftCloses`, saved
   answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
   (every slot's start → end ticket) and Delete (confirm). Icon `shift` (two block arrows, from the owner's picture).
-- `slots.html` both boxes (everyone sees the ↓/↑ ticket order arrow, `.order-arrow`; owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What happened to it?" unsaved), activate, undo; then (owner's order) slot price, Ticket order (`#orderForm`, greyed while a pack is in), pack size, move or swap
+- `slots.html` both boxes (everyone sees the ↓/↑ ticket order arrow, `.order-arrow`; owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What Happened to It?" unsaved), activate, undo; then (owner's order) slot price, Ticket Order (`#orderForm`: Descending / Ascending, the chosen one in the app's green, `#orderSwitch button.active`; greyed while a pack is in), pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
@@ -233,9 +233,9 @@ Frontend (`src/`, plain HTML + JS, no build):
   `DailySummary.closed_by`/`closed_at`, server time when saved; closes before 2026-09-27 have no line), and pending ("saved, not sent yet": Try sending now / Stop sending).
 - `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals
 - `backstock.html` (owner; an employee with Receive shipments / Manage Stock / Full pack sale gets only those modes — no
-  search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a game** search at the top (by game number as you type; packs in the back and the
-  slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment received**: a scanned/typed game opens a
-  pop-up (owner 2026-09-28): "Packs received" − count + starting at 1 (− stops at 0, Save greyed there), a new game also
+  search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a Game** search at the top (by game number as you type; packs in the back and the
+  slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment Received**: a scanned/typed game opens a
+  pop-up (owner 2026-09-28): "Packs Received" − count + starting at 1 (− stops at 0, Save greyed there), a new game also
   asks price + pack size; Save sends `saveBackStock` shipment for that one game at once (source "delivery", no notes).
   A scan opens it only after the finger leaves "Press and hold" (`whenHandsFree`): opened under the finger, iPhones
   swallowed the first tap on +.
@@ -244,7 +244,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   them as a shipment; with fewer it shows "Remove N packs (a → b). Why?" with reason buttons (returned, game expired,
   damaged, stolen, other), red Cancel and Back, and nothing changes until a reason is tapped; Game ended / Ended games list.
   **Full pack sale** (3rd mode; `?mode=fullpack` opens it): a scanned/typed *full* ticket number (a bare game number is
-  refused) opens "Sell full pack" (game · pack, value, "$20 × 30 tickets", "Back: 2 → 1", red Cancel / green Sell) after
+  refused) opens "Sell Full Pack" (game · pack, value, "$20 × 30 tickets", "Back: 2 → 1", red Cancel / green Sell) after
   the finger lifts; a game with none in the back is refused before the pop-up. Switching to it never changes the saved
   shipment/count draft, and it hides that list.
 - `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
