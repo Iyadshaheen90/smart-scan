@@ -94,6 +94,18 @@
     <div id="priceMessage" class="message"></div>
   </form>
 
+  <!-- Owner, or an employee with Ticket order: which way this slot's packs are sold. Only while the slot is empty
+       (a pack keeps the order it started with). -->
+  <form id="orderForm" class="hidden">
+    <h2>Ticket order</h2>
+    <p class="sub" id="orderInfo"></p>
+    <div class="segmented" id="orderSwitch">
+      <button type="button" data-order="descending"><span data-icon="arrowDown" class="order-icon"></span> Descending</button>
+      <button type="button" data-order="ascending"><span data-icon="arrowUp" class="order-icon"></span> Ascending</button>
+    </div>
+    <div id="orderMessage" class="message"></div>
+  </form>
+
   <!-- Owner only: the pack size of the game in this slot, to fix a mistake made at setup. -->
   <form id="sizeForm" class="hidden">
     <h2>Pack size</h2>
@@ -125,8 +137,8 @@
   <script type="module">
     import { startScanner, afterLift } from './scanner.js';
 
-    // The owner, or an employee the owner gave Load packs or Return packs to (Manage employees).
-    const session = requireLogin(['load_packs', 'return_packs']);
+    // The owner, or an employee the owner gave Load packs, Return packs or Ticket order to (Manage employees).
+    const session = requireLogin(['load_packs', 'return_packs', 'ticket_order']);
     const params = new URLSearchParams(location.search);
     const box = Number(params.get('box'));
     const slotNumber = Number(params.get('slot'));
@@ -154,6 +166,7 @@
     const isOwner = session && session.role === 'owner';
     const canLoad = can(session, 'load_packs');
     const canReturn = can(session, 'return_packs');
+    const canOrder = can(session, 'ticket_order');
     if (session) {
       document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
     }
@@ -164,17 +177,35 @@
     // "30 sold today ($150)": what ending the pack will count as today's sales (same math as endPack).
     // Employees never see dollars, so theirs is just "30 sold today".
     const soldText = (tickets, price) => `${tickets} sold today` + (isOwner ? ` ($${(tickets * price).toLocaleString()})` : '');
+    const orderWords = (order) => order === 'ascending' ? '↑ ascending (000 up)' : '↓ descending (down to 000)';
+
+    // Ticket order: the slot's setting, changeable only while it's empty; a live pack shows its own order.
+    function renderOrder() {
+      show('orderForm', canOrder);
+      if (!canOrder) return;
+      const pack = slot.pack;
+      document.querySelectorAll('#orderSwitch button').forEach((b) => {
+        b.classList.toggle('active', b.dataset.order === slot.slotOrder);
+        b.disabled = Boolean(pack);
+      });
+      $('orderInfo').textContent = !pack
+        ? `The next pack in this slot is sold ${orderWords(slot.slotOrder)}.`
+        : `This pack is sold ${orderWords(pack.order)}.`
+          + (pack.order !== slot.slotOrder ? ` Next pack: ${orderWords(slot.slotOrder)}.` : '')
+          + ' Change it when the slot is empty.';
+    }
 
     function render() {
       const pack = slot.pack;
       $('slotInfo').textContent = `$${slot.slotPrice} slot · ` + (pack ? `${pack.remaining} tickets left` : 'Out of stock')
         + (!pack && slot.lastGame ? ` · ${backStockText(slot.lastGame.gameNumber, slot.lastGame.packsInBack)} (last game here)` : '');
+      renderOrder();
       if (isOwner) {
         show('sizeForm', Boolean(pack));
         if (pack) {
           const standard = pack.standardPackSize;
           $('sizeLabel').textContent = `Tickets per pack for game ${pack.gameNumber}`;
-          $('sizeInfo').textContent = (pack.ticketsPerPack ? `Set to ${pack.ticketsPerPack} (numbered ${pack.ticketsPerPack - 1} to 0). ` : 'Not set. ')
+          $('sizeInfo').textContent = (pack.ticketsPerPack ? `Set to ${pack.ticketsPerPack} (numbered ${pack.order === 'ascending' ? `0 to ${pack.ticketsPerPack - 1}` : `${pack.ticketsPerPack - 1} to 0`}). ` : 'Not set. ')
             + (standard ? `$${pack.price} packs usually have ${standard}.` : '')
             + (pack.ticketsPerPack && standard && pack.ticketsPerPack !== standard ? ' This one is different — check it.' : '');
           if (document.activeElement !== $('packSize')) $('packSize').value = pack.ticketsPerPack || standard || '';
@@ -215,12 +246,13 @@
         $('nextPrompt').textContent = oldEnd === 'sold_out'
           ? `Pack ${pack.gameNumber}-${pack.packNumber} sold out: ${soldText(pack.remaining, pack.price)}.${ask}`
           : `Pack ${pack.gameNumber}-${pack.packNumber} returned with top ticket ${pad3(oldTop)}: `
-            + `${soldText(pack.exposedTicket - oldTop, pack.price)}, ${oldTop + 1} going back.${ask}`;
+            + `${soldText(ticketsSold(pack.order, pack.exposedTicket, oldTop), pack.price)}, `
+            + `${ticketsLeftAt(pack.order, oldTop, pack.ticketsPerPack || pack.standardPackSize)} going back.${ask}`;
       }
       show('cancelEndBtn', Boolean(pack) && Boolean(oldEnd));
 
       const scanning = !newTicket && (waitingForOldTop() || (canLoad && (!pack || replacing)));
-      if (!pack && !canLoad && !canUndoEnd) {
+      if (!pack && !canLoad && !canUndoEnd && !canOrder) {
         showMessage(messageEl, "The owner hasn't turned on loading packs for you, so this slot stays out of stock.");
       }
       show('scanStep', scanning);
@@ -238,7 +270,9 @@
       show('confirmStep', Boolean(newTicket));
       if (newTicket) {
         $('newKey').textContent = `${newTicket.gameNumber}-${newTicket.packNumber}`;
-        $('newDetail').textContent = `Top ticket ${pad3(newTicket.ticketNumber)} · ${newTicket.ticketNumber + 1} tickets`;
+        // The new pack is sold in this slot's order; an ascending one's count needs its pack size (shown once live).
+        $('newDetail').textContent = `Top ticket ${pad3(newTicket.ticketNumber)} · `
+          + (slot.slotOrder === 'ascending' ? 'sold ↑ ascending' : `${newTicket.ticketNumber + 1} tickets`);
       }
     }
 
@@ -268,8 +302,8 @@
           showMessage(messageEl, `That ticket is from pack ${ticket.gameNumber}-${ticket.packNumber}, not the returned pack ${pack.gameNumber}-${pack.packNumber}.`);
           return;
         }
-        if (ticket.ticketNumber > pack.exposedTicket) {
-          showMessage(messageEl, `Ticket ${pad3(ticket.ticketNumber)} is above the last recorded top ticket (${pad3(pack.exposedTicket)}). Scan the ticket on top now.`);
+        if (alreadySold(pack.order, pack.exposedTicket, ticket.ticketNumber)) {
+          showMessage(messageEl, `Ticket ${pad3(ticket.ticketNumber)} is ${soldSide(pack.order)} the last recorded top ticket (${pad3(pack.exposedTicket)}). Scan the ticket on top now.`);
           return;
         }
         oldTop = ticket.ticketNumber;
@@ -429,6 +463,24 @@
       const standard = STANDARD_PACK_SIZES[Number($('gamePrice').value)];
       if (standard) $('ticketsPerPack').value = standard;
     });
+
+    document.querySelectorAll('#orderSwitch button').forEach((button) => button.addEventListener('click', async () => {
+      const order = button.dataset.order;
+      if (order === slot.slotOrder || slot.pack) return;
+      // (Not whileBusy: it would rewrite the button's text and drop its arrow.)
+      const buttons = document.querySelectorAll('#orderSwitch button');
+      buttons.forEach((b) => { b.disabled = true; });
+      showMessage($('orderMessage'), 'Saving…', 'info');
+      try {
+        const result = await api('setSlotOrder', { box, slot: slotNumber, order });
+        slot.slotOrder = result.slotOrder;
+        render();
+        showMessage($('orderMessage'), `Saved. The next pack in this slot is sold ${orderWords(result.slotOrder)}.`, 'ok');
+      } catch (err) {
+        render();
+        showMessage($('orderMessage'), err.message);
+      }
+    }));
 
     $('priceForm').addEventListener('submit', async (e) => {
       e.preventDefault();

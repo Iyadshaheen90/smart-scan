@@ -20,7 +20,9 @@ function fakeSheet(headers, old, maxRows = 20) {
     setFrozenRows() {},
     getRange: (r, c, nr, nc) => nr ? {
       getValues: () => [rows[0].slice(c - 1, c - 1 + nc)],
-      setValues([v]) { v.forEach((x, i) => { rows[0][c - 1 + i] = x; }); return this; },
+      // A block of cells from row r (row 1 = the header row); formulas are kept as their text.
+      setValues(v) { v.forEach((line, i) => { (rows[r - 1 + i] ||= []); line.forEach((x, j) => { rows[r - 1 + i][c - 1 + j] = x; }); }); return this; },
+      setFormulas(v) { return this.setValues(v); },
       setFontWeight() { return this; },
     } : {
       setNumberFormat() { return this; },

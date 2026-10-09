@@ -8,7 +8,8 @@ const CONTROL_TABS = {
 const MONTHLY_TABS = {
   Users: ['username', 'password_hash', 'salt', 'role', 'active', 'created_date', 'permissions'],
   Sessions: ['token', 'username', 'issued_at', 'expires_at'],
-  SlotConfig: ['box', 'slot_number', 'price_per_ticket'],
+  // ticket_order: 'descending' (blank = descending) or 'ascending', the order this slot's next pack is sold in (Tickets.js).
+  SlotConfig: ['box', 'slot_number', 'price_per_ticket', 'ticket_order'],
   SlotState: [
     'box', 'slot_number', 'pack_key', 'game_number', 'pack_number', 'price_per_ticket',
     'current_exposed_ticket_number', 'remaining_count', 'activation_date', 'last_close_date',
@@ -17,6 +18,8 @@ const MONTHLY_TABS = {
     // The game of the last pack that sold out or was returned here, kept after the slot empties
     // so an out-of-stock slot can show how many packs of that game are in back stock.
     'last_game_number',
+    // The pack's own ticket order, copied from SlotConfig when it was activated (blank = descending).
+    'ticket_order',
   ],
   ReserveInventory: [
     'game_number', 'price_per_ticket', 'tickets_per_pack', 'packs_in_reserve', 'tickets_in_reserve',
@@ -48,6 +51,8 @@ const MONTHLY_TABS = {
   PackHistory: [
     'game_number', 'pack_number', 'box', 'slot_number', 'price_per_ticket', 'activation_date',
     'end_date', 'end_reason', 'final_tickets_sold_total', 'remaining_at_return', 'total_dollars_sold', 'performed_by',
+    // The pack's ticket order, so putting it back (undoEndPack) keeps it.
+    'ticket_order',
   ],
   // Optional shift closes (Shifts.js): one row per shift close, and one per slot (plus packs ended during it).
   ShiftCloses: [

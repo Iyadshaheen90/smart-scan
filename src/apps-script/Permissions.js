@@ -3,7 +3,8 @@
 // What the owner can let one employee do, toggled on Manage employees (owner's request 2026-10-08, e.g.
 // while travelling). Saved as a comma list in Users.permissions. The owner can always do all of it, and an
 // employee never sees dollar amounts whatever is on.
-const PERMISSIONS = ['load_packs', 'return_packs', 'receive_shipments', 'count_stock', 'full_pack_sale'];
+// ticket_order (2026-10-08): set a slot (while empty) or all slots to descending/ascending.
+const PERMISSIONS = ['load_packs', 'return_packs', 'receive_shipments', 'count_stock', 'full_pack_sale', 'ticket_order'];
 
 // An employee's permissions as a list (empty for a Users row from before the column existed).
 function permissionsOf(user) {

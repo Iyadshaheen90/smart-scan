@@ -6,7 +6,7 @@
 const assert = require('assert/strict');
 const { openApp, sleep } = require('./harness');
 
-const ALL = ['load_packs', 'return_packs', 'receive_shipments', 'count_stock', 'full_pack_sale'];
+const ALL = ['load_packs', 'return_packs', 'receive_shipments', 'count_stock', 'full_pack_sale', 'ticket_order'];
 const slot = { box: 1, slot: 7, slotPrice: 5, endedToday: null, lastGame: null,
   pack: { gameNumber: '1747', packNumber: '1263622', price: 5, exposedTicket: 75, remaining: 76,
     activationDate: '2026-09-20', lastCloseDate: '2026-09-30', daysActive: 11, packsInBack: 2, ticketsPerPack: 150, standardPackSize: 150 } };
@@ -42,13 +42,13 @@ async function manageEmployees() {
   const { page } = app;
   await page.goto(app.base + 'users.html');
   await page.waitForSelector('input.toggle');
-  // Five switches per employee (owner has none); an inactive employee's are off and locked.
+  // Six switches per employee (owner has none); an inactive employee's are off and locked.
   const cards = await page.$$eval('#list .card', (els) => els.map((c) => ({
     name: c.querySelector('strong').textContent,
     toggles: [...c.querySelectorAll('input.toggle')].map((i) => ({ on: i.checked, locked: i.disabled })),
   })));
   assert.equal(cards[0].toggles.length, 0, 'owner has no switches');
-  assert.deepEqual(cards[1].toggles.map((t) => t.on), [false, false, false, false, false]);
+  assert.deepEqual(cards[1].toggles.map((t) => t.on), [false, false, false, false, false, false]);
   assert.ok(cards[2].toggles.every((t) => t.locked), 'inactive employee: locked');
 
   // Turn on Load packs, then Full pack sale: each saves the whole list at once.
@@ -69,7 +69,7 @@ async function manageEmployees() {
   await all.click(); await sleep(150);
   assert.deepEqual(sent.at(-1), ALL);
   const states = await page.$$eval('#list .card:nth-child(2) input.toggle', (els) => els.map((i) => i.checked));
-  assert.deepEqual(states, [true, true, true, true, true]);
+  assert.deepEqual(states, [true, true, true, true, true, true]);
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/permissions-users.png`, fullPage: true });
   all = await page.$('#list .card:nth-child(2) .perm-all');
   assert.equal(await page.evaluate((b) => b.textContent, all), 'Turn all off');

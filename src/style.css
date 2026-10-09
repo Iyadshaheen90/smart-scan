@@ -132,6 +132,11 @@ a.card { display: block; color: inherit; text-decoration: none; }
 /* Days since a pack was activated (owner's Slots view); a mark once it's old enough for CA Lottery to settle. */
 .tag.days { background: var(--amber-bg); color: var(--amber); }
 .tag-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+/* Ticket order arrow on each Slots card, right of "N left": ↓ descending, ↑ ascending (muted, so "N left" leads). */
+.slot-right { display: flex; align-items: center; gap: 6px; }
+.order-arrow { display: inline-flex; color: var(--muted); }
+.order-arrow svg { width: 18px; height: 18px; }
+.order-icon svg { width: 16px; height: 16px; vertical-align: -3px; }
 /* The mark is a badge on the card's top-left corner, so it doesn't indent the slot name (owner's choice). */
 .card.has-old-mark { position: relative; }
 .old-mark { position: absolute; top: -7px; left: -7px; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px;

@@ -12,7 +12,7 @@ const ctx = { console, ...google, Session: { getScriptTimeZone: () => 'x' },
   Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${globalThis.TODAY} 12:00:00` : globalThis.TODAY },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Home.js', 'Permissions.js', 'Users.js']) {
+for (const f of ['Schema.js', 'Sheets.js', 'Months.js', 'Setup.js', 'Auth.js', 'Tickets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Home.js', 'Permissions.js', 'Users.js']) {
   vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 }
 const run = (code) => vm.runInContext(code, ctx);
@@ -239,7 +239,7 @@ console.log('months folder gone: falls back to the Control folder — OK');
   assert.equal(code(() => run(`setUserPermissions('o', ['load_packs'])`)), 'bad_request');
   const list = plain(run(`setUserPermissions('E', ['full_pack_sale', 'load_packs'])`));
   assert.deepEqual(list.find((u) => u.username === 'e').permissions, ['load_packs', 'full_pack_sale']);
-  assert.equal(list.find((u) => u.username === 'o').permissions.length, 5);
+  assert.equal(list.find((u) => u.username === 'o').permissions.length, 6);
   assert.deepEqual(plain(run('permissionsOf(findUser("e"))')), ['load_packs', 'full_pack_sale']);
   assert.deepEqual(plain(run(`setUserPermissions('e', [])`)).find((u) => u.username === 'e').permissions, []);
   console.log('employee permissions saved in an older month sheet — OK');

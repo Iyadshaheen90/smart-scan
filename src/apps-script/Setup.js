@@ -57,7 +57,8 @@ function ensureFirstMonth(control, template, folder) {
 }
 
 // One SlotConfig row and one empty SlotState row per slot. SlotState rows are updated in place,
-// so each gets a remaining_count formula (tickets count down to 0, so remaining = exposed + 1).
+// so each gets a remaining_count formula (remainingFormula in Slots.js: exposed + 1, or pack size − exposed
+// for an ascending pack).
 function seedSlots(month) {
   const config = [];
   for (const box of Object.keys(INITIAL_SLOT_PRICES)) {
@@ -66,11 +67,10 @@ function seedSlots(month) {
   month.getSheetByName('SlotConfig').getRange(2, 1, config.length, 3).setValues(config);
 
   const stateHeaders = MONTHLY_TABS.SlotState;
-  const exposedCol = columnLetter(stateHeaders.indexOf('current_exposed_ticket_number') + 1);
   const state = config.map(([box, slot], i) => stateHeaders.map((h) => {
     if (h === 'box') return box;
     if (h === 'slot_number') return slot;
-    if (h === 'remaining_count') return `=IF(${exposedCol}${i + 2}="","",${exposedCol}${i + 2}+1)`;
+    if (h === 'remaining_count') return remainingFormula(stateHeaders, i + 2);
     return '';
   }));
   month.getSheetByName('SlotState').getRange(2, 1, state.length, stateHeaders.length).setValues(state);
@@ -92,8 +92,3 @@ function ensureTabs(spreadsheet, tabs) {
   if (blank && !(blank.getName() in tabs) && blank.getLastRow() === 0) spreadsheet.deleteSheet(blank);
 }
 
-function columnLetter(n) {
-  let s = '';
-  for (; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
-  return s;
-}

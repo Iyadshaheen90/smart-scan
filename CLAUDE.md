@@ -12,9 +12,21 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 ## Store layout and ticket facts
 
 - 2 boxes × 24 slots = 48 slots. Each slot has a price tier (`SlotConfig`); seeded from `INITIAL_SLOT_PRICES`.
-- Tickets count **down** to 0; a pack whose top ("exposed") ticket is N has N + 1 left.
-  Route 66 Liquor sells descending; ascending (0 → last) is a future per-store setting, kept per pack (see the plan's
-  FUTURE section).
+- **Ticket order per slot** (owner 2026-10-08): **descending** (last ticket → 000; Route 66 Liquor, every slot today) or
+  **ascending** (000 → last). The top ("exposed") ticket is always the next unsold one, so descending: left = top + 1,
+  sold = last − now; ascending: left = pack size − top, sold = now − last; an already-sold ticket is above the last top
+  ticket (descending) or below it (ascending). All of it goes through `Tickets.js` (`orderOf`, `ticketsLeft`,
+  `ticketsSold`, `alreadySold`, `soldSide`, `packSizeFinder`/`sizeFor`) and the pages' copy in api.js (`ticketsSold`,
+  `ticketsLeftAt`, `alreadySold`, `soldSide`, `orderName`, `orderIcon`) — never hard-code "+ 1" again.
+  The setting is `SlotConfig.ticket_order`; a pack copies it at activation (`SlotState.ticket_order`, then
+  `PackHistory.ticket_order` so `undoEndPack` restores it) and is always counted its own way. Blank = descending
+  (sheets from before it). A slot's order changes only while it's empty (`setSlotOrder`, slot page; owner's choice), or
+  for all slots on More (`setAllSlotsOrder`: empty slots now, a slot with a pack from its next pack). Swap/move carries it
+  like the price tier. Slots shows ↓/↑ on the right of every card (everyone): the pack's order, or the slot's for an empty
+  one. Speed: the pack size is read only for ascending packs (`packSizeFinder` reads ReserveInventory lazily or reuses
+  a copy), so an all-descending store does no extra sheet reads. `remaining_count` (`remainingFormula`) handles both;
+  existing rows got the new formula when `ticket_order` was first added (`slotStateSheet` → `refreshRemainingFormulas`).
+  A full pack sale has no slot and stays descending.
 - Standard pack sizes by price (`STANDARD_PACK_SIZES`, kept in both `Schema.js` and `barcode.js`):
   $40/$30/$20 → 30, $10 → 50, $5 → 80, $3/$2 → 100, $1 → 240.
 - Ticket back barcode: 26-digit ITF `GGGG PPPPPPP TTT 000000000 XXX` (game, pack, ticket). Printed
@@ -35,7 +47,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   per employee, any of `PERMISSIONS` (`Permissions.js`): **load_packs** (slot page: Sold out + put a pack in, incl. a new
   game's price and changing the slot price to fit; undo a wrong slot; put back a pack marked *sold out* today),
   **return_packs** (Returned, and putting back a returned pack), **receive_shipments** (Back stock shipment mode only),
-  **count_stock** (Manage Stock), **full_pack_sale** (sell only; Undo stays the owner's). Saved as a comma list in
+  **count_stock** (Manage Stock), **full_pack_sale** (sell only; Undo stays the owner's), **ticket_order** (a slot's
+  Ticket order on the slot page while it's empty, and Ticket order for all slots on More). Saved as a comma list in
   `Users.permissions` (column added on first save, `ensureHeaders`); `setUserPermissions` (owner). The router's
   `allow: [...]` lets in the owner or an employee with one of them; each function checks the exact one (`can`,
   `requirePermission`, `requireEndPermission`). Never $ for employees: `withoutDollars` strips `valueInBack`/`dollars`;
@@ -197,7 +210,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   Scan tickets button → Close Day, and under it Close my shift (hidden once the day is closed; a greyed "Shift closed at
   2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
   permission the owner turned on (Load / Return packs → Slots; Receive a shipment, Manage Stock, Sell a full pack →
-  `backstock.html?mode=…`); no dollars. · `more.html` Manage employees (owner), Scanner test, Change my password, Sign out ·
+  `backstock.html?mode=…`); no dollars. · `more.html` Manage employees (owner), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner; each employee card has a switch per permission,
   `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn all on/off)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
@@ -211,7 +224,7 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `shifts.html` (owner, 2026-09-30) Shift Closure: this month's shift closes by day, newest first (`listShiftCloses`, saved
   answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
   (every slot's start → end ticket) and Delete (confirm). Icon `shift` (two block arrows, from the owner's picture).
-- `slots.html` both boxes (owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What happened to it?" unsaved), activate, undo; then (owner's order) slot price, pack size, move or swap
+- `slots.html` both boxes (everyone sees the ↓/↑ ticket order arrow, `.order-arrow`; owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What happened to it?" unsaved), activate, undo; then (owner's order) slot price, Ticket order (`#orderForm`, greyed while a pack is in), pack size, move or swap
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
@@ -261,7 +274,8 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `FullPacks.js` `sellFullPack`, `undoFullPackSale`, `listFullPackSales`, `fullPackTotals` (also used by `monthSummary`). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management (`setUserPermissions`)
 - `Permissions.js` `PERMISSIONS`, `permissionsOf`, `can`, `requirePermission` (employee permissions; loaded by the tests)
-- `Slots.js` `listSlots`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
+- `Tickets.js` ticket order math (see "Ticket order per slot" above)
+- `Slots.js` `listSlots` (`slotOrder`, `pack.order`), `setSlotOrder`, `setAllSlotsOrder`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
   `swapSlots`, `setSlotPrice`, `setPackSize`, `addGameToReserve`, `dateLabel`
 - `Close.js` `closeStatus`, `submitClose(user, entries, closeId, date)` (validates everything before writing),
   `buildSummary`, `reopenClose`, `salesDate`
@@ -274,7 +288,7 @@ errors are `ApiError(code, message)` with a message the person at the counter ca
 New columns go at the **end** of a tab. Existing month sheets don't have them yet: call `ensureHeaders` before
 writing one, and read them defensively (a missing column reads as `undefined`, and `dateLabel(undefined)` is the
 string "undefined", so check the value first). `SlotState.remaining_count` is a formula column that must not move.
-Recent columns: `Users.permissions`, `DailyCloseLog.logged_at`, `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
+Recent columns: `SlotConfig`/`SlotState`/`PackHistory.ticket_order`, `Users.permissions`, `DailyCloseLog.logged_at`, `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
 `SlotState.last_game_number`.
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
@@ -288,6 +302,7 @@ hand-edit them.
 ```sh
 node --test src/*.test.js                 # barcode parsing
 node test/backend-scenarios.js            # backend against a fake spreadsheet (store scenarios)
+node test/ticket-order-scenarios.js       # ascending/descending per slot: counts, refusals, shifts, returns, undo, swap, Set all
 node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
 
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
@@ -311,6 +326,7 @@ node test/browser/settling.js             # Settling: 50+ day packs, order, colo
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
 node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-today numbers before saving, Cancel from every step, nothing saved
+node test/browser/ticket-order.js         # Slots arrows, slot page Ticket order, More Set all, Close Day / return refusals (real backend code)
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)

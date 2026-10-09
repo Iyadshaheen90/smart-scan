@@ -192,6 +192,34 @@ function settlingPacks(slots) {
     .sort((a, b) => b.pack.daysActive - a.pack.daysActive || a.box - b.box || a.slot - b.slot);
 }
 
+// Ticket order, the pages' copy of Tickets.js: each pack is sold descending (last ticket → 000) or ascending
+// (000 → last ticket); `order` is pack.order (or slot.slotOrder for the next pack). The server checks again.
+function ticketsSold(order, last, now) {
+  return order === 'ascending' ? now - last : last - now;
+}
+
+// Tickets left once `top` is the top ticket (an ascending pack needs its pack size).
+function ticketsLeftAt(order, top, size) {
+  return order === 'ascending' ? size - top : top + 1;
+}
+
+// True for a ticket already sold: above the last top ticket when descending, below it when ascending.
+function alreadySold(order, last, ticket) {
+  return order === 'ascending' ? ticket < last : ticket > last;
+}
+
+function soldSide(order) {
+  return order === 'ascending' ? 'below' : 'above';
+}
+
+// "Descending (029 → 000)" style words and the matching arrow icon name.
+function orderName(order) {
+  return order === 'ascending' ? 'Ascending' : 'Descending';
+}
+function orderIcon(order) {
+  return order === 'ascending' ? 'arrowUp' : 'arrowDown';
+}
+
 // "Game 1747: 2 packs in back stock" — shown where a slot is (or is about to be) out of stock,
 // for the game most likely to go back in it.
 function backStockText(gameNumber, packs) {

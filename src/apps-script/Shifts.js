@@ -80,7 +80,8 @@ function shiftStatus(user) {
     if (!start) return s;
     const pack = start.soldOut
       ? { ...s.pack, exposedTicket: -1, remaining: 0, soldOutAtShift: closedAtLabel(start.closedAt) }
-      : { ...s.pack, exposedTicket: start.ticket, remaining: start.ticket + 1 };
+      : { ...s.pack, exposedTicket: start.ticket,
+        remaining: ticketsLeft(s.pack.order, start.ticket, s.pack.ticketsPerPack || s.pack.standardPackSize) };
     return { ...s, pack };
   });
   const mine = user.role === 'owner' ? null : shifts.filter((s) => s.closed_by === user.username).pop();
@@ -120,6 +121,7 @@ function submitShiftClose(user, entries, shiftId, date) {
     const since = shifts.length ? stampLabel(shifts[shifts.length - 1].closed_at) : null;
     const starts = shiftStarts(today);
     const live = readTable(monthSheet('SlotState')).filter((s) => s.pack_key);
+    const findSize = packSizeFinder();
 
     // Check everything before writing anything.
     const plan = live.map((state) => {
@@ -135,12 +137,14 @@ function submitShiftClose(user, entries, shiftId, date) {
       }
       if (!CLOSE_ENTRY_TYPES.includes(entry.type)) throw new ApiError('bad_request', `${where}: unknown entry.`);
       const exposed = start ? start.ticket : Number(state.current_exposed_ticket_number);
-      if (entry.type === 'sold_out') return { ...row, type: 'sold_out', start: exposed, end: '', sold: exposed + 1 };
+      const order = orderOf(state);
+      const size = sizeFor(order, state, findSize);
+      if (entry.type === 'sold_out') return { ...row, type: 'sold_out', start: exposed, end: '', sold: ticketsLeft(order, exposed, size) };
       const ticket = Number(entry.ticketNumber);
-      if (!Number.isInteger(ticket) || ticket < 0 || ticket > exposed) {
-        throw new ApiError('bad_ticket', `${where}: ticket ${entry.ticketNumber} is above the shift's start ticket (${exposed}). Rescan it.`);
+      if (!Number.isInteger(ticket) || ticket < 0 || alreadySold(order, exposed, ticket) || (size && ticket >= size)) {
+        throw new ApiError('bad_ticket', `${where}: ticket ${entry.ticketNumber} is ${soldSide(order)} the shift's start ticket (${exposed}). Rescan it.`);
       }
-      return { ...row, type: 'scan', start: exposed, end: ticket, sold: exposed - ticket };
+      return { ...row, type: 'scan', start: exposed, end: ticket, sold: ticketsSold(order, exposed, ticket) };
     });
     const extra = entries.find((e) => !live.some(isSlot(e.box, e.slot)));
     if (extra) throw new ApiError('slots_changed', `Box ${extra.box}, slot ${extra.slot} has no pack now. Reload Close shift.`);
@@ -186,8 +190,15 @@ function submitShiftClose(user, entries, shiftId, date) {
 // Packs ended (owner's Sold out / Returned, or replaced) and full packs sold during the shift: DailyCloseLog
 // rows dated `date` logged after `since` (the previous shift close; null = the first shift today) up to
 // `until`. Rows from before logged_at existed have none and count in the day's first shift. A pack an earlier
-// shift close already counted is counted from that shift's ticket.
+// shift close already counted is counted from that shift's ticket, in the pack's own order (from PackHistory,
+// read only when needed).
 function endedInShift(date, since, until, starts) {
+  let history = null;
+  const findSize = packSizeFinder();
+  const packOrder = (packKey) => {
+    history = history || readTable(monthSheet('PackHistory'));
+    return orderOf(history.find((p) => `${p.game_number}-${p.pack_number}` === packKey));
+  };
   return readTable(monthSheet('DailyCloseLog'))
     .filter((r) => dateLabel(r.close_date) === date && SHIFT_ENDED_TYPES.includes(r.close_type))
     .filter((r) => {
@@ -206,7 +217,10 @@ function endedInShift(date, since, until, starts) {
       }
       if (counted.soldOut) return { ...row, start: '', end: '', sold: 0 };
       const end = r.close_type === 'returned' ? Number(r.current_exposed_ticket_number) : '';
-      return { ...row, start: counted.ticket, end, sold: r.close_type === 'returned' ? counted.ticket - end : counted.ticket + 1 };
+      const order = packOrder(row.packKey);
+      const sold = r.close_type === 'returned' ? ticketsSold(order, counted.ticket, end)
+        : ticketsLeft(order, counted.ticket, order === 'ascending' ? findSize(row.packKey.split('-')[0], price) : null);
+      return { ...row, start: counted.ticket, end, sold };
     });
 }
 

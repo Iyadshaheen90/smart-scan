@@ -217,14 +217,15 @@
         return;
       }
       const exposed = slot.pack.exposedTicket;
-      if (ticket.ticketNumber > exposed) {
+      // A ticket already sold: above the last top ticket for a descending pack, below it for an ascending one.
+      if (alreadySold(slot.pack.order, exposed, ticket.ticketNumber)) {
         haptic('error');
         const last = SHIFT_MODE ? "the shift's start ticket" : 'the last top ticket';
-        afterRelease(() => flash(`Ticket ${pad3(ticket.ticketNumber)} is above ${last} (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error'));
+        afterRelease(() => flash(`Ticket ${pad3(ticket.ticketNumber)} is ${soldSide(slot.pack.order)} ${last} (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error'));
         return;
       }
       const elsewhere = currentKey && keyOf(slot) !== currentKey ? ` (it belongs to box ${slot.box} · slot ${slot.slot})` : '';
-      const sold = exposed - ticket.ticketNumber;
+      const sold = ticketsSold(slot.pack.order, exposed, ticket.ticketNumber);
       record(slot, { type: 'scan', ticketNumber: ticket.ticketNumber, sold }, elsewhere);
     }
 

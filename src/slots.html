@@ -35,7 +35,7 @@
   <script>
     const session = requireLogin();
     // An employee the owner gave Load packs or Return packs to can open a slot too (no $ there).
-    const canOpenSlot = can(session, 'load_packs') || can(session, 'return_packs');
+    const canOpenSlot = ['load_packs', 'return_packs', 'ticket_order'].some((p) => can(session, p));
     if (session) {
       document.getElementById('hint').textContent = session.role === 'owner'
         ? 'Tap a slot to put a new pack in it, end a pack, or change its price.'
@@ -79,6 +79,18 @@
         const tag = document.createElement('span');
         tag.className = s.pack ? 'tag live' : 'tag warn';
         tag.textContent = s.pack ? `${s.pack.remaining} left` : 'Out of stock';
+        // Everyone: an arrow on the right for which way this slot's tickets are sold — the pack's own order,
+        // or for an empty slot the order its next pack will have.
+        const order = s.pack ? s.pack.order : s.slotOrder;
+        const arrow = document.createElement('span');
+        arrow.className = 'order-arrow';
+        arrow.dataset.order = order;
+        arrow.innerHTML = icon(orderIcon(order));
+        arrow.title = `${orderName(order)} ticket order`;
+        arrow.setAttribute('role', 'img');
+        arrow.setAttribute('aria-label', `${orderName(order)} ticket order`);
+        const right = document.createElement('div');
+        right.className = 'slot-right';
         // Owner only: days since activation in yellow under the tickets left, and a mark on old packs.
         if (session.role === 'owner' && s.pack && s.pack.daysActive != null) {
           const stack = document.createElement('div');
@@ -87,6 +99,7 @@
           days.className = 'tag days';
           days.textContent = daysText(s.pack.daysActive);
           stack.append(tag, days);
+          right.append(stack, arrow);
           if (s.pack.daysActive >= OLD_PACK_DAYS) {
             const mark = document.createElement('span');
             mark.className = 'old-mark';
@@ -96,9 +109,10 @@
             card.append(mark);
             card.title = `Pack out ${s.pack.daysActive} days. CA Lottery settles packs at 50–60 days.`;
           }
-          top.append(name, stack);
+          top.append(name, right);
         } else {
-          top.append(name, tag);
+          right.append(tag, arrow);
+          top.append(name, right);
         }
         card.append(top);
 
@@ -114,7 +128,7 @@
             size.className = 'slot-detail';
             const odd = s.pack.ticketsPerPack !== s.pack.standardPackSize;
             size.textContent = s.pack.ticketsPerPack
-              ? `${s.pack.ticketsPerPack} tickets per pack (${s.pack.ticketsPerPack - 1} to 0)`
+              ? `${s.pack.ticketsPerPack} tickets per pack (${s.pack.order === 'ascending' ? `0 to ${s.pack.ticketsPerPack - 1}` : `${s.pack.ticketsPerPack - 1} to 0`})`
               : 'Pack size unknown';
             if (odd) {
               const warn = document.createElement('span');

@@ -11,11 +11,20 @@ function readTable(sheet) {
 
 // Adds any of `headers` missing from the header row, at the end, so tabs made before a column
 // existed pick it up without moving the columns (or formulas) already there.
+// Returns the headers it added.
 function ensureHeaders(sheet, headers) {
   const existing = headersOf(sheet);
   const missing = headers.filter((h) => !existing.includes(h));
-  if (missing.length === 0) return;
+  if (missing.length === 0) return missing;
   sheet.getRange(1, existing.length + 1, 1, missing.length).setValues([missing]).setFontWeight('bold');
+  return missing;
+}
+
+// 1 -> "A", 27 -> "AA".
+function columnLetter(n) {
+  let s = '';
+  for (; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
 }
 
 function headersOf(sheet) {

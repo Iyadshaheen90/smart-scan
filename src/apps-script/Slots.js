@@ -14,7 +14,9 @@
 //   empties, its old price comes back, and the pack goes back to back stock if it came from there.
 // - A pack marked sold out or returned by mistake can be put back the same day (owner only),
 //   as long as the slot is still empty and the day hasn't been closed.
-// - Tickets count down to 0, so a pack whose exposed ticket is N has N + 1 tickets left.
+// - Each pack counts its tickets in its own order (descending or ascending, see Tickets.js), taken from
+//   the slot's setting when it was activated. A slot's setting changes only while it's empty (or, with
+//   Set all slots, from its next pack).
 
 const END_REASONS = ['sold_out', 'returned'];
 
@@ -42,8 +44,35 @@ function isSlot(box, slot) {
 
 function slotStateSheet() {
   const sheet = monthSheet('SlotState');
-  ensureHeaders(sheet, MONTHLY_TABS.SlotState);
+  // A sheet from before ticket_order existed gets the remaining_count formulas that know about it.
+  if (ensureHeaders(sheet, MONTHLY_TABS.SlotState).includes('ticket_order')) refreshRemainingFormulas(sheet);
   return sheet;
+}
+
+function slotConfigSheet() {
+  const sheet = monthSheet('SlotConfig');
+  ensureHeaders(sheet, MONTHLY_TABS.SlotConfig);
+  return sheet;
+}
+
+// SlotState.remaining_count, for the owner reading the sheet (the app doesn't read it): exposed + 1 when
+// descending, pack size − exposed when ascending (pack size from ReserveInventory, by game number as
+// text or as a number). `headers` is the tab's header row, `row` the sheet row number.
+function remainingFormula(headers, row) {
+  const col = (h) => `${columnLetter(headers.indexOf(h) + 1)}${row}`;
+  const exposed = col('current_exposed_ticket_number');
+  const game = col('game_number');
+  const size = (key) => `VLOOKUP(${key},ReserveInventory!$A:$C,3,FALSE)`;
+  return `=IF(${exposed}="","",IF(${col('ticket_order')}="ascending",`
+    + `IFERROR(${size(game)},IFERROR(${size(`VALUE(${game})`)},""))-${exposed},${exposed}+1))`;
+}
+
+function refreshRemainingFormulas(sheet) {
+  const headers = headersOf(sheet);
+  const rows = sheet.getLastRow() - 1;
+  if (rows < 1) return;
+  const formulas = Array.from({ length: rows }, (_, i) => [remainingFormula(headers, i + 2)]);
+  sheet.getRange(2, headers.indexOf('remaining_count') + 1, rows, 1).setFormulas(formulas);
 }
 
 function findReserve(gameNumber) {
@@ -60,6 +89,7 @@ function listSlots() {
   const config = readTable(monthSheet('SlotConfig'));
   const state = readTable(monthSheet('SlotState'));
   const reserve = readTable(monthSheet('ReserveInventory'));
+  const findSize = packSizeFinder(reserve);
   const today = todayLabel();
   const history = readTable(monthSheet('PackHistory'));
   const endedToday = history.filter((p) => dateLabel(p.end_date) === today);
@@ -75,16 +105,20 @@ function listSlots() {
     let lastGame = hasPack ? '' : String(s.last_game_number || (lastEnded ? lastEnded.game_number : ''));
     // No back stock hint for a game CA Lottery has ended; that slot needs a different game.
     if (lastGame && gameInBack(lastGame) && gameInBack(lastGame).ended_date) lastGame = '';
+    const order = orderOf(s);
     return {
       box: Number(c.box),
       slot: Number(c.slot_number),
       slotPrice: Number(c.price_per_ticket),
+      // The order the next pack put in this slot will be sold in; a live pack has its own (pack.order).
+      slotOrder: orderOf(c),
       pack: hasPack ? {
         gameNumber: String(s.game_number),
         packNumber: String(s.pack_number),
         price: Number(s.price_per_ticket),
         exposedTicket: Number(s.current_exposed_ticket_number),
-        remaining: Number(s.current_exposed_ticket_number) + 1,
+        remaining: ticketsLeft(order, Number(s.current_exposed_ticket_number), sizeFor(order, s, findSize)),
+        order,
         activationDate: dateLabel(s.activation_date),
         lastCloseDate: dateLabel(s.last_close_date),
         // Days since activation (0 on the activation day). CA Lottery settles a pack 50–60 days after it.
@@ -127,8 +161,10 @@ function activatePack(user, req) {
     if (!reserve) reserve = addGameToReserve(user, ticket.gameNumber, req.gamePrice, req.ticketsPerPack);
     const gamePrice = Number(reserve.price_per_ticket);
     const ticketsPerPack = Number(reserve.tickets_per_pack);
+    const order = orderOf(config);
     if (ticket.ticketNumber >= ticketsPerPack) {
-      throw new ApiError('bad_ticket', `Ticket ${ticket.ticketNumber} can't be in a ${ticketsPerPack}-ticket pack (they count down from ${ticketsPerPack - 1}).`);
+      const numbered = order === 'ascending' ? `000 to ${ticketsPerPack - 1}` : `${ticketsPerPack - 1} down to 000`;
+      throw new ApiError('bad_ticket', `Ticket ${ticket.ticketNumber} can't be in a ${ticketsPerPack}-ticket pack (they're numbered ${numbered}).`);
     }
 
     const slotPrice = Number(config.price_per_ticket);
@@ -172,6 +208,7 @@ function activatePack(user, req) {
       last_close_date: '',
       price_before_activation: priceChanged ? slotPrice : '',
       took_from_reserve: before > 0,
+      ticket_order: order,
     });
 
     return {
@@ -236,15 +273,21 @@ function requireEndPermission(user, reason) {
 function endPackInSlot(user, state, reason, topTicket) {
   const exposed = Number(state.current_exposed_ticket_number);
   const price = Number(state.price_per_ticket);
+  const order = orderOf(state);
+  const reserve = findReserve(state.game_number);
+  const ticketsPerPack = reserve ? Number(reserve.tickets_per_pack) : null;
+  const size = ticketsPerPack || STANDARD_PACK_SIZES[price] || null;
   let remaining = 0;
   if (reason === 'returned') {
     topTicket = topTicket === '' || topTicket == null ? NaN : Number(topTicket);
-    if (!Number.isInteger(topTicket) || topTicket < 0 || topTicket > exposed) {
-      throw new ApiError('bad_ticket', `Scan the top ticket of pack ${state.pack_key} (it should be ${exposed} or lower).`);
+    if (!Number.isInteger(topTicket) || topTicket < 0 || alreadySold(order, exposed, topTicket)
+      || (order === 'ascending' && size && topTicket >= size)) {
+      const should = order === 'ascending' ? 'or higher' : 'or lower';
+      throw new ApiError('bad_ticket', `Scan the top ticket of pack ${state.pack_key} (it should be ${exposed} ${should}).`);
     }
-    remaining = topTicket + 1;
+    remaining = ticketsLeft(order, topTicket, size);
   }
-  const soldNow = exposed + 1 - remaining;
+  const soldNow = ticketsLeft(order, exposed, size) - remaining;
   const today = todayLabel();
 
   appendObject(closeLogSheet(), {
@@ -265,10 +308,10 @@ function endPackInSlot(user, state, reason, topTicket) {
     logged_at: nowStamp(),
   });
 
-  const reserve = findReserve(state.game_number);
-  const ticketsPerPack = reserve ? Number(reserve.tickets_per_pack) : null;
   const soldTotal = ticketsPerPack ? ticketsPerPack - remaining : '';
-  appendObject(monthSheet('PackHistory'), {
+  const historySheet = monthSheet('PackHistory');
+  ensureHeaders(historySheet, MONTHLY_TABS.PackHistory);
+  appendObject(historySheet, {
     game_number: String(state.game_number),
     pack_number: String(state.pack_number),
     box: Number(state.box),
@@ -281,6 +324,7 @@ function endPackInSlot(user, state, reason, topTicket) {
     remaining_at_return: remaining,
     total_dollars_sold: soldTotal === '' ? '' : soldTotal * price,
     performed_by: user.username,
+    ticket_order: order,
   });
 
   clearSlot(state.box, state.slot_number, { last_game_number: String(state.game_number) });
@@ -293,7 +337,7 @@ function clearSlot(box, slot, extra) {
   updateRowsWhere(slotStateSheet(), isSlot(box, slot), {
     pack_key: '', game_number: '', pack_number: '', price_per_ticket: '',
     current_exposed_ticket_number: '', activation_date: '', last_close_date: '',
-    price_before_activation: '', took_from_reserve: '',
+    price_before_activation: '', took_from_reserve: '', ticket_order: '',
     ...extra,
   });
 }
@@ -350,6 +394,45 @@ function setSlotPrice(req) {
   });
 }
 
+// Sets which way the next pack in this slot is sold (owner, or an employee with Ticket order). Only while the
+// slot is empty: a pack keeps the order it started with, since a half-sold pack can't be counted the other way.
+function setSlotOrder(user, req) {
+  requirePermission(user, 'ticket_order', "The owner hasn't turned on changing the ticket order for you.");
+  const order = String(req.order || '');
+  if (!TICKET_ORDERS.includes(order)) throw new ApiError('bad_request', 'Choose descending or ascending.');
+  return withLock(() => {
+    const state = readTable(slotStateSheet()).find(isSlot(req.box, req.slot));
+    if (state && state.pack_key) {
+      throw new ApiError('slot_occupied', `Pack ${state.pack_key} is in this slot. Change the order when the slot is empty.`);
+    }
+    if (!updateRowsWhere(slotConfigSheet(), isSlot(req.box, req.slot), { ticket_order: order })) {
+      throw new ApiError('no_slot', `There's no slot ${req.slot} in box ${req.box}.`);
+    }
+    return { box: Number(req.box), slot: Number(req.slot), slotOrder: order };
+  });
+}
+
+// Set all slots (More page): every slot's setting at once. Empty slots switch now; a slot with a pack keeps
+// counting that pack its own way and switches from its next pack (activatePack reads SlotConfig).
+function setAllSlotsOrder(user, req) {
+  requirePermission(user, 'ticket_order', "The owner hasn't turned on changing the ticket order for you.");
+  const order = String(req.order || '');
+  if (!TICKET_ORDERS.includes(order)) throw new ApiError('bad_request', 'Choose descending or ascending.');
+  return withLock(() => {
+    const sheet = slotConfigSheet();
+    const [headers, ...rows] = sheet.getDataRange().getValues();
+    const col = headers.indexOf('ticket_order');
+    const slots = rows.filter((r) => r.some((cell) => cell !== '')).length;
+    // A slot whose pack is counted the other way switches when that pack ends.
+    const waiting = readTable(monthSheet('SlotState')).filter((p) => p.pack_key && orderOf(p) !== order).length;
+    // The whole column in one write (a write per slot would be 48 sheet calls).
+    if (rows.length) {
+      sheet.getRange(2, col + 1, rows.length, 1).setValues(rows.map((r) => [r.some((cell) => cell !== '') ? order : r[col]]));
+    }
+    return { order, slots, nowSlots: slots - waiting, waitingSlots: waiting };
+  });
+}
+
 // Puts back a pack marked sold out or returned by mistake today (needs the same permission as ending it).
 // Removes that ending's DailyCloseLog and PackHistory rows and restores the slot as it was.
 function undoEndPack(user, req) {
@@ -385,6 +468,7 @@ function undoEndPack(user, req) {
       current_exposed_ticket_number: exposed,
       activation_date: dateLabel(ended.activation_date) || '',
       last_close_date: lastClose,
+      ticket_order: orderOf(ended),
     });
     return { packKey, reason: ended.end_reason, exposedTicket: exposed };
   });
@@ -397,15 +481,15 @@ function undoEndPack(user, req) {
 // slot's price tier.
 const PACK_COLUMNS = MONTHLY_TABS.SlotState.filter((h) => !['box', 'slot_number', 'remaining_count'].includes(h));
 
-// Owner only: swaps everything in two slots — the packs (with their top tickets and dates) and
-// the slots' price tiers. Either slot may be empty, which moves a pack. Swapping the same two
+// Owner only: swaps everything in two slots — the packs (with their top tickets, dates and order) and
+// the slots' price tiers and ticket order settings. Either slot may be empty, which moves a pack. Swapping the same two
 // slots again puts things back. Nothing is sold and back stock is untouched.
 function swapSlots(req) {
   if (Number(req.box) === Number(req.toBox) && Number(req.slot) === Number(req.toSlot)) {
     throw new ApiError('bad_request', 'Pick a different slot to swap with.');
   }
   return withLock(() => {
-    const configSheet = monthSheet('SlotConfig');
+    const configSheet = slotConfigSheet();
     const configs = readTable(configSheet);
     const a = configs.find(isSlot(req.box, req.slot));
     const b = configs.find(isSlot(req.toBox, req.toSlot));
@@ -420,8 +504,8 @@ function swapSlots(req) {
     const fieldsB = packFields(stateB);
     updateRowsWhere(stateSheet, isSlot(req.box, req.slot), fieldsB);
     updateRowsWhere(stateSheet, isSlot(req.toBox, req.toSlot), fieldsA);
-    updateRowsWhere(configSheet, isSlot(req.box, req.slot), { price_per_ticket: Number(b.price_per_ticket) });
-    updateRowsWhere(configSheet, isSlot(req.toBox, req.toSlot), { price_per_ticket: Number(a.price_per_ticket) });
+    updateRowsWhere(configSheet, isSlot(req.box, req.slot), { price_per_ticket: Number(b.price_per_ticket), ticket_order: orderOf(b) });
+    updateRowsWhere(configSheet, isSlot(req.toBox, req.toSlot), { price_per_ticket: Number(a.price_per_ticket), ticket_order: orderOf(a) });
 
     return {
       from: { box: Number(req.box), slot: Number(req.slot), packKey: fieldsB.pack_key || null },

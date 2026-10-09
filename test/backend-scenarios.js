@@ -8,7 +8,7 @@ const { fakeSheet } = require('./fakes');
 const ctx = { console, Utilities: { formatDate: (d, tz, fmt) => tz === 'UTC' ? d.toISOString().slice(0, 10) : fmt === 'yyyy-MM-dd HH:mm' ? `${globalThis.TODAY} 22:52` : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${globalThis.TODAY} ${globalThis.CLOCK || '12:00:00'}` : globalThis.TODAY }, Session: { getScriptTimeZone: () => 'x' },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) } };
 vm.createContext(ctx);
-for (const f of ['Schema.js', 'Sheets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Permissions.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
+for (const f of ['Schema.js', 'Sheets.js', 'Tickets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Permissions.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
   const sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h, n === 'SlotState' ? h.slice(0, 10) : null);
   function monthSheet(n) { return sheets[n]; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet }));
@@ -132,9 +132,15 @@ run(`swapSlots({ box: 2, slot: 6, toBox: 2, toSlot: 10 })`);
 assert.equal(at(2, 6).pack.packNumber, '0000009'); assert.equal(at(2, 6).slotPrice, 30); assert.equal(at(2, 10).pack.packNumber, '5555555');
 run(`swapSlots({ box: 2, slot: 6, toBox: 2, toSlot: 10 })`);
 assert.deepEqual(at(2, 6), a6); assert.deepEqual(at(2, 10), a10);
-// formula column untouched
+// formula column: only the remaining_count formulas written once when ticket_order was added (this sheet started
+// without it), each pointing at its own row; never a value
 const hdr = S.SlotState.rows[0]; const rc = hdr.indexOf('remaining_count');
-assert.ok(S.SlotState.rows.slice(1).every((row) => row[rc] === undefined || row[rc] === ''));
+// (rows the test added afterwards have none, unlike a real seeded sheet)
+assert.ok(String(S.SlotState.rows[1][rc]).startsWith('=IF('));
+S.SlotState.rows.slice(1).forEach((row, i) => {
+  if (row[rc] === undefined || row[rc] === '') return;
+  assert.match(String(row[rc]), new RegExp(`^=IF\\(G${i + 2}="","",IF\\(N${i + 2}="ascending",.*-G${i + 2},G${i + 2}\\+1\\)\\)$`));
+});
 assert.equal(code(() => run(`swapSlots({ box: 2, slot: 6, toBox: 2, toSlot: 6 })`)), 'bad_request');
 assert.equal(code(() => run(`swapSlots({ box: 2, slot: 6, toBox: 9, toSlot: 6 })`)), 'no_slot');
 

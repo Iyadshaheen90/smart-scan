@@ -89,6 +89,8 @@ function submitClose(user, entries, closeId, date) {
     const stateSheet = slotStateSheet();
     const live = readTable(stateSheet).filter((s) => s.pack_key);
 
+    const findSize = packSizeFinder();
+
     // Check everything before writing anything.
     const plan = live.map((state) => {
       const entry = entries.find((e) => isSlot(e.box, e.slot)(state));
@@ -99,24 +101,26 @@ function submitClose(user, entries, closeId, date) {
       }
       if (!CLOSE_ENTRY_TYPES.includes(entry.type)) throw new ApiError('bad_request', `${where}: unknown entry.`);
       const exposed = Number(state.current_exposed_ticket_number);
+      const order = orderOf(state);
+      const size = sizeFor(order, state, findSize);
       let ticket = exposed;
       if (entry.type === 'scan') {
         ticket = Number(entry.ticketNumber);
-        if (!Number.isInteger(ticket) || ticket < 0 || ticket > exposed) {
-          throw new ApiError('bad_ticket', `${where}: ticket ${entry.ticketNumber} is above the last top ticket (${exposed}). Rescan it.`);
+        if (!Number.isInteger(ticket) || ticket < 0 || alreadySold(order, exposed, ticket) || (size && ticket >= size)) {
+          throw new ApiError('bad_ticket', `${where}: ticket ${entry.ticketNumber} is ${soldSide(order)} the last top ticket (${exposed}). Rescan it.`);
         }
       }
-      return { state, entry, exposed, ticket };
+      return { state, entry, exposed, ticket, order, size };
     });
     const extra = entries.find((e) => !live.some(isSlot(e.box, e.slot)));
     if (extra) throw new ApiError('slots_changed', `Box ${extra.box}, slot ${extra.slot} has no pack now. Reload Close Day.`);
 
-    for (const { state, entry, exposed, ticket } of plan) {
+    for (const { state, entry, exposed, ticket, order, size } of plan) {
       if (entry.type === 'sold_out') {
         endPackInSlot(user, state, 'sold_out');
         continue;
       }
-      const sold = exposed - ticket;
+      const sold = ticketsSold(order, exposed, ticket);
       const price = Number(state.price_per_ticket);
       appendObject(closeLogSheet(), {
         close_date: today,
@@ -128,7 +132,7 @@ function submitClose(user, entries, closeId, date) {
         tickets_sold: sold,
         price_per_ticket: price,
         dollars_sold: sold * price,
-        remaining_after_close: ticket + 1,
+        remaining_after_close: ticketsLeft(order, ticket, size),
         close_type: 'close',
         late_activation: dateLabel(state.activation_date) === today,
         performed_by: user.username,
@@ -157,9 +161,14 @@ function buildSummary(today, user) {
   const todays = readTable(monthSheet('DailyCloseLog')).filter((r) => dateLabel(r.close_date) === today);
   // (Called before today's summary row is written, so salesDate() is still today.)
   const live = readTable(monthSheet('SlotState')).filter((s) => s.pack_key);
-  const liveValue = live.reduce((sum, s) => sum + (Number(s.current_exposed_ticket_number) + 1) * Number(s.price_per_ticket), 0);
-  const backValue = readTable(monthSheet('ReserveInventory'))
-    .reduce((sum, r) => sum + (Number(r.tickets_in_reserve) || 0) * Number(r.price_per_ticket), 0);
+  const reserve = readTable(monthSheet('ReserveInventory'));
+  const findSize = packSizeFinder(reserve);
+  const liveValue = live.reduce((sum, s) => {
+    const order = orderOf(s);
+    const left = ticketsLeft(order, Number(s.current_exposed_ticket_number), sizeFor(order, s, findSize));
+    return sum + left * Number(s.price_per_ticket);
+  }, 0);
+  const backValue = reserve.reduce((sum, r) => sum + (Number(r.tickets_in_reserve) || 0) * Number(r.price_per_ticket), 0);
   return {
     close_date: today,
     total_tickets_sold: todays.reduce((sum, r) => sum + Number(r.tickets_sold), 0),
