@@ -23,6 +23,10 @@ const ICON_PATHS = {
   arrowDown: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
   // Ticket order row on More: up and down arrows side by side.
   order: '<path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/>',
+  // Shipments Received report: a delivery truck.
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  // Returned Packs report: an arrow turning back.
+  returned: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
   chevronRight: '<path d="m9 18 6-6-6-6"/>',
   chevronLeft: '<path d="m15 18-6-6 6-6"/>',
 };

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Reports</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Reports"></header>
+  <!-- Why the numbers could not load, with Try again. The rows still open their reports. -->
+  <div id="loadMessage" class="message"></div>
+
+  <!-- Every report the owner has, with this month's numbers (owner's choice 2026-10-13). -->
+  <div class="saved-dim">
+    <a class="list-card" href="month.html"><span class="icon-box" data-icon="chart"></span>
+      <span class="grow">Months &amp; Totals<span class="report-nums fit" id="monthNums">…</span></span><span class="chev" data-icon="chevronRight"></span></a>
+    <a class="list-card" href="shipments.html"><span class="icon-box" data-icon="truck"></span>
+      <span class="grow">Shipments Received<span class="report-nums fit" id="shipmentNums">…</span></span><span class="chev" data-icon="chevronRight"></span></a>
+    <a class="list-card" href="returns.html"><span class="icon-box" data-icon="returned"></span>
+      <span class="grow">Returned Packs<span class="report-nums fit" id="returnNums">…</span></span><span class="chev" data-icon="chevronRight"></span></a>
+  </div>
+
+  <nav class="tabbar" data-active="reports"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin('owner');
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+    const packs = (n) => `${n} ${n === 1 ? 'Pack' : 'Packs'}`;
+
+    function show(data) {
+      $('monthNums').textContent = `${money(data.monthDollars)} Sold This Month`;
+      $('shipmentNums').textContent = `${packs(data.shipments.packs)} · ${money(data.shipments.dollars)} This Month`;
+      $('returnNums').textContent = `${packs(data.returns.packs)} · ${money(data.returns.dollars)} This Month`;
+      fitNumbers();
+    }
+
+    async function load() {
+      try {
+        await loadSaved('reports', () => api('reportsPage'), show);
+        return true;
+      } catch (err) {
+        for (const id of ['monthNums', 'shipmentNums', 'returnNums']) if ($(id).textContent === '…') $(id).textContent = '—';
+        showLoadError($('loadMessage'), err, load);
+        return false;
+      }
+    }
+    if (session) load();
+  </script>
+</body>
+</html>

@@ -10,7 +10,7 @@ const TABS = {
     { id: 'home', label: 'Home', href: 'index.html', icon: 'home' },
     { id: 'scan', label: 'Scan', href: 'close.html', icon: 'scan' },
     { id: 'stock', label: 'Stock', href: 'backstock.html', icon: 'box' },
-    { id: 'reports', label: 'Reports', href: 'month.html', icon: 'chart' },
+    { id: 'reports', label: 'Reports', href: 'reports.html', icon: 'chart' },
     { id: 'more', label: 'More', href: 'more.html', icon: 'more' },
   ],
   // Employees scan with the big green button on home, so their middle tab is Slots (owner's choice 2026-09-28).

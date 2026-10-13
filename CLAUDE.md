@@ -183,7 +183,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   (zxing-wasm, `startScanner({... mode})` → `{ setMode }`) · `style.css` shared styles
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.
   `nav.js` fills `<header class="app-header" data-title=…>` (store name or a `data-back` link, title, name pill → More) and
-  `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports · More; employee Home · Slots · More.
+  `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports (→ `reports.html`) · More; employee Home · Slots · More.
   The slot page (`activate.html`) has a back pill (`.back`: chevron + label, 44px tall, styled like the name pill and on
   one row with it, title underneath; owner 2026-09-30) instead of the tab bar; login/setup have no tab bar. Slots, Settling,
   Full pack sales and Shift Closure have a **Home** back pill → index.html (owner 2026-10-04; on Slots owner only, via
@@ -231,7 +231,20 @@ Frontend (`src/`, plain HTML + JS, no build):
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
   close). Views: scanning, closed (summary, with "Submitted at 10:52 PM by <username>" from
   `DailySummary.closed_by`/`closed_at`, server time when saved; closes before 2026-09-27 have no line), and pending ("saved, not sent yet": Try sending now / Stop sending).
-- `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals
+- `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals; ‹ Reports pill
+- **Reports tab** (owner 2026-10-13): `reports.html` lists exactly three reports, each row with this month's numbers from one
+  `reportsPage` request (saved answer first, Try again): **Months & Totals** (`month.html`, $ sold), **Shipments Received**
+  (`shipments.html`, packs · $, icon `truck`), **Returned Packs** (`returns.html`, packs · $, icon `returned`). Each report
+  has a **‹ Reports** pill back to the list (Months & Totals too, even when opened from its home tile); the list itself
+  has none (it's a tab). No home cards for the two new reports (owner's choice); home is unchanged.
+  - `shipments.html`: this month's Shipments rows (`listShipments`), one card per game per day (several scan-ins that day
+    added up): day, game, **Added by Hand** tag for Manage packs + (source "add pack", kept as its own line), Packs Received,
+    Ticket Price, Pack Size, Total Value (tickets × price, so the total = Months "Shipments in"). Totals: packs, $.
+  - `returns.html`: this month's returns to the lottery (`listReturns`): **From Slot** = a pack ended as Returned on the slot
+    page (PackHistory `end_reason 'returned'`; one card per pack: game · pack, box · slot, Tickets Returned = remaining_at_return,
+    price, value; an undone return has no row so it drops off), **From the Back** = sealed packs removed from back stock with
+    reason "returned" (ReserveAdjustments; same game same day combined; price from ReserveInventory). Other removal
+    reasons (game expired, damaged, stolen, other, count, adjust) are not returns. Totals: packs (slot returns count 1 each), $.
 - `backstock.html` (owner; an employee with Receive shipments / Manage Stock / Full pack sale gets only those modes — no
   search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a Game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment Received**: a scanned/typed game opens a
@@ -272,6 +285,8 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `Shifts.js` `shiftStatus`, `submitShiftClose(user, entries, shiftId, date)`, `listShiftCloses`, `deleteShiftClose`,
   `shiftHomeSummary` (for `ownerHome.shifts`), `shiftStarts`, `endedInShift`, `nowStamp` (also used for `logged_at`).
   `closeStatus` also returns `myShiftToday` (an employee's own shift close today).
+- `Reports.js` (read only) `listShipments`, `listReturns`, `reportTotals`, `reportsPage` (the Reports list's numbers: this
+  month's DailySummary $ + both reports' totals).
 - `FullPacks.js` `sellFullPack`, `undoFullPackSale`, `listFullPackSales`, `fullPackTotals` (also used by `monthSummary`). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management (`setUserPermissions`)
 - `Permissions.js` `PERMISSIONS`, `permissionsOf`, `can`, `requirePermission` (employee permissions; loaded by the tests)
@@ -311,6 +326,7 @@ hand-edit them.
 node --test src/*.test.js                 # barcode parsing
 node test/backend-scenarios.js            # backend against a fake spreadsheet (store scenarios)
 node test/ticket-order-scenarios.js       # ascending/descending per slot: counts, refusals, shifts, returns, undo, swap, Set all
+node test/reports-scenarios.js            # Reports tab backend: shipments/returns lines (combined, tags, left out), totals = Months "Shipments in"
 node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
 
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
@@ -335,6 +351,7 @@ node test/browser/shift-close.js          # Close shift: start tickets, earlier 
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
 node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-today numbers before saving, Cancel from every step, nothing saved
 node test/browser/ticket-order.js         # Slots arrows, slot page Ticket order, More Set all, Close Day / return refusals (real backend code)
+node test/browser/reports.js              # Reports tab: list with numbers, Shipments Received + Returned Packs cards, ‹ Reports pills (real backend code)
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
