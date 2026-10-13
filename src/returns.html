@@ -14,14 +14,21 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header" data-title="Returned Packs" data-back="reports.html" data-back-label="Reports"></header>
+  <header class="app-header" id="header" data-title="Returned Packs" data-back="reports.html" data-back-label="Reports"></header>
+  <script>
+    // ?date=2026-10-06 shows that day's returns in a table; its back pill returns to the list of days (owner 2026-10-13).
+    const DAY = new URLSearchParams(location.search).get('date');
+    if (DAY) Object.assign(document.getElementById('header').dataset, { back: 'returns.html', backLabel: 'Returned Packs' });
+  </script>
   <div id="loadMessage" class="message"></div>
-  <p class="sub">Packs returned to the lottery this month: partial packs from a slot (the tickets that went back) and
-    sealed packs taken out of the back as returned. The list starts empty each month.</p>
+  <p class="sub" id="intro">Packs returned to the lottery this month, by day: partial packs from a slot (the tickets
+    that went back) and sealed packs taken out of the back as returned. Tap a day to see its games. The list starts
+    empty each month.</p>
+  <h2 id="dayTitle" class="hidden"></h2>
 
   <div class="status-card saved-dim" id="totals">
     <div class="stat-grid two">
-      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs This Month</div></div>
+      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label" id="packLabel">Packs This Month</div></div>
       <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Value Returned</div></div>
     </div>
   </div>
@@ -38,6 +45,7 @@
     const session = requireLogin('owner');
     const $ = (id) => document.getElementById(id);
     const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+    const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
     // "2026-10-05" -> "Mon, Oct 5"
     function dayName(label) {
@@ -52,43 +60,80 @@
       return e;
     }
 
-    function stat(value, label) {
-      const box = el('div', 'stat');
-      box.append(el('div', 'stat-value fit', value), el('div', 'stat-label', label));
-      return box;
+    const sum = (lines, field) => lines.reduce((total, l) => total + l[field], 0);
+
+    // The lines of each day, newest day first (lines come newest first).
+    function byDay(lines) {
+      const days = [];
+      lines.forEach((line) => {
+        let day = days.find((d) => d.date === line.date);
+        if (!day) days.push(day = { date: line.date, lines: [] });
+        day.lines.push(line);
+      });
+      return days;
     }
 
-    // A slot return is one pack and the tickets left in it; a back stock return is sealed packs of a game that day.
-    function lineCard(line) {
-      const card = el('div', 'card report-card');
+    // One card per day: games, packs and their value; tapping it opens that day's table.
+    function dayCard(day) {
+      const card = el('a', 'card report-day');
+      card.href = `returns.html?date=${day.date}`;
       const top = el('div', 'row');
-      top.append(el('span', 'slot-num', dayName(line.date)), el('span', 'chip green', money(line.dollars)));
-      const fromSlot = line.kind === 'slot';
-      const game = el('div', 'slot-detail mono report-game', fromSlot ? `Game ${line.gameNumber} · Pack ${line.packNumber}` : `Game ${line.gameNumber}`);
-      // The tag sits after the slot it came from (its own line), or after the game for the back.
-      const tagLine = fromSlot ? el('div', 'slot-detail report-game', `Box ${line.box} · Slot ${line.slot}`) : game;
-      tagLine.append(el('span', 'chip', fromSlot ? 'From Slot' : 'From the Back'));
-      const stats = el('div', fromSlot ? 'stat-grid' : 'stat-grid two');
-      if (fromSlot) {
-        stats.append(stat(String(line.ticketsReturned), 'Tickets Returned'), stat(money(line.price), 'Ticket Price'),
-          stat(money(line.dollars), 'Total Value'));
-      } else {
-        stats.append(stat(String(line.packs), 'Packs Returned'), stat(money(line.price), 'Ticket Price'),
-          stat(String(line.ticketsPerPack), 'Pack Size'), stat(money(line.dollars), 'Total Value'));
-      }
-      card.append(top, game);
-      if (fromSlot) card.append(tagLine);
-      card.append(stats);
+      top.append(el('span', 'slot-num', dayName(day.date)), el('span', 'chip green', money(sum(day.lines, 'dollars'))));
+      const games = new Set(day.lines.map((l) => l.gameNumber)).size;
+      const detail = el('div', 'slot-detail', `${count(games, 'Game')} · ${count(sum(day.lines, 'packs'), 'Pack')}`);
+      detail.append(el('span', 'chev', null));
+      detail.lastChild.dataset.icon = 'chevronRight';
+      card.append(top, detail);
+      return card;
+    }
+
+    // That day's returns numbered 1 to N. A slot return is one pack with only some tickets going back, so its
+    // Returned cell shows the tickets, and the pack and slot it came from are under the game number.
+    function dayTable(lines) {
+      const table = el('table', 'report-table');
+      const head = el('tr');
+      ['#', 'Game', 'Returned', 'Ticket Price', 'Pack Size', 'Total Value'].forEach((h) => head.append(el('th', null, h)));
+      table.append(el('thead'), el('tbody'), el('tfoot'));
+      table.tHead.append(head);
+      lines.forEach((line, i) => {
+        const row = el('tr');
+        const game = el('td', 'mono', line.gameNumber);
+        const fromSlot = line.kind === 'slot';
+        game.append(el('div', 'cell-note', fromSlot ? `Pack ${line.packNumber} · Box ${line.box} Slot ${line.slot}` : 'From the Back'));
+        const returned = fromSlot ? `${line.ticketsReturned} tickets` : count(line.packs, 'pack');
+        row.append(el('td', 'num-col', String(i + 1)), game, el('td', null, returned), el('td', null, money(line.price)),
+          el('td', null, line.ticketsPerPack ? String(line.ticketsPerPack) : '—'), el('td', null, money(line.dollars)));
+        table.tBodies[0].append(row);
+      });
+      const total = el('tr');
+      total.append(el('td'), el('td', null, 'Total'), el('td', null, count(sum(lines, 'packs'), 'pack')), el('td'), el('td'),
+        el('td', null, money(sum(lines, 'dollars'))));
+      table.tFoot.append(total);
+      const card = el('div', 'card table-card');
+      card.append(table);
       return card;
     }
 
     function show(data) {
-      $('packCount').textContent = `${data.packs} ${data.packs === 1 ? 'Pack' : 'Packs'}`;
-      $('dollarCount').textContent = money(data.dollars);
       const list = $('list');
       list.innerHTML = '';
-      if (data.lines.length === 0) list.append(el('p', 'sub', 'No packs returned this month yet.'));
-      data.lines.forEach((line) => list.append(lineCard(line)));
+      if (DAY) {
+        const lines = data.lines.filter((l) => l.date === DAY);
+        $('intro').classList.add('hidden');
+        $('dayTitle').classList.remove('hidden');
+        $('dayTitle').textContent = dayName(DAY);
+        $('packLabel').textContent = 'Packs This Day';
+        $('packCount').textContent = count(sum(lines, 'packs'), 'Pack');
+        $('dollarCount').textContent = money(sum(lines, 'dollars'));
+        if (lines.length === 0) list.append(el('p', 'sub', 'Nothing returned on this day.'));
+        else list.append(dayTable(lines));
+      } else {
+        $('packCount').textContent = count(data.packs, 'Pack');
+        $('dollarCount').textContent = money(data.dollars);
+        if (data.lines.length === 0) list.append(el('p', 'sub', 'No packs returned this month yet.'));
+        byDay(data.lines).forEach((day) => list.append(dayCard(day)));
+        fillIcons();
+      }
       fitNumbers();
     }
 

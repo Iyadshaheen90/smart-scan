@@ -62,32 +62,62 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   assert.match(await text(page, 'a[href="returns.html"]'), /3 Packs · \$1,420 This Month/);
   await shot(page, 'reports');
 
-  // Shipments Received.
+  // Shipments Received: one card per day; a day opens its games numbered 1 to N in a table.
+  const rows = (page) => page.$$eval('.report-table tr', (trs) => trs.map((tr) => [...tr.cells].map((td) => td.innerText.replace(/\s+/g, ' ').trim())));
+  const noSideScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   await Promise.all([page.waitForNavigation(), page.click('a[href="shipments.html"]')]); await loaded(page);
   assert.equal(await text(page, '#packCount'), '6 Packs');
   assert.equal(await text(page, '#dollarCount'), '$3,500');
   let c = await cards(page);
-  assert.equal(c.length, 3);
-  assert.match(c[0], /Tue, Oct 6 \$500 Game 1111 Added by Hand 1 Packs Received \$10 Ticket Price 50 Pack Size \$500 Total Value/);
-  assert.match(c[1], /Tue, Oct 6 \$1,800 Game 1747 3 Packs Received \$20 Ticket Price 30 Pack Size \$1,800 Total Value/);
-  assert.doesNotMatch(c[1], /Added by Hand/);
-  assert.match(c[2], /Mon, Oct 5 \$1,200 Game 1747 2 Packs Received/);
+  assert.deepEqual(c, ['Tue, Oct 6 $2,300 2 Games · 4 Packs', 'Mon, Oct 5 $1,200 1 Game · 2 Packs']);
+  assert.equal(await page.$$eval('#list a.card svg', (els) => els.length), 2); // chevron on each day
   await shot(page, 'shipments');
-  // ‹ Reports pill goes back to the list.
   assert.equal(await text(page, '.app-header .back'), 'Reports');
+  await Promise.all([page.waitForNavigation(), page.click('#list a.card')]); await loaded(page);
+  assert.ok(page.url().endsWith('shipments.html?date=2026-10-06'));
+  assert.equal(await text(page, '#dayTitle'), 'Tue, Oct 6');
+  assert.equal(await text(page, '#packCount'), '4 Packs'); assert.equal(await text(page, '#packLabel'), 'Packs This Day');
+  assert.equal(await text(page, '#dollarCount'), '$2,300');
+  assert.deepEqual(await rows(page), [
+    ['#', 'Game', 'Packs', 'Ticket Price', 'Pack Size', 'Total Value'],
+    ['1', '1111 Added by Hand', '1', '$10', '50', '$500'],
+    ['2', '1747', '3', '$20', '30', '$1,800'],
+    ['', 'Total', '4', '', '', '$2,300'],
+  ]);
+  assert.ok(await noSideScroll(page));
+  await shot(page, 'shipments-day');
+  // Its pill goes back to Shipments Received, which still has the Reports pill.
+  assert.equal(await text(page, '.app-header .back'), 'Shipments Received');
+  await Promise.all([page.waitForNavigation(), page.click('.app-header .back')]);
+  assert.ok(page.url().endsWith('/shipments.html'));
+  await loaded(page);
   await Promise.all([page.waitForNavigation(), page.click('.app-header .back')]);
   assert.ok(page.url().endsWith('reports.html'));
+  // A day with nothing (e.g. an old link).
+  await page.goto(base + 'shipments.html?date=2026-10-01'); await loaded(page);
+  assert.match(await text(page, '#list'), /Nothing received on this day\./);
 
-  // Returned Packs.
+  // Returned Packs: same, with slot returns (tickets) and sealed packs from the back.
   await page.goto(base + 'returns.html'); await loaded(page);
   assert.equal(await text(page, '#packCount'), '3 Packs');
   assert.equal(await text(page, '#dollarCount'), '$1,420');
   c = await cards(page);
-  assert.equal(c.length, 2);
-  assert.match(c[0], /Tue, Oct 6 \$1,000 Game 1111 From the Back 2 Packs Returned \$10 Ticket Price 50 Pack Size \$1,000 Total Value/);
-  assert.match(c[1], /Tue, Oct 6 \$420 Game 1747 · Pack 0000001 Box 1 · Slot 5 From Slot 21 Tickets Returned \$20 Ticket Price \$420 Total Value/);
+  assert.deepEqual(c, ['Tue, Oct 6 $1,420 2 Games · 3 Packs']);
   assert.equal(await text(page, '.app-header .back'), 'Reports');
   await shot(page, 'returns');
+  await Promise.all([page.waitForNavigation(), page.click('#list a.card')]); await loaded(page);
+  assert.ok(page.url().endsWith('returns.html?date=2026-10-06'));
+  assert.deepEqual(await rows(page), [
+    ['#', 'Game', 'Returned', 'Ticket Price', 'Pack Size', 'Total Value'],
+    ['1', '1111 From the Back', '2 packs', '$10', '50', '$1,000'],
+    ['2', '1747 Pack 0000001 · Box 1 Slot 5', '21 tickets', '$20', '30', '$420'],
+    ['', 'Total', '3 packs', '', '', '$1,420'],
+  ]);
+  assert.ok(await noSideScroll(page));
+  await shot(page, 'returns-day');
+  assert.equal(await text(page, '.app-header .back'), 'Returned Packs');
+  await Promise.all([page.waitForNavigation(), page.click('.app-header .back')]);
+  assert.ok(page.url().endsWith('/returns.html'));
 
   // Months & Totals has the pill too, and the Reports tab stays lit.
   await page.goto(base + 'month.html'); await sleep(400);
@@ -95,7 +125,7 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   assert.equal(await page.$eval('nav.tabbar a.active', (a) => a.dataset.tab), 'reports');
 
   // Numbers never cut off, even huge ones.
-  for (const url of ['reports.html', 'shipments.html', 'returns.html']) {
+  for (const url of ['reports.html', 'shipments.html', 'returns.html', 'shipments.html?date=2026-10-06', 'returns.html?date=2026-10-06']) {
     await page.goto(base + url); await loaded(page);
     const clipped = await page.$$eval('.fit', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
     assert.deepEqual(clipped, [], url);

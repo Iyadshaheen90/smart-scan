@@ -28,16 +28,22 @@ function listShipments() {
 // - kind 'back': sealed packs removed from back stock with the reason "returned" (ReserveAdjustments),
 //   the same game on the same day as one line; price from the game's back stock row.
 function listReturns() {
+  const prices = {};
+  const sizes = {};
+  readTable(monthSheet('ReserveInventory')).forEach((r) => {
+    prices[String(r.game_number)] = Number(r.price_per_ticket) || 0;
+    sizes[String(r.game_number)] = Number(r.tickets_per_pack) || 0;
+  });
   const slotLines = readTable(monthSheet('PackHistory'))
     .filter((p) => p.end_reason === 'returned')
     .map((p) => {
       const ticketsReturned = Number(p.remaining_at_return) || 0;
       const price = Number(p.price_per_ticket) || 0;
-      return { date: dateLabel(p.end_date), kind: 'slot', gameNumber: String(p.game_number), packNumber: String(p.pack_number),
-        box: Number(p.box), slot: Number(p.slot_number), packs: 1, ticketsReturned, price, dollars: ticketsReturned * price };
+      const gameNumber = String(p.game_number);
+      return { date: dateLabel(p.end_date), kind: 'slot', gameNumber, packNumber: String(p.pack_number),
+        box: Number(p.box), slot: Number(p.slot_number), packs: 1, ticketsReturned, price,
+        ticketsPerPack: sizes[gameNumber] || STANDARD_PACK_SIZES[price] || 0, dollars: ticketsReturned * price };
     });
-  const prices = {};
-  readTable(monthSheet('ReserveInventory')).forEach((r) => { prices[String(r.game_number)] = Number(r.price_per_ticket) || 0; });
   const byLine = {};
   readTable(monthSheet('ReserveAdjustments')).filter((a) => a.reason === 'returned').forEach((a) => {
     const date = dateLabel(a.adjustment_date);

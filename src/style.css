@@ -349,6 +349,21 @@ a.banner { display: block; color: inherit; text-decoration: none; }
 .report-game { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .report-game .chip { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
 .report-card .stat-grid { margin-top: 12px; }
+/* A day on Shipments Received / Returned Packs: tapping it opens that day's table. */
+a.report-day { display: block; color: var(--text); text-decoration: none; }
+.report-day .slot-detail { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.report-day .chev { color: var(--muted); display: inline-flex; }
+.report-day .chev svg { width: 18px; height: 18px; }
+/* That day's games numbered 1 to N. Narrow enough for a phone: small text, columns size to what's in them. */
+.table-card { padding: 8px 10px; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.report-table th { font-size: 11px; font-weight: 700; color: var(--muted); text-align: right; padding: 6px 4px; vertical-align: bottom; line-height: 1.2; }
+.report-table td { text-align: right; padding: 9px 4px; border-top: 1px solid var(--border); vertical-align: top; white-space: nowrap; }
+.report-table th:nth-child(-n+2), .report-table td:nth-child(-n+2) { text-align: left; }
+.report-table td.num-col { color: var(--muted); }
+.report-table td.mono { font-weight: 700; }
+.report-table .cell-note { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; font-size: 11px; font-weight: 600; color: var(--muted); white-space: normal; margin-top: 2px; }
+.report-table tfoot td { font-weight: 800; border-top: 2px solid var(--border); }
 .legend { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; font-size: 14px; color: var(--muted); }
 .legend .chip { margin-right: 6px; }
 .settle-card .stat-value { font-size: 18px; }

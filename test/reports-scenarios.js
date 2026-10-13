@@ -69,7 +69,7 @@ r = call(() => ctx.listReturns());
 assert.deepEqual(r.lines, [
   { date: '2026-10-06', kind: 'back', gameNumber: '1111', packs: 2, price: 10, ticketsPerPack: 50, dollars: 1000 },
   { date: '2026-10-06', kind: 'slot', gameNumber: '1747', packNumber: '0000001', box: 1, slot: 1, packs: 1,
-    ticketsReturned: 21, price: 20, dollars: 420 },
+    ticketsReturned: 21, price: 20, ticketsPerPack: 30, dollars: 420 },
   { date: '2026-10-05', kind: 'back', gameNumber: '1747', packs: 1, price: 20, ticketsPerPack: 30, dollars: 600 },
 ]);
 assert.equal(r.packs, 4); assert.equal(r.dollars, 2020);

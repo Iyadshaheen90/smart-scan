@@ -14,14 +14,20 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header" data-title="Shipments Received" data-back="reports.html" data-back-label="Reports"></header>
+  <header class="app-header" id="header" data-title="Shipments Received" data-back="reports.html" data-back-label="Reports"></header>
+  <script>
+    // ?date=2026-10-06 shows that day's games in a table; its back pill returns to the list of days (owner 2026-10-13).
+    const DAY = new URLSearchParams(location.search).get('date');
+    if (DAY) Object.assign(document.getElementById('header').dataset, { back: 'shipments.html', backLabel: 'Shipments Received' });
+  </script>
   <div id="loadMessage" class="message"></div>
-  <p class="sub">Packs received this month, with the day each was scanned in. Packs added with + in Manage Packs are
-    tagged Added by Hand. The list starts empty each month.</p>
+  <p class="sub" id="intro">Packs received this month, by the day they were scanned in. Tap a day to see its games.
+    The list starts empty each month.</p>
+  <h2 id="dayTitle" class="hidden"></h2>
 
   <div class="status-card saved-dim" id="totals">
     <div class="stat-grid two">
-      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label">Packs This Month</div></div>
+      <div class="stat"><div class="stat-value fit" id="packCount">…</div><div class="stat-label" id="packLabel">Packs This Month</div></div>
       <div class="stat"><div class="stat-value fit" id="dollarCount">…</div><div class="stat-label">Total Value</div></div>
     </div>
   </div>
@@ -38,6 +44,7 @@
     const session = requireLogin('owner');
     const $ = (id) => document.getElementById(id);
     const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+    const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
     // "2026-10-05" -> "Mon, Oct 5"
     function dayName(label) {
@@ -52,33 +59,77 @@
       return e;
     }
 
-    function stat(value, label) {
-      const box = el('div', 'stat');
-      box.append(el('div', 'stat-value fit', value), el('div', 'stat-label', label));
-      return box;
+    const sum = (lines, field) => lines.reduce((total, l) => total + l[field], 0);
+
+    // The lines of each day, newest day first (lines come newest first).
+    function byDay(lines) {
+      const days = [];
+      lines.forEach((line) => {
+        let day = days.find((d) => d.date === line.date);
+        if (!day) days.push(day = { date: line.date, lines: [] });
+        day.lines.push(line);
+      });
+      return days;
     }
 
-    // One card per game received on a day (several scan-ins of it that day added up).
-    function lineCard(line) {
-      const card = el('div', 'card report-card');
+    // One card per day: games, packs and their value; tapping it opens that day's table.
+    function dayCard(day) {
+      const card = el('a', 'card report-day');
+      card.href = `shipments.html?date=${day.date}`;
       const top = el('div', 'row');
-      top.append(el('span', 'slot-num', dayName(line.date)), el('span', 'chip green', money(line.dollars)));
-      const game = el('div', 'slot-detail mono report-game', `Game ${line.gameNumber}`);
-      if (line.addedByHand) game.append(el('span', 'chip', 'Added by Hand'));
-      const stats = el('div', 'stat-grid two');
-      stats.append(stat(String(line.packs), 'Packs Received'), stat(money(line.price), 'Ticket Price'),
-        stat(String(line.ticketsPerPack), 'Pack Size'), stat(money(line.dollars), 'Total Value'));
-      card.append(top, game, stats);
+      top.append(el('span', 'slot-num', dayName(day.date)), el('span', 'chip green', money(sum(day.lines, 'dollars'))));
+      const games = new Set(day.lines.map((l) => l.gameNumber)).size;
+      const detail = el('div', 'slot-detail', `${count(games, 'Game')} · ${count(sum(day.lines, 'packs'), 'Pack')}`);
+      detail.append(el('span', 'chev', null));
+      detail.lastChild.dataset.icon = 'chevronRight';
+      card.append(top, detail);
+      return card;
+    }
+
+    // That day's games numbered 1 to N. Packs added with + in Manage Packs are marked under the game number.
+    function dayTable(lines) {
+      const table = el('table', 'report-table');
+      const head = el('tr');
+      ['#', 'Game', 'Packs', 'Ticket Price', 'Pack Size', 'Total Value'].forEach((h) => head.append(el('th', null, h)));
+      table.append(el('thead'), el('tbody'), el('tfoot'));
+      table.tHead.append(head);
+      lines.forEach((line, i) => {
+        const row = el('tr');
+        const game = el('td', 'mono', line.gameNumber);
+        if (line.addedByHand) game.append(el('div', 'cell-note', 'Added by Hand'));
+        row.append(el('td', 'num-col', String(i + 1)), game, el('td', null, String(line.packs)),
+          el('td', null, money(line.price)), el('td', null, String(line.ticketsPerPack)), el('td', null, money(line.dollars)));
+        table.tBodies[0].append(row);
+      });
+      const total = el('tr');
+      total.append(el('td'), el('td', null, 'Total'), el('td', null, String(sum(lines, 'packs'))), el('td'), el('td'),
+        el('td', null, money(sum(lines, 'dollars'))));
+      table.tFoot.append(total);
+      const card = el('div', 'card table-card');
+      card.append(table);
       return card;
     }
 
     function show(data) {
-      $('packCount').textContent = `${data.packs} ${data.packs === 1 ? 'Pack' : 'Packs'}`;
-      $('dollarCount').textContent = money(data.dollars);
       const list = $('list');
       list.innerHTML = '';
-      if (data.lines.length === 0) list.append(el('p', 'sub', 'No shipments received this month yet.'));
-      data.lines.forEach((line) => list.append(lineCard(line)));
+      if (DAY) {
+        const lines = data.lines.filter((l) => l.date === DAY);
+        $('intro').classList.add('hidden');
+        $('dayTitle').classList.remove('hidden');
+        $('dayTitle').textContent = dayName(DAY);
+        $('packLabel').textContent = 'Packs This Day';
+        $('packCount').textContent = count(sum(lines, 'packs'), 'Pack');
+        $('dollarCount').textContent = money(sum(lines, 'dollars'));
+        if (lines.length === 0) list.append(el('p', 'sub', 'Nothing received on this day.'));
+        else list.append(dayTable(lines));
+      } else {
+        $('packCount').textContent = count(data.packs, 'Pack');
+        $('dollarCount').textContent = money(data.dollars);
+        if (data.lines.length === 0) list.append(el('p', 'sub', 'No shipments received this month yet.'));
+        byDay(data.lines).forEach((day) => list.append(dayCard(day)));
+        fillIcons();
+      }
       fitNumbers();
     }
 

@@ -237,14 +237,19 @@ Frontend (`src/`, plain HTML + JS, no build):
   (`shipments.html`, packs · $, icon `truck`), **Returned Packs** (`returns.html`, packs · $, icon `returned`). Each report
   has a **‹ Reports** pill back to the list (Months & Totals too, even when opened from its home tile); the list itself
   has none (it's a tab). No home cards for the two new reports (owner's choice); home is unchanged.
-  - `shipments.html`: this month's Shipments rows (`listShipments`), one card per game per day (several scan-ins that day
-    added up): day, game, **Added by Hand** tag for Manage packs + (source "add pack", kept as its own line), Packs Received,
-    Ticket Price, Pack Size, Total Value (tickets × price, so the total = Months "Shipments in"). Totals: packs, $.
+  - Both reports (owner 2026-10-13, later): the list is **one card per day** (day, $ chip, "N Games · N Packs", ›); tapping it
+    opens `?date=yyyy-MM-dd` on the same page: that day's lines numbered 1 to N in a table (`.report-table`) with a Total row.
+    The day view's back pill goes to the report's list (set by an inline script before nav.js), whose pill goes to Reports.
+  - `shipments.html`: this month's Shipments rows (`listShipments`), one line per game per day (several scan-ins that day
+    added up; **Added by Hand** = Manage packs +, source "add pack", kept as its own line, noted under the game number).
+    Table: #, Game, Packs, Ticket Price, Pack Size, Total Value (tickets × price, so the month total = Months "Shipments in").
   - `returns.html`: this month's returns to the lottery (`listReturns`): **From Slot** = a pack ended as Returned on the slot
     page (PackHistory `end_reason 'returned'`; one card per pack: game · pack, box · slot, Tickets Returned = remaining_at_return,
     price, value; an undone return has no row so it drops off), **From the Back** = sealed packs removed from back stock with
     reason "returned" (ReserveAdjustments; same game same day combined; price from ReserveInventory). Other removal
     reasons (game expired, damaged, stolen, other, count, adjust) are not returns. Totals: packs (slot returns count 1 each), $.
+    Table: #, Game (with "Pack … · Box 1 Slot 5" or "From the Back" under it), Returned ("21 tickets" / "2 packs"), Ticket
+    Price, Pack Size (a slot return's from ReserveInventory), Total Value.
 - `backstock.html` (owner; an employee with Receive shipments / Manage Stock / Full pack sale gets only those modes — no
   search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a Game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment Received**: a scanned/typed game opens a
