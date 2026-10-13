@@ -193,12 +193,12 @@ Frontend (`src/`, plain HTML + JS, no build):
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
   `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
-- **Saved answers** (`loadSaved(name, request, show)` in api.js): Slots, Settling (shares Slots' saved `listSlots`), Back stock
-  and Months & totals draw the last answer saved on the phone at once, then the fresh one. While it shows, `body.showing-saved`
+- **Saved answers** (`loadSaved(name, request, show)` in api.js): Slots, Settling (shares Slots' saved `listSlots`), Back stock,
+  Months & totals, Reports, Shipments Received and Returned Packs (a `?date=` day view reuses its report's saved answer) draw the last answer saved on the phone at once, then the fresh one. While it shows, `body.showing-saved`
   dims `.saved-dim` and makes `.saved-lock` untappable (Back stock's list and ended games, Months' Start and past months), and
   Back stock's scans/search wait for the fresh list. A failed refresh keeps the saved answer (still locked) with the error.
-- **Try again** (`showLoadError(el, err, load)` in api.js; owner 2026-10-04): when Slots, Back stock or Months & totals can't
-  load, the reason shows at the top of the page (`#loadMessage`, under the header, seen without scrolling) with a Try
+- **Try again** (`showLoadError(el, err, load)` in api.js; owner 2026-10-04): when Slots, Back stock, Months & totals, Reports,
+  Shipments Received or Returned Packs can't load, the reason shows at the top of the page (`#loadMessage`, under the header, seen without scrolling) with a Try
   again button that runs the page's loader again (it returns true once loaded, which clears the message). Back stock starts its camera only after it loads, so its Try again starts the camera too.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
