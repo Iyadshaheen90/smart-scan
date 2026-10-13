@@ -306,6 +306,13 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   `adjustBackStock` (Add pack: `change` packs; more → Shipments row, source "add pack"; fewer → ReserveAdjustments, reason
   "adjust"), `removeBackStock`, `endGame`, `bringBackGame`
 
+**Back pills (owner's rule 2026-10-13):** the name pill always stays at the top right, on the same row as a back pill, on
+every page. Never let a back pill push it down or sideways. Add a back pill only through the header
+(`data-back` / `data-back-label`, or set those in an inline script before nav.js, like the report `?date=` views), never
+by hand-made markup, so it gets the grid layout and `fitBackLabels` (long text shrinks to fit). Keep labels short (the
+page they go back to). `test/browser/home-pill.js` finds every page with `data-back=` by itself and checks short and
+long usernames; a page whose pill changes with the address (like `?date=` or `&from=`) needs that address added there.
+
 **Wording (owner's rule 2026-10-08): Title Case** for page titles, section titles, pop-up titles, permission names,
 buttons and links, tabs, form labels, stat/tile labels and tags/chips ("Sell a Full Pack", "Shipment Received",
 "Price per Ticket ($)", "25 Left", "Out of Stock", "Not Closed"). Small words (a, an, the, and, or, of, to, in, on, at,
@@ -350,7 +357,7 @@ node test/browser/close-layout.js         # Close Day: button stays put and prog
 node test/browser/camera-revive.js        # camera un-freezes after Clear all / a pause / being shut off; stays off once closed
 node test/browser/backstock-fullpack.js # Full pack sale mode: ?mode=fullpack, pop-up, Sell/Cancel, refusals, draft kept (real backend code)
 node test/browser/full-packs.js          # Full pack sales page: totals, cards, Undo, none after close, empty month (real backend code)
-node test/browser/home-pill.js            # Home pill on Slots (owner only), Settling, Full pack sales, Shift Closure
+node test/browser/home-pill.js            # back pills: Home pill (Slots owner only, Settling, Full pack sales, Shift Closure); every back pill page keeps the name pill top right
 node test/browser/try-again.js            # Try again on Slots, Back stock, Months when loading fails; Back stock camera starts after
 node test/browser/sw-offline.js           # real service worker: every file saved on install; offline Slots shows Try again
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only

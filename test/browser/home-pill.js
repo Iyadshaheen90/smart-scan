@@ -1,6 +1,8 @@
-// Home back pill (owner's request 2026-10-04): Slots, Settling, Full pack sales and Shift Closure have a
+// Back pills. Home back pill (owner's request 2026-10-04): Slots, Settling, Full pack sales and Shift Closure have a
 // "Home" pill (back to index.html) for the owner, level with the name pill. Employees open Slots from the
 // tab bar, so their Slots page has no pill.
+// Rule (owner 2026-10-13): on every page with a back pill, found by itself, with short and long usernames, the name pill
+// stays top right on the pill's row and the pill's text shows whole (smaller if needed), with no sideways scroll.
 // Run: node test/browser/home-pill.js   (SHOTS=dir also saves screenshots)
 const assert = require('assert/strict');
 const { openApp, sleep } = require('./harness');
@@ -35,9 +37,23 @@ const pill = (page) => page.evaluate(() => {
   // and the back pill's text gets smaller instead of being cut off.
   const longHandle = (b) => (b.action === 'listShipments' || b.action === 'listReturns' ? { packs: 0, dollars: 0, lines: [] }
     : b.action === 'reportsPage' ? { monthDollars: 0, shipments: { packs: 0, dollars: 0 }, returns: { packs: 0, dollars: 0 } } : handle(b));
+  // Every page with a back pill is checked, found by itself (owner's rule 2026-10-13: a new back pill must never move the
+  // name pill). Pages that change their pill from the address get those addresses too: ?date= on a report (its script sets
+  // backLabel), and the slot page opened from Settling.
+  const fs = require('fs'); const path = require('path');
+  const SRC = path.join(__dirname, '..', '..', 'src');
+  const pillPages = [];
+  for (const file of fs.readdirSync(SRC).filter((f) => f.endsWith('.html')).sort()) {
+    const html = fs.readFileSync(path.join(SRC, file), 'utf8');
+    if (!/data-back=/.test(html)) continue;
+    if (file === 'activate.html') pillPages.push('activate.html?box=1&slot=1', 'activate.html?box=1&slot=1&from=settling');
+    else pillPages.push(file);
+    if (/backLabel:/.test(html)) pillPages.push(`${file}?date=2026-10-06`);
+  }
+  assert.ok(pillPages.length >= 9, pillPages.join(' '));
   for (const username of ['o', 'ishaheen', 'route66owner']) {
     app = await openApp({ role: 'owner', username, handle: longHandle });
-    for (const url of ['shipments.html?date=2026-10-06', 'returns.html?date=2026-10-06', 'shipments.html', 'month.html', 'slots.html']) {
+    for (const url of pillPages) {
       await app.page.goto(app.base + url); await sleep(300);
       const r = await app.page.evaluate(() => {
         const box = (sel) => document.querySelector(sel).getBoundingClientRect();
