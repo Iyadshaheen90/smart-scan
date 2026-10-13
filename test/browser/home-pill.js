@@ -31,6 +31,26 @@ const pill = (page) => page.evaluate(() => {
   assert.ok(app.page.url().endsWith('index.html'));
   await app.close();
 
+  // Long back pill text next to a long username (owner 2026-10-13): the name pill stays top right on the same row,
+  // and the back pill's text gets smaller instead of being cut off.
+  const longHandle = (b) => (b.action === 'listShipments' || b.action === 'listReturns' ? { packs: 0, dollars: 0, lines: [] }
+    : b.action === 'reportsPage' ? { monthDollars: 0, shipments: { packs: 0, dollars: 0 }, returns: { packs: 0, dollars: 0 } } : handle(b));
+  for (const username of ['o', 'ishaheen', 'route66owner']) {
+    app = await openApp({ role: 'owner', username, handle: longHandle });
+    for (const url of ['shipments.html?date=2026-10-06', 'returns.html?date=2026-10-06', 'shipments.html', 'month.html', 'slots.html']) {
+      await app.page.goto(app.base + url); await sleep(300);
+      const r = await app.page.evaluate(() => {
+        const box = (sel) => document.querySelector(sel).getBoundingClientRect();
+        const back = box('.app-header .back'), user = box('.user-pill'), label = document.querySelector('.back-label');
+        return { right: Math.round(window.innerWidth - user.right), level: Math.abs((back.top + back.bottom) / 2 - (user.top + user.bottom) / 2) <= 1,
+          apart: back.right <= user.left, whole: label.scrollWidth <= label.clientWidth, noSideScroll: document.documentElement.scrollWidth <= window.innerWidth };
+      });
+      assert.deepEqual(r, { right: 20, level: true, apart: true, whole: true, noSideScroll: true }, `${username} ${url}`);
+      if (process.env.SHOTS && url.includes('shipments.html?')) await app.page.screenshot({ path: `${process.env.SHOTS}/pill-long-${username}.png`, clip: { x: 0, y: 0, width: 390, height: 160 } });
+    }
+    await app.close();
+  }
+
   app = await openApp({ role: 'employee', handle });
   await app.page.goto(app.base + 'slots.html'); await sleep(300);
   assert.equal(await pill(app.page), null);

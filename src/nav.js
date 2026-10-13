@@ -67,11 +67,16 @@ function fitText(el) {
 function fitNumbers(root = document) {
   root.querySelectorAll('.fit').forEach(fitText);
 }
-window.addEventListener('resize', () => fitNumbers());
+// A back pill's text shrinks to fit beside the name pill, so the name pill never moves off the top right.
+function fitBackLabels() {
+  document.querySelectorAll('.app-header .back-label').forEach(fitText);
+}
+window.addEventListener('resize', () => { fitNumbers(); fitBackLabels(); });
 
 (function renderNav() {
   const session = getSession();
   document.querySelectorAll('header.app-header').forEach((el) => renderHeader(el, session));
+  fitBackLabels();
   if (session) document.querySelectorAll('nav.tabbar').forEach((el) => renderTabBar(el, session));
   fillIcons();
 })();

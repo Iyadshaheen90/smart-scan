@@ -187,7 +187,9 @@ Frontend (`src/`, plain HTML + JS, no build):
   The slot page (`activate.html`) has a back pill (`.back`: chevron + label, 44px tall, styled like the name pill and on
   one row with it, title underneath; owner 2026-09-30) instead of the tab bar; login/setup have no tab bar. Slots, Settling,
   Full pack sales and Shift Closure have a **Home** back pill → index.html (owner 2026-10-04; on Slots owner only, via
-  `data-back-role="owner"`, since employees reach Slots from the tab bar). `icons.js` inline
+  `data-back-role="owner"`, since employees reach Slots from the tab bar). With a back pill the header is a grid: the name pill always stays top right on the
+  same row, and a back pill text too long for the space left ("Shipments Received" next to a long username) shrinks to fit
+  (`fitBackLabels` in nav.js) rather than pushing the name pill down (owner 2026-10-13). `icons.js` inline
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
   `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
