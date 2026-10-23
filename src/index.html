@@ -90,6 +90,10 @@
     </div>
   </div>
 
+  <!-- Theft Report, one tap away in an emergency (owner 2026-10-23): a big red circle floating above the tab bar,
+       for the owner and employees with Theft Report. Home only, so it never covers Close Day's camera or hold button. -->
+  <a class="theft-fab hidden" id="theftFab" href="theft-report.html" aria-label="Theft Report" title="Theft Report"><span data-icon="theft"></span></a>
+
   <nav class="tabbar" data-active="home"></nav>
 
   <script src="config.js"></script>
@@ -130,11 +134,20 @@
         any = any || on;
       });
       $('extraActions').classList.toggle('hidden', !any);
+      showTheftButton(current);
+    }
+
+    // The floating Theft Report button; the page gets room at the bottom so it never hides the last row.
+    function showTheftButton(current) {
+      const on = can(current, 'theft_report');
+      $('theftFab').classList.toggle('hidden', !on);
+      document.body.classList.toggle('has-fab', on);
     }
 
     if (session) {
       document.querySelectorAll(isOwner ? '.owner-only' : '.employee-only').forEach((el) => el.classList.remove('hidden'));
       if (!isOwner) showExtraActions(session);
+      else showTheftButton(session);
       $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
       loadStatus();
     }

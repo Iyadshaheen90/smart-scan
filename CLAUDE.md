@@ -209,7 +209,10 @@ Frontend (`src/`, plain HTML + JS, no build):
   month), Settling (packs live 50+ days, amber when any), a full-width Full pack sales card (`.tile-wide`: packs sold this month
   and their $, from `ownerHome.fullPacks`; opens `full-packs.html`), a full-width Shift Closure card (shift closes this month and
   the latest "3:02 PM · Today by sara", from `ownerHome.shifts`; opens `shifts.html`), a quieter **Close My Shift** button
-  (`.action-shift`) under Close Day, Manage employees row (Scanner test is in More only, owner 2026-09-29). Employee: status card (Ready to scan / Day closed + submitted by) and a big
+  (`.action-shift`) under Close Day, Manage employees row (Scanner test is in More only, owner 2026-09-29). A big red round
+  **Theft Report** button (`#theftFab`, `.theft-fab`, icon `theft`, `--danger-solid`) floats at the bottom right above the tab bar
+  on Home only (owner 2026-10-23; not on other pages so it never covers Close Day's camera/hold button), for the owner and
+  employees with `theft_report` (`showTheftButton`); `body.has-fab` adds bottom room so it never hides the last row. Employee: status card (Ready to scan / Day closed + submitted by) and a big
   Scan Tickets button → Close Day, and under it Close My Shift (hidden once the day is closed; a greyed "Shift Closed at
   2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
   permission the owner turned on (Load / Return Packs → Slots; Ticket Order → More; Receive a Shipment, Manage Stock, Sell a Full Pack →
@@ -395,6 +398,9 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   (asserts in DO blocks; switch users with `set local role authenticated` + `set local request.jwt.claims`).
   `npx --yes supabase@2.122.0 db advisors --linked` should show only the two expected warnings (definer API functions callable
   by signed-in users; two select policies on stores/store_members).
+- **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
+  carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
+  added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.
 - **Next (Phase 2 continues):** back stock (listBackStock, saveBackStock, removeBackStock, adjustBackStock, endGame,
   bringBackGame — counts go to `games.unnumbered_in_back` until the per-pack shipment scan-in is built), full pack sales,
   Reports + Theft Report, shift closes, owner home + Months & Totals (Download Month Excel replaces monthly sheets / Start
@@ -445,6 +451,7 @@ node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-
 node test/browser/ticket-order.js         # Slots arrows, slot page Ticket order, More Set all, Close Day / return refusals (real backend code)
 node test/browser/reports.js              # Reports tab: list with numbers, Shipments Received + Returned Packs cards, ‹ Reports pills (real backend code)
 node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, PDF (bytes, xref, multi-page), print fallback, Try again, employee without $, no permission → home
+node test/browser/theft-fab.js            # Home's red Theft Report button: owner + employees with the permission, above the tab bar, never hides the last row, opens the report
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
