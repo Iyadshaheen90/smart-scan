@@ -1,11 +1,13 @@
 // Theft Report backend (Reports.js theftReport, owner's request 2026-10-23): every live pack's game, pack and
-// unsold ticket range at the last close (descending 000–top, ascending top–last, a pack put in since the close
-// from its activation ticket), plus back stock per game for the full report; no dollars for employees.
+// unsold ticket range at its newest count (descending 000–top, ascending top–last): today's latest shift close that
+// counted it, else a pack put in since the close from its activation ticket, else the last close. Plus back stock
+// per game for the full report; no dollars for employees.
 // Run: node test/theft-report-scenarios.js
 const assert = require('assert/strict');
 const { backendInVm } = require('./browser/harness');
 
-const { ctx, addRow, call, sheets: S } = backendInVm('2026-10-23', () => '07:12:00');
+let clock = '07:12:00';
+const { ctx, addRow, call, sheets: S } = backendInVm('2026-10-23', () => clock);
 const owner = { username: 'o', role: 'owner' };
 const employee = { username: 'sara', role: 'employee', permissions: ['theft_report'] };
 
@@ -40,13 +42,14 @@ assert.equal(r.full, false);
 assert.equal(r.madeAt, '2026-10-23 07:12');
 assert.deepEqual(r.lastClose, { date: '2026-10-22', closedAt: '10:52 PM', closedBy: 'sara' }, 'the newest close, not the last row');
 assert.equal(r.back, null, 'live only: no back stock');
+assert.equal(r.lastShift, null, 'no shift close today');
 assert.deepEqual(r.live.lines, [
   { box: 1, slot: 1, gameNumber: '1747', packNumber: '0012345', order: 'descending', price: 20,
-    fromTicket: 0, toTicket: 24, tickets: 25, dollars: 500, newSinceClose: false },
+    fromTicket: 0, toTicket: 24, tickets: 25, dollars: 500, source: 'close' },
   { box: 1, slot: 2, gameNumber: '1111', packNumber: '0000777', order: 'ascending', price: 10,
-    fromTicket: 10, toTicket: 49, tickets: 40, dollars: 400, newSinceClose: false },
+    fromTicket: 10, toTicket: 49, tickets: 40, dollars: 400, source: 'close' },
   { box: 2, slot: 1, gameNumber: '1747', packNumber: '0055555', order: 'descending', price: 20,
-    fromTicket: 0, toTicket: 29, tickets: 30, dollars: 600, newSinceClose: true },
+    fromTicket: 0, toTicket: 29, tickets: 30, dollars: 600, source: 'activation' },
 ]);
 assert.deepEqual({ packs: r.live.packs, tickets: r.live.tickets, dollars: r.live.dollars }, { packs: 3, tickets: 95, dollars: 1500 });
 
@@ -68,17 +71,65 @@ assert.ok(!JSON.stringify(r).includes('dollars'), JSON.stringify(r));
 assert.equal(r.live.tickets, 95);
 assert.equal(r.back.tickets, 590);
 assert.deepEqual(r.live.lines[0], { box: 1, slot: 1, gameNumber: '1747', packNumber: '0012345', order: 'descending', price: 20,
-  fromTicket: 0, toTicket: 24, tickets: 25, newSinceClose: false });
+  fromTicket: 0, toTicket: 24, tickets: 25, source: 'close' });
 
 // ---- Nothing written ----
 const before = JSON.stringify(S);
 call(() => ctx.theftReport(owner, { full: true }));
 assert.equal(JSON.stringify(S), before, 'the report changes no sheet');
 
+// ---- After a mid-day shift close (owner 2026-10-23): each pack counted at it starts from there ----
+// 3:02 PM sara closes her shift: 1-1 now at 015 (desc), 1-2 at 020 (asc), 2-1 sold out (still in its slot).
+clock = '15:02:00';
+ctx.submitShiftClose(employee, [
+  { box: 1, slot: 1, packKey: '1747-0012345', type: 'scan', ticketNumber: 15 },
+  { box: 1, slot: 2, packKey: '1111-0000777', type: 'scan', ticketNumber: 20 },
+  { box: 2, slot: 1, packKey: '1747-0055555', type: 'sold_out' },
+], 'shift1');
+// 4 PM a $5 pack goes into 1-3 (after the shift close): from its activation ticket.
+clock = '16:00:00';
+ctx.activatePack(owner, { box: 1, slot: 3, gameNumber: '5555', packNumber: '0000042', ticketNumber: 79 });
+clock = '18:30:00';
+r = call(() => ctx.theftReport(owner, {}));
+assert.deepEqual(r.lastShift, { closedAt: '3:02 PM', closedBy: 'sara' });
+assert.deepEqual(r.lastClose, { date: '2026-10-22', closedAt: '10:52 PM', closedBy: 'sara' }, 'still shown');
+assert.deepEqual(r.live.lines, [
+  { box: 1, slot: 1, gameNumber: '1747', packNumber: '0012345', order: 'descending', price: 20, source: 'shift',
+    shiftAt: '3:02 PM', shiftBy: 'sara', fromTicket: 0, toTicket: 15, tickets: 16, dollars: 320 },
+  { box: 1, slot: 2, gameNumber: '1111', packNumber: '0000777', order: 'ascending', price: 10, source: 'shift',
+    shiftAt: '3:02 PM', shiftBy: 'sara', fromTicket: 20, toTicket: 49, tickets: 30, dollars: 300 },
+  { box: 1, slot: 3, gameNumber: '5555', packNumber: '0000042', order: 'descending', price: 5, source: 'activation',
+    fromTicket: 0, toTicket: 79, tickets: 80, dollars: 400 },
+  { box: 2, slot: 1, gameNumber: '1747', packNumber: '0055555', order: 'descending', price: 20, source: 'shift',
+    shiftAt: '3:02 PM', shiftBy: 'sara', soldOutAt: '3:02 PM', fromTicket: null, toTicket: null, tickets: 0, dollars: 0 },
+]);
+assert.deepEqual({ packs: r.live.packs, tickets: r.live.tickets, dollars: r.live.dollars }, { packs: 3, tickets: 126, dollars: 1020 },
+  'a pack sold out at the shift close has nothing to stop and isn\'t counted');
+// A second shift close at 5 PM by the owner: 1-1 now 010; 1-3 counted for the first time. The newest one wins,
+// except a sold out pack keeps the time it sold out (3:02 PM), not the later shift close that repeated it.
+clock = '17:00:00';
+ctx.submitShiftClose(owner, [
+  { box: 1, slot: 1, packKey: '1747-0012345', type: 'scan', ticketNumber: 10 },
+  { box: 1, slot: 2, packKey: '1111-0000777', type: 'scan', ticketNumber: 20 },
+  { box: 1, slot: 3, packKey: '5555-0000042', type: 'scan', ticketNumber: 70 },
+], 'shift2');
+r = call(() => ctx.theftReport(employee, {}));
+assert.deepEqual(r.lastShift, { closedAt: '5:00 PM', closedBy: 'o' });
+assert.deepEqual(r.live.lines.map((l) => [l.slot, l.source, l.shiftAt, l.toTicket, l.tickets]),
+  [[1, 'shift', '5:00 PM', 10, 11], [2, 'shift', '5:00 PM', 49, 30], [3, 'shift', '5:00 PM', 70, 71], [1, 'shift', '3:02 PM', null, 0]]);
+assert.ok(!JSON.stringify(r).includes('dollars'), 'employee: still no dollars');
+// Once today is closed, the close is newer than any shift close: back to SlotState.
+addRow('DailySummary', { close_date: '2026-10-23', closed_by: 'o', closed_at: '2026-10-23 23:01' });
+r = call(() => ctx.theftReport(owner, {}));
+assert.equal(r.lastShift, null);
+assert.deepEqual(r.lastClose, { date: '2026-10-23', closedAt: '11:01 PM', closedBy: 'o' });
+assert.ok(r.live.lines.every((l) => l.source !== 'shift' && !l.soldOutAt));
+S.DailySummary.rows.pop();
+
 // ---- A sold-out pack drops off; an empty store still makes a report ----
 ctx.endPack(owner, { box: 1, slot: 1, reason: 'sold_out' });
 r = call(() => ctx.theftReport(owner, {}));
-assert.deepEqual(r.live.lines.map((l) => `${l.box}-${l.slot}`), ['1-2', '2-1']);
+assert.deepEqual(r.live.lines.map((l) => `${l.box}-${l.slot}`), ['1-2', '1-3', '2-1']);
 
 // ---- No close this month yet (morning of the 1st): last month's newest close ----
 S.DailySummary.rows.splice(1);

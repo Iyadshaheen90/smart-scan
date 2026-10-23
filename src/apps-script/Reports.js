@@ -75,10 +75,16 @@ function reportsPage() {
 
 // --- Theft Report (owner, or an employee with theft_report; owner's request 2026-10-23) ---
 // After a theft the store tells CA Lottery which tickets to stop: every pack's game, pack number and the
-// range of tickets still unsold at the last known close. Nothing here writes, and it's always read fresh.
+// range of tickets still unsold at the last known count. Nothing here writes, and it's always read fresh.
 // - live: each pack in a slot, by box and slot. Its unsold tickets run from 000 to its top ticket when
-//   descending (top + 1 tickets), or from the top ticket to the last one when ascending. SlotState holds the
-//   top ticket of the last Close Day, or the activation ticket for a pack put in since (newSinceClose).
+//   descending (top + 1 tickets), or from the top ticket to the last one when ascending. The top ticket is
+//   the newest count of the pack (owner 2026-10-23, for accuracy after a mid-day theft):
+//     source 'shift'      today's latest shift close that counted it (while today isn't closed yet);
+//     source 'activation' a pack put in since the last close (its activation ticket, SlotState);
+//     source 'close'      the last Close Day (SlotState).
+//   Only this report uses shift closes; Slots, Close Day and Settling still ignore them (owner's choice).
+//   A pack marked sold out at a shift close stays in its slot until it's ended: it's listed with soldOutAt and
+//   no tickets to stop, and isn't counted in the packs total.
 // - back (full: true only): sealed packs in back stock, per game. Back stock keeps no pack numbers yet
 //   (they come with the database move), so only game, packs and tickets.
 // Employees get it without any dollar amounts.
@@ -87,25 +93,32 @@ function theftReport(user, req) {
   const reserve = readTable(monthSheet('ReserveInventory'));
   const findSize = packSizeFinder(reserve);
   const lastClose = lastKnownClose();
+  // Shift closes come before the day's close (none are allowed after it), so once today is closed SlotState is newer.
+  const today = todayLabel();
+  const todayClosed = Boolean(todaysSummary());
+  const starts = todayClosed ? {} : shiftStarts(today);
+  const latestShift = todayClosed ? null : shiftsOn(today).pop();
   const live = readTable(monthSheet('SlotState'))
     .filter((s) => s.pack_key)
     .map((s) => {
       const order = orderOf(s);
-      const top = Number(s.current_exposed_ticket_number);
       const price = Number(s.price_per_ticket);
+      const shift = starts[`${s.game_number}-${s.pack_number}`];
+      const source = shift ? 'shift' : dateLabel(s.last_close_date) ? 'close' : 'activation';
+      const line = { box: Number(s.box), slot: Number(s.slot_number), gameNumber: String(s.game_number),
+        packNumber: String(s.pack_number), order, price, source };
+      if (shift) Object.assign(line, { shiftAt: closedAtLabel(shift.closedAt), shiftBy: shift.closedBy });
+      if (shift && shift.soldOut) {
+        return { ...line, soldOutAt: line.shiftAt, fromTicket: null, toTicket: null, tickets: 0, dollars: 0 };
+      }
+      const top = shift ? shift.ticket : Number(s.current_exposed_ticket_number);
       // Ascending packs need the pack size for their last ticket; descending ones always end at 000.
       const size = order === 'ascending' ? findSize(s.game_number, price) : null;
       const tickets = ticketsLeft(order, top, size);
-      const lastCloseDate = dateLabel(s.last_close_date);
-      return {
-        box: Number(s.box), slot: Number(s.slot_number), gameNumber: String(s.game_number),
-        packNumber: String(s.pack_number), order, price,
+      return { ...line,
         fromTicket: order === 'ascending' ? top : 0,
         toTicket: order === 'ascending' ? (size ? size - 1 : null) : top,
-        tickets, dollars: tickets * price,
-        // Put in after the last close: its range starts at the activation ticket, not a closing count.
-        newSinceClose: !lastCloseDate,
-      };
+        tickets, dollars: tickets * price };
     })
     .sort((a, b) => a.box - b.box || a.slot - b.slot);
   const back = !full ? null : reserve
@@ -118,14 +131,14 @@ function theftReport(user, req) {
         dollars: packs * ticketsPerPack * price };
     })
     .sort((a, b) => a.gameNumber.localeCompare(b.gameNumber));
-  const totals = (lines) => ({ packs: lines.reduce((sum, l) => sum + (l.packs || 1), 0),
-    tickets: lines.reduce((sum, l) => sum + l.tickets, 0), dollars: lines.reduce((sum, l) => sum + l.dollars, 0) });
+  const sum = (lines, field) => lines.reduce((total, l) => total + l[field], 0);
   const report = {
     full,
     madeAt: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'),
     lastClose,
-    live: { lines: live, ...totals(live) },
-    back: back && { lines: back, ...totals(back) },
+    lastShift: latestShift ? { closedAt: closedAtLabel(latestShift.closed_at), closedBy: String(latestShift.closed_by) } : null,
+    live: { lines: live, packs: live.filter((l) => !l.soldOutAt).length, tickets: sum(live, 'tickets'), dollars: sum(live, 'dollars') },
+    back: back && { lines: back, packs: sum(back, 'packs'), tickets: sum(back, 'tickets'), dollars: sum(back, 'dollars') },
   };
   return user.role === 'owner' ? report : theftReportWithoutDollars(report);
 }

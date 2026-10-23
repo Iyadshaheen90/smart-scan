@@ -6,7 +6,8 @@
 const assert = require('assert/strict');
 const { openApp, backendInVm, sleep } = require('./harness');
 
-const { ctx, addRow, call } = backendInVm('2026-10-23', () => '07:12:00');
+let clock = '07:12:00';
+const { ctx, addRow, call, sheets: S } = backendInVm('2026-10-23', () => clock);
 addRow('SlotConfig', { box: 1, slot_number: 1, price_per_ticket: 20 });
 addRow('SlotConfig', { box: 1, slot_number: 2, price_per_ticket: 10, ticket_order: 'ascending' });
 addRow('SlotState', { box: 1, slot_number: 1, pack_key: '1747-0012345', game_number: '1747', pack_number: '0012345',
@@ -52,11 +53,12 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
   assert.equal(await text(page, '#storeName'), 'ROUTE 66 LIQUOR');
   assert.equal(await text(page, '#reportTitle'), 'Theft Report · Live Scratchers');
   assert.equal(await text(page, '#madeAt'), 'Made Fri, Oct 23, 2026, 7:12 AM');
-  assert.equal(await text(page, '#sinceClose'), 'Since Last Close: Thu, Oct 22, 2026, 10:52 PM by sara');
+  assert.equal(await text(page, '#sinceClose'), 'Last Close: Thu, Oct 22, 2026, 10:52 PM by sara');
+  assert.equal(await shown(page, '#sinceShift'), false, 'no shift close today');
   assert.equal(await text(page, '#totals'), '2 Packs 65 Unsold Tickets $900 Total Value');
   assert.deepEqual(await rows(page, '#liveList'), [
     ['#', 'Game / Pack', 'Unsold Tickets', 'Left', 'Value'],
-    ['1', '1747 0012345 Box 1 · Slot 1', '000–024', '25', '$500'],
+    ['1', '1747 0012345 Box 1 · Slot 1 · Last Close', '000–024', '25', '$500'],
     ['2', '1111 0000777 Box 1 · Slot 2 · Put In Since Close', '010–049', '40', '$400'],
     ['', 'Total', '', '65', '$900'],
   ]);
@@ -71,10 +73,10 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
   assert.equal(shared.title, 'Theft Report');
   assert.equal(shared.text, [
     'THEFT REPORT · LIVE SCRATCHERS', 'Route 66 Liquor', 'Made Fri, Oct 23, 2026, 7:12 AM',
-    'Since Last Close: Thu, Oct 22, 2026, 10:52 PM by sara', '',
+    'Last Close: Thu, Oct 22, 2026, 10:52 PM by sara', '',
     'LIVE PACKS IN SLOTS (2 packs)',
-    '1. Game 1747 · Pack 0012345 · Tickets 000–024 (25 unsold) · $500',
-    '2. Game 1111 · Pack 0000777 · Tickets 010–049 (40 unsold) · $400',
+    '1. Game 1747 · Pack 0012345 · Tickets 000–024 (25 unsold) · $500 · from last close',
+    '2. Game 1111 · Pack 0000777 · Tickets 010–049 (40 unsold) · $400 · put in since close',
     'Total: 2 packs · 65 tickets · $900',
   ].join('\n'));
   // No share sheet (a computer): copied instead.
@@ -174,6 +176,44 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
   await page.click('#shareBtn'); await sleep(100);
   assert.ok(!/\$/.test(await page.evaluate(() => window.shared.text)), 'shared text has no $');
   await shot(page, 'theft-employee');
+  await app.close();
+
+  // ---- After a mid-day shift close (owner 2026-10-23): ranges from it, and each pack says where its count is from ----
+  clock = '15:02:00';
+  ctx.submitShiftClose({ username: 'sara', role: 'employee' }, [
+    { box: 1, slot: 1, packKey: '1747-0012345', type: 'scan', ticketNumber: 15 },
+    { box: 1, slot: 2, packKey: '1111-0000777', type: 'sold_out' },
+  ], 'shift1');
+  clock = '18:30:00';
+  app = await openApp({ role: 'owner', handle: handler({ username: 'o', role: 'owner' }) });
+  ({ page, base } = app);
+  await page.goto(base + 'theft-report.html');
+  await page.click('#makeBtn'); await made(page);
+  assert.equal(await text(page, '#sinceClose'), 'Last Close: Thu, Oct 22, 2026, 10:52 PM by sara');
+  assert.equal(await text(page, '#sinceShift'), 'Last Shift Close: Today, 3:02 PM by sara');
+  assert.equal(await text(page, '#totals'), '1 Packs 16 Unsold Tickets $320 Total Value');
+  assert.deepEqual(await rows(page, '#liveList'), [
+    ['#', 'Game / Pack', 'Unsold Tickets', 'Left', 'Value'],
+    ['1', '1747 0012345 Box 1 · Slot 1 · Shift Close 3:02 PM by sara', '000–015', '16', '$320'],
+    ['2', '1111 0000777 Box 1 · Slot 2 · Sold Out at Shift Close 3:02 PM by sara', 'Sold Out', '0', '—'],
+    ['', 'Total', '', '16', '$320'],
+  ]);
+  await shot(page, 'theft-shift');
+  await page.evaluate(() => { navigator.share = async (d) => { window.shared = d; }; });
+  await page.$eval('#shareBtn', (btn) => btn.click()); await sleep(100);
+  const shiftText = await page.evaluate(() => window.shared.text);
+  assert.ok(shiftText.includes('Last Shift Close: Today, 3:02 PM by sara\n\n'), shiftText);
+  assert.ok(shiftText.includes('1. Game 1747 · Pack 0012345 · Tickets 000–015 (16 unsold) · $320 · from shift close 3:02 PM'), shiftText);
+  assert.ok(shiftText.includes('2. Game 1111 · Pack 0000777 · sold out at shift close 3:02 PM (no tickets to stop)'), shiftText);
+  await page.evaluate(() => {
+    navigator.canShare = (d) => Boolean(d.files);
+    navigator.share = async (d) => { window.sharedPdf = String.fromCharCode(...new Uint8Array(await d.files[0].arrayBuffer())); };
+  });
+  await page.$eval('#printBtn', (btn) => btn.click()); await sleep(200);
+  const shiftPdf = await page.evaluate(() => window.sharedPdf);
+  for (const part of ['(Last Shift Close: Today, 3:02 PM by sara)', '(Counted At)', '(Shift close 3:02 PM)', '(Sold out, shift 3:02 PM)', '(Sold Out)', '(000\x96015)'])
+    assert.ok(shiftPdf.includes(part), part);
+  if (process.env.SHOTS) require('fs').writeFileSync(`${process.env.SHOTS}/theft-shift.pdf`, Buffer.from(shiftPdf, 'latin1'));
   await app.close();
 
   // ---- Employee without it: sent home ----

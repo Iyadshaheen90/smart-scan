@@ -258,9 +258,15 @@ Frontend (`src/`, plain HTML + JS, no build):
     script before nav.js; the owner's is ‹ Reports). Pick **Live Scratchers** (slots only) or **Full Inventory** (slots + back
     stock) with radio cards (`.radio-card`), then **Make Report** → one `theftReport({ full })` request, always fresh (no saved
     answer; changing the choice hides the old report; errors use `showLoadError`). Shows store (`STORE_NAME`, config.js),
-    made at (server time), "Since Last Close: <day>, <time> by <user>" (`lastKnownClose`: newest DailySummary row, else last
-    month's), totals, a table per live pack (game, pack number, box · slot, unsold range `000–024` descending / `010–049`
-    ascending, left, value; "Put In Since Close" when `last_close_date` is blank: range from the activation ticket), and for
+    made at (server time), "Last Close: <day>, <time> by <user>" (`lastKnownClose`: newest DailySummary row, else last
+    month's), "Last Shift Close: Today, <time> by <user>" (only while today isn't closed), totals, a table per live pack
+    (game, pack number, box · slot · where its count is from, unsold range `000–024` descending / `010–049` ascending, left,
+    value). **Each pack's range starts at its newest count** (owner 2026-10-23, for a theft after a mid-day shift close):
+    `source` 'shift' = today's latest shift close that counted it (`shiftStarts`; ignored once today is closed, since shift
+    closes come before the close), 'activation' = put in since the close (blank `last_close_date`: its activation ticket),
+    'close' = the last Close Day (SlotState). A pack marked sold out at a shift close (still in its slot) shows "Sold Out at
+    Shift Close 3:02 PM by sara" (`soldOutAt` = the shift close it first sold out at), no range, 0 left, not counted in the
+    packs total. **Only this report uses shift closes**; Slots, Close Day and Settling still ignore them. And for
     Full Inventory a Back Stock table per game (packs, tickets, value) — **back stock has no pack numbers** (only game
     counts in ReserveInventory; owner chose 2026-10-23 to add per-pack back stock with the database move, not on Sheets).
     **Share** = `navigator.share` text (clipboard copy where there's none). **Print / Save PDF** builds a PDF of the report
@@ -306,7 +312,7 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   `getCurrentMonth`/`openCurrentMonth` keep the month and its opened spreadsheet for the rest of a request (reset in `doPost`).
 - `Home.js` `ownerHome`: everything on the owner's home in one request (closeStatus + monthStatus + this month's $ + last
   close + back stock $ + this month's full packs).
-- `Shifts.js` `shiftStatus`, `submitShiftClose(user, entries, shiftId, date)`, `listShiftCloses`, `deleteShiftClose`,
+- `Shifts.js` (`shiftStarts` also gives `closedBy`, and keeps the shift close a pack first sold out at) `shiftStatus`, `submitShiftClose(user, entries, shiftId, date)`, `listShiftCloses`, `deleteShiftClose`,
   `shiftHomeSummary` (for `ownerHome.shifts`), `shiftStarts`, `endedInShift`, `nowStamp` (also used for `logged_at`).
   `closeStatus` also returns `myShiftToday` (an employee's own shift close today).
 - `Reports.js` (read only) `listShipments`, `listReturns`, `reportTotals`, `reportsPage` (the Reports list's numbers: this
@@ -357,7 +363,7 @@ hand-edit them.
 node --test src/*.test.js                 # barcode parsing
 node test/backend-scenarios.js            # backend against a fake spreadsheet (store scenarios)
 node test/ticket-order-scenarios.js       # ascending/descending per slot: counts, refusals, shifts, returns, undo, swap, Set all
-node test/theft-report-scenarios.js       # Theft Report backend: ranges (desc/asc/put in since close), back stock, no $ for employees, last close
+node test/theft-report-scenarios.js       # Theft Report backend: ranges (desc/asc/put in since close/after shift closes, sold out at a shift close, today closed), back stock, no $ for employees, last close
 node test/reports-scenarios.js            # Reports tab backend: shipments/returns lines (combined, tags, left out), totals = Months "Shipments in"
 node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
 

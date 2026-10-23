@@ -53,16 +53,21 @@ function shiftsOn(date) {
     .sort((a, b) => stampLabel(a.closed_at).localeCompare(stampLabel(b.closed_at)));
 }
 
-// pack_key -> { ticket, soldOut, closedAt } from the day's last shift close that counted the pack.
+// pack_key -> { ticket, soldOut, closedAt, closedBy } from the day's last shift close that counted the pack.
 // The log is appended in time order, so the last row for a pack is the latest.
 function shiftStarts(date) {
   const starts = {};
-  const closedAt = Object.fromEntries(shiftsOn(date).map((s) => [s.shift_id, stampLabel(s.closed_at)]));
+  const shifts = shiftsOn(date);
+  const closedAt = Object.fromEntries(shifts.map((s) => [s.shift_id, stampLabel(s.closed_at)]));
+  const closedBy = Object.fromEntries(shifts.map((s) => [s.shift_id, String(s.closed_by)]));
   for (const row of shiftRows('ShiftCloseLog')) {
     if (dateLabel(row.shift_date) !== date || !(row.shift_id in closedAt)) continue;
     const soldOut = row.entry_type === 'sold_out' || row.entry_type === 'sold_out_earlier';
     if (!soldOut && row.entry_type !== 'scan') continue;
-    starts[row.pack_key] = { ticket: soldOut ? null : Number(row.end_ticket), soldOut, closedAt: closedAt[row.shift_id] };
+    // Later shift closes repeat a sold out pack as 'sold_out_earlier': keep the shift close it sold out at.
+    if (soldOut && starts[row.pack_key] && starts[row.pack_key].soldOut) continue;
+    starts[row.pack_key] = { ticket: soldOut ? null : Number(row.end_ticket), soldOut, closedAt: closedAt[row.shift_id],
+      closedBy: closedBy[row.shift_id] };
   }
   return starts;
 }

@@ -27,7 +27,7 @@
   <!-- After a break-in (owner 2026-10-23): pick what was taken, then Make Report. Always made fresh, never a saved copy. -->
   <div class="no-print">
     <p class="sub">After a theft, make this report and send it to the CA Lottery so they can stop the stolen tickets.
-      It lists every pack's game, pack number and the tickets still unsold at the last close.</p>
+      It lists every pack's game, pack number and the tickets still unsold at the last count (shift close or close).</p>
     <div class="radio-list" role="radiogroup">
       <label class="radio-card"><input type="radio" name="kind" value="live" checked>
         <span><span class="radio-title">Live Scratchers</span><span class="radio-note">Packs in the slots only.</span></span></label>
@@ -44,11 +44,13 @@
       <h2 id="reportTitle"></h2>
       <div class="theft-line" id="madeAt"></div>
       <div class="theft-line" id="sinceClose"></div>
+      <div class="theft-line hidden" id="sinceShift"></div>
       <div class="stat-grid" id="totals"></div>
     </div>
 
     <h2>Live Packs in Slots</h2>
-    <p class="sub">Unsold tickets of each pack at the last close (a pack put in since then: from when it went in).</p>
+    <p class="sub">Unsold tickets of each pack at its newest count: today's last shift close, else the last close, or when it
+      was put in if that's later. Each pack says which.</p>
     <div id="liveList"></div>
 
     <div id="backSection" class="hidden">
@@ -81,7 +83,15 @@
     const count = (n, word) => `${Number(n).toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`;
     // Ticket numbers are always 3 digits, as printed on the ticket (000–029).
     const ticketNo = (n) => String(n).padStart(3, '0');
-    const range = (line) => (line.toTicket == null ? `${ticketNo(line.fromTicket)}–End` : `${ticketNo(line.fromTicket)}–${ticketNo(line.toTicket)}`);
+    const range = (line) => (line.soldOutAt ? 'Sold Out'
+      : line.toTicket == null ? `${ticketNo(line.fromTicket)}–End` : `${ticketNo(line.fromTicket)}–${ticketNo(line.toTicket)}`);
+    // Where a pack's range comes from (owner 2026-10-23): today's latest shift close that counted it, the last close,
+    // or its activation ticket for a pack put in since.
+    function countFrom(line) {
+      if (line.soldOutAt) return `Sold Out at Shift Close ${line.soldOutAt} by ${line.shiftBy}`;
+      if (line.source === 'shift') return `Shift Close ${line.shiftAt} by ${line.shiftBy}`;
+      return line.source === 'activation' ? 'Put In Since Close' : 'Last Close';
+    }
     let report = null;
 
     // "2026-10-22" -> "Wed, Oct 22, 2026"
@@ -100,10 +110,15 @@
 
     function sinceCloseText(close) {
       if (!close) return 'No close yet: ticket ranges are from when each pack went in.';
-      let text = `Since Last Close: ${dayName(close.date)}`;
+      let text = `Last Close: ${dayName(close.date)}`;
       if (close.closedAt) text += `, ${close.closedAt}`;
       if (close.closedBy) text += ` by ${close.closedBy}`;
       return text;
+    }
+
+    // Today's latest shift close (none once today is closed).
+    function sinceShiftText(shift) {
+      return shift ? `Last Shift Close: Today, ${shift.closedAt} by ${shift.closedBy}` : '';
     }
 
     function el(tag, className, text) {
@@ -149,11 +164,11 @@
       const columns = [
         { head: '#', className: 'num-col', cell: (l, i) => String(i + 1) },
         { head: 'Game / Pack', cell: (l) => gameCell(l.gameNumber, l.packNumber,
-          `Box ${l.box} · Slot ${l.slot}${l.newSinceClose ? ' · Put In Since Close' : ''}`) },
+          `Box ${l.box} · Slot ${l.slot} · ${countFrom(l)}`) },
         { head: 'Unsold Tickets', className: 'mono', cell: (l) => range(l) },
         { head: 'Left', cell: (l) => n(l.tickets), total: n(live.tickets) },
       ];
-      if (showDollars) columns.push({ head: 'Value', cell: (l) => money(l.dollars), total: money(live.dollars) });
+      if (showDollars) columns.push({ head: 'Value', cell: (l) => (l.soldOutAt ? '—' : money(l.dollars)), total: money(live.dollars) });
       return table(live.lines, columns);
     }
 
@@ -183,6 +198,8 @@
       $('reportTitle').textContent = data.full ? 'Theft Report · Full Inventory' : 'Theft Report · Live Scratchers';
       $('madeAt').textContent = `Made ${stampName(data.madeAt)}`;
       $('sinceClose').textContent = sinceCloseText(data.lastClose);
+      $('sinceShift').textContent = sinceShiftText(data.lastShift);
+      $('sinceShift').classList.toggle('hidden', !data.lastShift);
       const totals = $('totals');
       totals.innerHTML = '';
       totals.className = `stat-grid ${showDollars ? 'three' : 'two'}`;
@@ -203,13 +220,20 @@
     function reportText(data) {
       const out = [];
       out.push(`THEFT REPORT · ${data.full ? 'FULL INVENTORY' : 'LIVE SCRATCHERS'}`, STORE_NAME,
-        `Made ${stampName(data.madeAt)}`, sinceCloseText(data.lastClose), '');
+        `Made ${stampName(data.madeAt)}`, sinceCloseText(data.lastClose));
+      if (data.lastShift) out.push(sinceShiftText(data.lastShift));
+      out.push('');
       const { live, back } = data;
       out.push(`LIVE PACKS IN SLOTS (${count(live.lines.length, 'pack')})`);
       if (!live.lines.length) out.push('None.');
       live.lines.forEach((l, i) => {
+        if (l.soldOutAt) {
+          out.push(`${i + 1}. Game ${l.gameNumber} · Pack ${l.packNumber} · sold out at shift close ${l.soldOutAt} (no tickets to stop)`);
+          return;
+        }
         let line = `${i + 1}. Game ${l.gameNumber} · Pack ${l.packNumber} · Tickets ${range(l)} (${l.tickets} unsold)`;
         if (showDollars) line += ` · ${money(l.dollars)}`;
+        line += l.source === 'shift' ? ` · from shift close ${l.shiftAt}` : l.source === 'activation' ? ' · put in since close' : ' · from last close';
         out.push(line);
       });
       out.push(`Total: ${count(live.packs, 'pack')} · ${count(live.tickets, 'ticket')}${showDollars ? ` · ${money(live.dollars)}` : ''}`);
@@ -226,6 +250,13 @@
       return out.join('\n');
     }
 
+    // The PDF's short "Counted At" note (its column is narrow).
+    function pdfCountFrom(line) {
+      if (line.soldOutAt) return `Sold out, shift ${line.soldOutAt}`;
+      if (line.source === 'shift') return `Shift close ${line.shiftAt}`;
+      return line.source === 'activation' ? 'Put in since close' : 'Last close';
+    }
+
     // The report as a PDF file (US Letter, black on white): the same header, tables and totals as the screen.
     function reportPdf(data) {
       const pdf = new SimplePdf();
@@ -235,6 +266,7 @@
       pdf.text(LEFT, y += 24, data.full ? 'Theft Report · Full Inventory' : 'Theft Report · Live Scratchers', { size: 20, bold: true });
       pdf.text(LEFT, y += 20, `Made ${stampName(data.madeAt)}`, { size: 11, gray: 0.25 });
       pdf.text(LEFT, y += 15, sinceCloseText(data.lastClose), { size: 11, gray: 0.25 });
+      if (data.lastShift) pdf.text(LEFT, y += 15, sinceShiftText(data.lastShift), { size: 11, gray: 0.25 });
       const { live, back } = data;
       const all = (field) => live[field] + (back ? back[field] : 0);
       pdf.text(LEFT, y += 22, `${count(all('packs'), 'Pack')} · ${count(all('tickets'), 'Unsold Ticket')}`
@@ -269,7 +301,7 @@
         y += 20;
       }
 
-      section('Live Packs in Slots', 'Unsold tickets of each pack at the last close (a pack put in since then: from when it went in).');
+      section('Live Packs in Slots', 'Unsold tickets of each pack at its newest count: today\'s last shift close, else the last close, or when it was put in.');
       if (!live.lines.length) pdf.text(LEFT, y, 'No packs in the slots.');
       else {
         const columns = [
@@ -280,8 +312,8 @@
           { head: 'Unsold Tickets', x: 255, bold: true, cell: (l) => range(l) },
           { head: 'Left', x: 380, align: 'right', cell: (l) => n(l.tickets), total: n(live.tickets) },
         ];
-        if (showDollars) columns.push({ head: 'Value', x: 445, align: 'right', cell: (l) => money(l.dollars), total: money(live.dollars) });
-        columns.push({ head: '', x: 462, size: 8, gray: 0.35, cell: (l) => (l.newSinceClose ? 'Put in since close' : '') });
+        if (showDollars) columns.push({ head: 'Value', x: 445, align: 'right', cell: (l) => (l.soldOutAt ? '—' : money(l.dollars)), total: money(live.dollars) });
+        columns.push({ head: 'Counted At', x: 458, size: 8, gray: 0.35, cell: (l) => pdfCountFrom(l) });
         table(live.lines, columns);
       }
       if (back) {
