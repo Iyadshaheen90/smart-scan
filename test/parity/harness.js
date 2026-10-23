@@ -80,13 +80,14 @@ function sheetsBackend(clock) {
     call(who, action, req = {}) {
       const user = { username: who, ...PEOPLE[who] };
       const entry = vm.runInContext('SIGNED_IN_ACTIONS', ctx)[action];
+      const ApiError = vm.runInContext('ApiError', ctx);
       if (!entry) throw new Error(`no Sheets action ${action}`);
       try {
-        if (entry.owner && user.role !== 'owner') throw new ctx.ApiError('forbidden', 'Only the owner can do that.');
-        if (entry.allow && !entry.allow.some((p) => ctx.can(user, p))) throw new ctx.ApiError('forbidden', 'The owner hasn\'t turned this on for you.');
+        if (entry.owner && user.role !== 'owner') throw new ApiError('forbidden', 'Only the owner can do that.');
+        if (entry.allow && !entry.allow.some((p) => ctx.can(user, p))) throw new ApiError('forbidden', 'The owner hasn\'t turned this on for you.');
         return { ok: true, data: JSON.parse(JSON.stringify(entry.run(req, user) ?? {})) };
       } catch (e) {
-        if (!(e instanceof ctx.ApiError) && !(e && e.code)) throw e;
+        if (!(e instanceof ApiError)) throw e;
         return { ok: false, code: e.code, error: e.message };
       }
     },

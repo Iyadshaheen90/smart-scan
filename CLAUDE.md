@@ -376,6 +376,21 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
 - One row per pack (`app.packs`, status in_back / live / sold_out / returned / full_pack_sale / removed), so back stock
   has pack numbers; `games.unnumbered_in_back` holds packs from the sheets until the one-time "scan the back".
 - `performed_by` / `closed_by` are usernames (as in the sheets), `store_members.username`.
+- **API shape:** every action is `public.<snake_case>(p_store uuid, req jsonb) returns jsonb`, the same request fields and
+  answer JSON as the Apps Script action (`listSlots` → `list_slots`), so only `api.js` changes. Checks, their order and
+  messages copy the Sheets code; `app.js_num` / `app.js_text` mimic JavaScript's Number() and `${…}` on request fields.
+  Writes take `app.lock_store()` (withLock). The store clock: `app.today()`, `app.local_now()`, `app.now_tz()` (a test
+  store's `test_now`). Don't name a plpgsql variable like a column (price, close_id): it's ambiguous inside UPDATE/WHERE.
+  Supabase refuses DELETE/UPDATE without WHERE (pg_safeupdate): add `where store_id = app.current_store_id()`.
+- Ported so far (parity-checked): listSlots, closeStatus, activatePack, endPack, undoActivation, undoEndPack, swapSlots,
+  setSlotPrice, setPackSize, setSlotOrder, setAllSlotsOrder, submitClose, reopenClose.
+- **Parity tests** (`test/parity/*.js`, harness `test/parity/harness.js`): the same steps on the real Apps Script code (fake
+  sheets = the answer key, run through `SIGNED_IN_ACTIONS` like doPost) and on a throwaway test store in smart-scan-dev
+  (made with the service key via `public.test_*` functions, which refuse any store that isn't `is_test`; real auth users
+  o / e / loader / sara, deleted afterwards). Every answer and error must be identical. `p.seed({ slots, games, packs,
+  closes })` gives both sides the same rows; `p.setClock(day, time)`.
+  Known differences on purpose: one transaction per call (an error changes nothing); back stock by pack number; a pack
+  ended in an earlier month can't be activated again.
 - Tests: `node test/db/run.js` runs `supabase/tests/*_test.sql` on the dev project, each in a transaction it rolls back
   (asserts in DO blocks; switch users with `set local role authenticated` + `set local request.jwt.claims`).
   `npx --yes supabase@2.122.0 db advisors --linked` should show only the two expected warnings (definer API functions callable
