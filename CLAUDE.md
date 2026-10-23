@@ -357,6 +357,30 @@ string "undefined", so check the value first). `SlotState.remaining_count` is a 
 Recent columns: `SlotConfig`/`SlotState`/`PackHistory.ticket_order`, `Users.permissions`, `DailyCloseLog.logged_at`, `DailySummary.close_id`, `DailySummary.closed_by`/`closed_at`, `ReserveInventory.ended_date`, `DailyCloseLog.previous_close_date`,
 `SlotState.last_game_number`.
 
+## Supabase (database move, in progress — the app still runs on Sheets until the Dec 1, 2026 cutover)
+
+Plan: `~/.claude/plans/submitting-reports-and-updating-mossy-floyd.md`. Account: the owner's own **iyadshaheen90@gmail.com**
+(the product is theirs; Route 66 Liquor is its first store). Dev project **`smart-scan-dev`** (ref `kqoenvgcbypnehmjefjx`,
+West US, Free) — test data only; prod (Pro) is made near cutover. No local Supabase (this Mac can't run Docker): tests run on
+the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owner's keychain; folder linked to dev).
+- `supabase/migrations/*.sql` — the schema, applied with `npx --yes supabase@2.122.0 db push --linked --yes`. Never edit an
+  applied migration; add a new one.
+- **Store separation:** tables in schema `app` (not exposed; anon/authenticated have no access at all). Pages will call
+  functions in `public` (`supabase.rpc`), `security definer` **owned by role `smart_scan_api`** (NOBYPASSRLS — `postgres`
+  bypasses RLS, so never leave a function owned by postgres). Each starts with `app.enter_store(store, allowed)`: checks
+  the caller (`app.uid()` = JWT sub) is an active member, owner-only (`'{owner}'`) or one of the permissions, then sets
+  `app.store_id` for the transaction. Every table has **forced RLS** `store_id = app.current_store_id()`, so even a query with
+  no `where store_id` sees only that store. Errors: `app.fail(code, message)` → the hint is the app's error code.
+  New functions: `alter function … owner to smart_scan_api` (the migration grants `create` on the schemas while it runs),
+  `revoke execute … from public, anon`, `grant execute … to authenticated`.
+- One row per pack (`app.packs`, status in_back / live / sold_out / returned / full_pack_sale / removed), so back stock
+  has pack numbers; `games.unnumbered_in_back` holds packs from the sheets until the one-time "scan the back".
+- `performed_by` / `closed_by` are usernames (as in the sheets), `store_members.username`.
+- Tests: `node test/db/run.js` runs `supabase/tests/*_test.sql` on the dev project, each in a transaction it rolls back
+  (asserts in DO blocks; switch users with `set local role authenticated` + `set local request.jwt.claims`).
+  `npx --yes supabase@2.122.0 db advisors --linked` should show only the two expected warnings (definer API functions callable
+  by signed-in users; two select policies on stores/store_members).
+
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
 
 Users, Sessions, SlotConfig, SlotState, ReserveInventory, Shipments, ReserveAdjustments, DailyCloseLog,
