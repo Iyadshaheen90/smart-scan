@@ -290,11 +290,17 @@ Frontend (`src/`, plain HTML + JS, no build):
   refused) opens "Sell Full Pack" (game · pack, value, "$20 × 30 tickets", "Back: 2 → 1", red Cancel / green Sell) after
   the finger lifts; a game with none in the back is refused before the pop-up. Switching to it never changes the saved
   shipment/count draft, and it hides that list.
-- `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. The service worker is network-first for pages (a deploy
-  shows on next load; the saved copy is only for when offline) and caches the pinned zxing CDN files. Registered in `api.js`.
-  **Bump `CACHE` in `sw.js` on every deploy that changes a page or script** (or its file list): installing the new worker
-  saves every file at once (`cache: 'reload'`), so offline a page and its api.js match. Without the bump, an offline page
-  is whatever copy last loaded online, maybe from before the deploy (Try again didn't show offline, 2026-10-04).
+- `manifest.webmanifest`, `icons/`, `sw.js` home-screen app. **Cache-first** (database plan Phase 0, owner approved
+  2026-10-14, built 2026-10-23): every page and script opens from the phone's saved set at once, never waiting on the
+  network. Each `CACHE` value is one complete set of `SHELL`, downloaded together (`?v=<CACHE>` past GitHub's CDN,
+  `cache: 'reload'` past the phone's) when the phone sees a new sw.js — checked on every page open, and by `api.js`
+  (`registration.update()`) when the app comes back to the front. All or nothing: a failed file keeps the old set. The new
+  set is used **from the next page opened** after it downloads, so a page and its api.js always come from one deploy.
+  The pinned zxing CDN files are kept after their first download. Registered in `api.js`.
+  **Bump `CACHE` in `sw.js` on every deploy that changes a saved file, then run `node test/sw-version.js --update`**:
+  without a bump the phone keeps the old files forever. `test/sw-version.js` fails until both are done, and fails if a page
+  or script in `src/` is missing from `SHELL` (dev/one-time pages listed in `NOT_SAVED`).
+  The backend must keep answering the previous pages for a while: a phone runs the old pages until its next page open.
   The installed app has its own storage on iOS (sign in again there).
 - `raw-scanner.html` Scanner test (dev) plus the iPhone vibration/sound test buttons 5–8 and A–K (K = the real
   `holdFeedback` code); owner wants them kept for now · `backend-test.html` dev page
@@ -384,6 +390,8 @@ node test/browser/full-packs.js          # Full pack sales page: totals, cards, 
 node test/browser/home-pill.js            # back pills: Home pill (Slots owner only, Settling, Full pack sales, Shift Closure); every back pill page keeps the name pill top right
 node test/browser/try-again.js            # Try again on Slots, Back stock, Months when loading fails; Back stock camera starts after
 node test/browser/sw-offline.js           # real service worker: every file saved on install; offline Slots shows Try again
+node test/browser/sw-cache-first.js       # real service worker: opens with no answer from the server; a deploy downloads as one set (?v=), shows from the next page, old set deleted; back to the front checks
+node test/sw-version.js                   # CACHE bumped after any change to a saved file (--update records it); every page/script is in SHELL
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
 node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
@@ -400,5 +408,5 @@ git push origin main                      # publishes the pages (GitHub Pages, ~
 Browser tests (`test/browser/harness.js`) serve `src/` locally, open pages in headless Chrome at phone size, sign in,
 and answer backend calls with a fake (`openApp({ role, handle })`) or with the real `src/apps-script` code on an
 in-memory spreadsheet (`backendInVm`). They never touch the live backend. Deploy the backend before the pages when a
-page needs a new action. After deploying, `curl -sL "$URL"` should return `{"ok":true,...,"slots":48}`, and an
+page needs a new action. Pages: bump `CACHE` in sw.js + `node test/sw-version.js --update` before every pages push. After deploying, `curl -sL "$URL"` should return `{"ok":true,...,"slots":48}`, and an
 unknown-but-registered action should answer `unauthorized` (not `unknown_action`).

@@ -3,8 +3,16 @@
 
 const SESSION_STORAGE_KEY = 'smartScanSession';
 
-// Makes the app installable to the home screen (see sw.js).
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// Makes the app installable to the home screen, and opens pages from the phone's saved copy (see sw.js).
+// The phone looks for a new deploy each time a page opens; an iPhone app brought back to the front opens
+// no page, so it looks then too.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then((registration) => {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') registration.update().catch(() => {});
+    });
+  }).catch(() => {});
+}
 
 class ApiError extends Error {
   constructor(code, message) {
