@@ -84,8 +84,37 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
   assert.match(await page.evaluate(() => window.copied), /^THEFT REPORT · LIVE SCRATCHERS/);
   assert.match(await text(page, '#shareMessage'), /Copied\./);
 
-  // Print: only the report, no header, tab bar, choices or buttons.
-  await page.evaluate(() => { window.print = () => { window.printed = true; }; });
+  // Print / Save PDF on a phone (owner 2026-10-23: the home-screen app ignores window.print()): a PDF file goes to the
+  // share sheet, which has Print and Save to Files.
+  await page.evaluate(() => {
+    window.print = () => { window.printed = true; };
+    navigator.canShare = (d) => Boolean(d.files);
+    // (The copy test above made navigator.share a fixed undefined, so it's redefined rather than assigned.)
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (d) => {
+      const f = d.files[0];
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      window.sharedPdf = { name: f.name, type: f.type, title: d.title, text: String.fromCharCode(...bytes) };
+    } });
+  });
+  await page.click('#printBtn'); await sleep(200);
+  const pdf = await page.evaluate(() => window.sharedPdf);
+  assert.equal(await page.evaluate(() => window.printed), undefined, 'no window.print when the PDF can be shared');
+  assert.deepEqual([pdf.name, pdf.type, pdf.title], ['Theft Report 2026-10-23.pdf', 'application/pdf', 'Theft Report']);
+  assert.match(pdf.text, /^%PDF-1\.4/);
+  assert.match(pdf.text, /%%EOF\n$/);
+  // WinAnsi bytes: · = \xB7, – = \x96.
+  for (const part of ['(ROUTE 66 LIQUOR)', '(Theft Report \xB7 Live Scratchers)', '(Made Fri, Oct 23, 2026, 7:12 AM)',
+    '(0012345)', '(000\x96024)', '(010\x96049)', '(Put in since close)', '($900)', '(2 Packs \xB7 65 Unsold Tickets \xB7 $900 Total Value)',
+    '(Theft Report \xB7 Route 66 Liquor \xB7 Page 1 of 1)']) assert.ok(pdf.text.includes(part), part);
+  assert.ok(!pdf.text.includes('Back Stock'), 'live only');
+  // The xref table points at each object.
+  const xrefAt = Number(pdf.text.match(/startxref\n(\d+)/)[1]);
+  assert.ok(pdf.text.startsWith('xref', xrefAt));
+  for (const [, at] of pdf.text.slice(xrefAt).matchAll(/(\d{10}) 00000 n/g)) assert.match(pdf.text.slice(Number(at)), /^\d+ 0 obj/);
+  if (process.env.SHOTS) require('fs').writeFileSync(`${process.env.SHOTS}/theft-live.pdf`, Buffer.from(pdf.text, 'latin1'));
+
+  // A computer that can't share files: the browser's print, showing only the report (no header, tab bar, choices or buttons).
+  await page.evaluate(() => { navigator.canShare = () => false; });
   await page.click('#printBtn');
   assert.equal(await page.evaluate(() => window.printed), true);
   await page.emulateMediaType('print');
@@ -110,6 +139,12 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
   ]);
   assert.ok(await noSideScroll(page));
   await shot(page, 'theft-full');
+  await page.evaluate(() => { navigator.canShare = (d) => Boolean(d.files); });
+  await page.click('#printBtn'); await sleep(200);
+  const full = await page.evaluate(() => window.sharedPdf.text);
+  for (const part of ['(Theft Report \xB7 Full Inventory)', '(Back Stock)', '(Pack Size)', '($1,200)', '(4 Packs \xB7 125 Unsold Tickets \xB7 $2,100 Total Value)'])
+    assert.ok(full.includes(part), part);
+  if (process.env.SHOTS) require('fs').writeFileSync(`${process.env.SHOTS}/theft-full.pdf`, Buffer.from(full, 'latin1'));
 
   // No connection: the reason and Try again at the top, no report; Try again makes it.
   failNext = true;
@@ -145,6 +180,32 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
   app = await openApp({ role: 'employee', permissions: ['load_packs'], handle: handler({ username: 'e', role: 'employee' }) });
   await app.page.goto(app.base + 'theft-report.html');
   await app.page.waitForFunction(() => location.pathname.endsWith('index.html'));
+  await app.close();
+
+  // A full store (48 live packs, 30 games in the back) runs onto more pages; each page repeats the table's head row.
+  const big = { full: true, madeAt: '2026-10-23 07:12', lastClose: { date: '2026-10-22' },
+    live: { lines: Array.from({ length: 48 }, (_, i) => ({ box: 1 + Math.floor(i / 24), slot: 1 + (i % 24), gameNumber: String(1700 + i),
+      packNumber: String(1000000 + i), order: 'descending', price: 20, fromTicket: 0, toTicket: 29, tickets: 30, dollars: 600, newSinceClose: false })),
+    packs: 48, tickets: 1440, dollars: 28800 },
+    back: { lines: Array.from({ length: 30 }, (_, i) => ({ gameNumber: String(1800 + i), price: 10, ticketsPerPack: 50, packs: 2, tickets: 100, dollars: 1000 })),
+      packs: 60, tickets: 3000, dollars: 30000 } };
+  app = await openApp({ role: 'owner', handle: (b) => (b.action === 'theftReport' ? big : {}) });
+  ({ page, base } = app);
+  await page.goto(base + 'theft-report.html');
+  await page.click('label.radio-card:nth-child(2)');
+  await page.click('#makeBtn'); await made(page);
+  await page.evaluate(() => {
+    navigator.canShare = (d) => Boolean(d.files);
+    navigator.share = async (d) => { window.sharedPdf = String.fromCharCode(...new Uint8Array(await d.files[0].arrayBuffer())); };
+  });
+  await page.click('#printBtn'); await sleep(300);
+  const bigPdf = await page.evaluate(() => window.sharedPdf);
+  const pages = Number(bigPdf.match(/\/Count (\d+)/)[1]);
+  assert.ok(pages >= 3, `${pages} pages`);
+  assert.ok(bigPdf.includes(`(Theft Report \xB7 Route 66 Liquor \xB7 Page ${pages} of ${pages})`));
+  assert.equal((bigPdf.match(/\(Unsold Tickets\)/g) || []).length >= 2, true, 'head row repeated on the next page');
+  for (const n of ['(1747)', '(1000047)', '(1829)', '($28,800)', '($30,000)']) assert.ok(bigPdf.includes(n), n);
+  if (process.env.SHOTS) require('fs').writeFileSync(`${process.env.SHOTS}/theft-big.pdf`, Buffer.from(bigPdf, 'latin1'));
   await app.close();
 
   console.log('theft report page: all passed');

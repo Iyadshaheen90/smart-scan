@@ -70,11 +70,13 @@
   <script src="api.js"></script>
   <script src="icons.js"></script>
   <script src="nav.js"></script>
+  <script src="pdf.js"></script>
   <script>
     const session = requireLogin(['theft_report']);
     const $ = (id) => document.getElementById(id);
     // Employees never see dollar amounts (the server leaves them out too).
     const showDollars = Boolean(session) && session.role === 'owner';
+    const n = (x) => Number(x).toLocaleString('en-US');
     const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
     const count = (n, word) => `${Number(n).toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`;
     // Ticket numbers are always 3 digits, as printed on the ticket (000–029).
@@ -149,7 +151,7 @@
         { head: 'Game / Pack', cell: (l) => gameCell(l.gameNumber, l.packNumber,
           `Box ${l.box} · Slot ${l.slot}${l.newSinceClose ? ' · Put In Since Close' : ''}`) },
         { head: 'Unsold Tickets', className: 'mono', cell: (l) => range(l) },
-        { head: 'Left', cell: (l) => String(l.tickets), total: String(live.tickets) },
+        { head: 'Left', cell: (l) => n(l.tickets), total: n(live.tickets) },
       ];
       if (showDollars) columns.push({ head: 'Value', cell: (l) => money(l.dollars), total: money(live.dollars) });
       return table(live.lines, columns);
@@ -159,8 +161,8 @@
       const columns = [
         { head: '#', className: 'num-col', cell: (l, i) => String(i + 1) },
         { head: 'Game', cell: (l) => gameCell(l.gameNumber, null, `${money(l.price)} · ${l.ticketsPerPack} a Pack`) },
-        { head: 'Packs', cell: (l) => String(l.packs), total: String(back.packs) },
-        { head: 'Tickets', cell: (l) => String(l.tickets), total: String(back.tickets) },
+        { head: 'Packs', cell: (l) => n(l.packs), total: n(back.packs) },
+        { head: 'Tickets', cell: (l) => n(l.tickets), total: n(back.tickets) },
       ];
       if (showDollars) columns.push({ head: 'Value', cell: (l) => money(l.dollars), total: money(back.dollars) });
       return table(back.lines, columns);
@@ -224,6 +226,88 @@
       return out.join('\n');
     }
 
+    // The report as a PDF file (US Letter, black on white): the same header, tables and totals as the screen.
+    function reportPdf(data) {
+      const pdf = new SimplePdf();
+      const LEFT = 40, RIGHT = 572, BOTTOM = 740, ROW = 17;
+      let y = 50;
+      pdf.text(LEFT, y, STORE_NAME.toUpperCase(), { size: 10, bold: true, gray: 0.35 });
+      pdf.text(LEFT, y += 24, data.full ? 'Theft Report · Full Inventory' : 'Theft Report · Live Scratchers', { size: 20, bold: true });
+      pdf.text(LEFT, y += 20, `Made ${stampName(data.madeAt)}`, { size: 11, gray: 0.25 });
+      pdf.text(LEFT, y += 15, sinceCloseText(data.lastClose), { size: 11, gray: 0.25 });
+      const { live, back } = data;
+      const all = (field) => live[field] + (back ? back[field] : 0);
+      pdf.text(LEFT, y += 22, `${count(all('packs'), 'Pack')} · ${count(all('tickets'), 'Unsold Ticket')}`
+        + `${showDollars ? ` · ${money(all('dollars'))} Total Value` : ''}`, { size: 12, bold: true });
+
+      // A table: columns [{ head, x, align, cell(line, i), total }]; a page break repeats the head row.
+      function table(lines, columns) {
+        const head = () => {
+          columns.forEach((c) => pdf.text(c.x, y, c.head, { size: 9, bold: true, gray: 0.35, align: c.align }));
+          pdf.line(LEFT, y + 5, RIGHT, y + 5);
+          y += ROW;
+        };
+        head();
+        lines.forEach((line, i) => {
+          if (y > BOTTOM) { pdf.addPage(); y = 50; head(); }
+          columns.forEach((c) => {
+            const value = c.cell(line, i);
+            if (value) pdf.text(c.x, y, value, { size: c.size || 10, bold: c.bold, align: c.align, gray: c.gray || 0 });
+          });
+          y += ROW;
+        });
+        if (y > BOTTOM) { pdf.addPage(); y = 50; }
+        pdf.line(LEFT, y - ROW + 5, RIGHT, y - ROW + 5, { width: 1, gray: 0.3 });
+        pdf.text(columns[1].x, y, 'Total', { bold: true });
+        columns.forEach((c) => c.total && pdf.text(c.x, y, c.total, { bold: true, align: c.align }));
+        y += ROW;
+      }
+      function section(title, note) {
+        if (y > BOTTOM - 60) { pdf.addPage(); y = 50; }
+        pdf.text(LEFT, y += 30, title, { size: 14, bold: true });
+        pdf.text(LEFT, y += 15, note, { size: 9, gray: 0.35 });
+        y += 20;
+      }
+
+      section('Live Packs in Slots', 'Unsold tickets of each pack at the last close (a pack put in since then: from when it went in).');
+      if (!live.lines.length) pdf.text(LEFT, y, 'No packs in the slots.');
+      else {
+        const columns = [
+          { head: '#', x: LEFT, gray: 0.35, cell: (l, i) => String(i + 1) },
+          { head: 'Game', x: 62, bold: true, cell: (l) => l.gameNumber },
+          { head: 'Pack', x: 108, bold: true, cell: (l) => l.packNumber },
+          { head: 'Box · Slot', x: 172, cell: (l) => `Box ${l.box} · Slot ${l.slot}` },
+          { head: 'Unsold Tickets', x: 255, bold: true, cell: (l) => range(l) },
+          { head: 'Left', x: 380, align: 'right', cell: (l) => n(l.tickets), total: n(live.tickets) },
+        ];
+        if (showDollars) columns.push({ head: 'Value', x: 445, align: 'right', cell: (l) => money(l.dollars), total: money(live.dollars) });
+        columns.push({ head: '', x: 462, size: 8, gray: 0.35, cell: (l) => (l.newSinceClose ? 'Put in since close' : '') });
+        table(live.lines, columns);
+      }
+      if (back) {
+        section('Back Stock', 'Sealed packs in the back. Pack numbers for back stock aren\'t tracked yet, so only game, packs and tickets.');
+        if (!back.lines.length) pdf.text(LEFT, y, 'No packs in back stock.');
+        else {
+          const columns = [
+            { head: '#', x: LEFT, gray: 0.35, cell: (l, i) => String(i + 1) },
+            { head: 'Game', x: 62, bold: true, cell: (l) => l.gameNumber },
+            { head: 'Ticket Price', x: 190, align: 'right', cell: (l) => money(l.price) },
+            { head: 'Pack Size', x: 260, align: 'right', cell: (l) => String(l.ticketsPerPack) },
+            { head: 'Packs', x: 320, align: 'right', cell: (l) => n(l.packs), total: n(back.packs) },
+            { head: 'Tickets', x: 380, align: 'right', cell: (l) => n(l.tickets), total: n(back.tickets) },
+          ];
+          if (showDollars) columns.push({ head: 'Value', x: 445, align: 'right', cell: (l) => money(l.dollars), total: money(back.dollars) });
+          table(back.lines, columns);
+        }
+      }
+      // Page numbers, now that the number of pages is known.
+      pdf.pages.forEach((page, i) => {
+        pdf.page = page;
+        pdf.text(PDF_PAGE_WIDTH / 2, 770, `Theft Report · ${STORE_NAME} · Page ${i + 1} of ${pdf.pages.length}`, { size: 8, gray: 0.45, align: 'center' });
+      });
+      return pdf.blob();
+    }
+
     async function load() {
       const full = document.querySelector('input[name="kind"]:checked').value === 'full';
       try {
@@ -262,7 +346,19 @@
         showMessage($('shareMessage'), 'Couldn\'t copy the report. Use Print / Save PDF instead.');
       }
     });
-    $('printBtn').addEventListener('click', () => window.print());
+    // The iPhone home-screen app ignores window.print() (owner 2026-10-23), so the report goes to the share sheet as a
+    // PDF file (Print, Save to Files, Mail…). Where files can't be shared (a computer), the browser's print instead.
+    $('printBtn').addEventListener('click', async () => {
+      if (!report) return;
+      const file = new File([reportPdf(report)], `Theft Report ${report.madeAt.slice(0, 10)}.pdf`, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Theft Report' }); } catch (err) {
+          if (err.name !== 'AbortError') showMessage($('shareMessage'), `Couldn't share the PDF: ${err.message}`);
+        }
+        return;
+      }
+      window.print();
+    });
   </script>
 </body>
 </html>

@@ -263,8 +263,11 @@ Frontend (`src/`, plain HTML + JS, no build):
     ascending, left, value; "Put In Since Close" when `last_close_date` is blank: range from the activation ticket), and for
     Full Inventory a Back Stock table per game (packs, tickets, value) — **back stock has no pack numbers** (only game
     counts in ReserveInventory; owner chose 2026-10-23 to add per-pack back stock with the database move, not on Sheets).
-    **Share** = `navigator.share` text (clipboard copy where there's none), **Print / Save PDF** = `window.print()` with
-    `@media print` (white, only the report; `.no-print` hides the choice and buttons). Employees: no Value column, no $ (server
+    **Share** = `navigator.share` text (clipboard copy where there's none). **Print / Save PDF** builds a PDF of the report
+    (`reportPdf` → `SimplePdf` in `pdf.js`: no library, Helvetica, US Letter, head row repeated on each page, "Page N of M") and
+    shares the file (`navigator.share({ files })`: the share sheet has Print, Save to Files, Mail) — the iPhone **home-screen app
+    ignores `window.print()`** (owner 2026-10-23: Share worked, Print didn't). Only where files can't be shared (a computer)
+    it falls back to `window.print()` with `@media print` (white, only the report; `.no-print` hides the choice and buttons). Employees: no Value column, no $ (server
     strips them, `theftReportWithoutDollars`). Nothing is saved or written.
 - `backstock.html` (owner; an employee with Receive shipments / Manage Stock / Full pack sale gets only those modes — no
   search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a Game** search at the top (by game number as you type; packs in the back and the
@@ -381,7 +384,7 @@ node test/browser/shifts.js               # Shift Closure report: by day, detail
 node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-today numbers before saving, Cancel from every step, nothing saved
 node test/browser/ticket-order.js         # Slots arrows, slot page Ticket order, More Set all, Close Day / return refusals (real backend code)
 node test/browser/reports.js              # Reports tab: list with numbers, Shipments Received + Returned Packs cards, ‹ Reports pills (real backend code)
-node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, print view, Try again, employee without $, no permission → home
+node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, PDF (bytes, xref, multi-page), print fallback, Try again, employee without $, no permission → home
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)
