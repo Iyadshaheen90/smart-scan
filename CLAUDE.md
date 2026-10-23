@@ -395,6 +395,11 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   (asserts in DO blocks; switch users with `set local role authenticated` + `set local request.jwt.claims`).
   `npx --yes supabase@2.122.0 db advisors --linked` should show only the two expected warnings (definer API functions callable
   by signed-in users; two select policies on stores/store_members).
+- **Next (Phase 2 continues):** back stock (listBackStock, saveBackStock, removeBackStock, adjustBackStock, endGame,
+  bringBackGame — counts go to `games.unnumbered_in_back` until the per-pack shipment scan-in is built), full pack sales,
+  Reports + Theft Report, shift closes, owner home + Months & Totals (Download Month Excel replaces monthly sheets / Start
+  New Month), users + Supabase Auth email sign-in + login page, then the `api.js` seam (`BACKEND` switch in config.js).
+  Needed from the owner before the sign-in work: everyone who uses the app, with an email each.
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
 
@@ -430,6 +435,8 @@ node test/browser/home-pill.js            # back pills: Home pill (Slots owner o
 node test/browser/try-again.js            # Try again on Slots, Back stock, Months when loading fails; Back stock camera starts after
 node test/browser/sw-offline.js           # real service worker: every file saved on install; offline Slots shows Try again
 node test/browser/sw-cache-first.js       # real service worker: opens with no answer from the server; a deploy downloads as one set (?v=), shows from the next page, old set deleted; back to the front checks
+node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
+for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
 node test/sw-version.js                   # CACHE bumped after any change to a saved file (--update records it); every page/script is in SHELL
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
