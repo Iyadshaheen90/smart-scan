@@ -385,8 +385,11 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   Writes take `app.lock_store()` (withLock). The store clock: `app.today()`, `app.local_now()`, `app.now_tz()` (a test
   store's `test_now`). Don't name a plpgsql variable like a column (price, close_id): it's ambiguous inside UPDATE/WHERE.
   Supabase refuses DELETE/UPDATE without WHERE (pg_safeupdate): add `where store_id = app.current_store_id()`.
-- Ported so far (parity-checked): listSlots, closeStatus, activatePack, endPack, undoActivation, undoEndPack, swapSlots,
-  setSlotPrice, setPackSize, setSlotOrder, setAllSlotsOrder, submitClose, reopenClose.
+- Ported so far (parity-checked, `test/parity/*.js`): listSlots, closeStatus, activatePack, endPack, undoActivation, undoEndPack,
+  swapSlots, setSlotPrice, setPackSize, setSlotOrder, setAllSlotsOrder, submitClose, reopenClose; listBackStock, saveBackStock,
+  removeBackStock, adjustBackStock, endGame, bringBackGame, sellFullPack, undoFullPackSale, listFullPackSales; shiftStatus,
+  submitShiftClose, listShiftCloses, deleteShiftClose; listShipments, listReturns, reportsPage, theftReport.
+  Counted back stock (shipments, counts, removals, Manage packs) works on `games.unnumbered_in_back` first, then numbered packs.
 - **Parity tests** (`test/parity/*.js`, harness `test/parity/harness.js`): the same steps on the real Apps Script code (fake
   sheets = the answer key, run through `SIGNED_IN_ACTIONS` like doPost) and on a throwaway test store in smart-scan-dev
   (made with the service key via `public.test_*` functions, which refuse any store that isn't `is_test`; real auth users
@@ -401,10 +404,9 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.
-- **Next (Phase 2 continues):** back stock (listBackStock, saveBackStock, removeBackStock, adjustBackStock, endGame,
-  bringBackGame — counts go to `games.unnumbered_in_back` until the per-pack shipment scan-in is built), full pack sales,
-  Reports + Theft Report, shift closes, owner home + Months & Totals (Download Month Excel replaces monthly sheets / Start
-  New Month), users + Supabase Auth email sign-in + login page, then the `api.js` seam (`BACKEND` switch in config.js).
+- **Next (Phase 2 continues):** owner home + Months & Totals (months from Close Day dates; Download Month Excel replaces the
+  monthly sheets and Start New Month), users + Supabase Auth email sign-in + login page, then the `api.js` seam (`BACKEND`
+  switch in config.js). Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
   Needed from the owner before the sign-in work: everyone who uses the app, with an email each.
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
