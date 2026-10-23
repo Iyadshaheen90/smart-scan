@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Theft Report</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" id="header" data-title="Theft Report" data-back="reports.html" data-back-label="Reports"></header>
+  <script>
+    // Employees reach it from their home (Also Allowed), so their back pill goes home.
+    (function () {
+      let s = null;
+      try { s = JSON.parse(localStorage.getItem('smartScanSession')); } catch (e) {}
+      if (s && s.role !== 'owner') Object.assign(document.getElementById('header').dataset, { back: 'index.html', backLabel: 'Home' });
+    })();
+  </script>
+
+  <!-- After a break-in (owner 2026-10-23): pick what was taken, then Make Report. Always made fresh, never a saved copy. -->
+  <div class="no-print">
+    <p class="sub">After a theft, make this report and send it to the CA Lottery so they can stop the stolen tickets.
+      It lists every pack's game, pack number and the tickets still unsold at the last close.</p>
+    <div class="radio-list" role="radiogroup">
+      <label class="radio-card"><input type="radio" name="kind" value="live" checked>
+        <span><span class="radio-title">Live Scratchers</span><span class="radio-note">Packs in the slots only.</span></span></label>
+      <label class="radio-card"><input type="radio" name="kind" value="full">
+        <span><span class="radio-title">Full Inventory</span><span class="radio-note">Packs in the slots and back stock (everything was taken).</span></span></label>
+    </div>
+    <button type="button" class="primary" id="makeBtn">Make Report</button>
+    <div id="loadMessage" class="message"></div>
+  </div>
+
+  <div id="report" class="hidden">
+    <div class="card theft-head">
+      <div class="theft-store" id="storeName"></div>
+      <h2 id="reportTitle"></h2>
+      <div class="theft-line" id="madeAt"></div>
+      <div class="theft-line" id="sinceClose"></div>
+      <div class="stat-grid" id="totals"></div>
+    </div>
+
+    <h2>Live Packs in Slots</h2>
+    <p class="sub">Unsold tickets of each pack at the last close (a pack put in since then: from when it went in).</p>
+    <div id="liveList"></div>
+
+    <div id="backSection" class="hidden">
+      <h2>Back Stock</h2>
+      <p class="sub">Sealed packs in the back. Pack numbers for back stock aren't tracked yet, so only game, packs and tickets.</p>
+      <div id="backList"></div>
+    </div>
+
+    <div class="no-print">
+      <button type="button" class="primary" id="shareBtn">Share</button>
+      <button type="button" id="printBtn">Print / Save PDF</button>
+      <div id="shareMessage" class="message"></div>
+    </div>
+  </div>
+
+  <nav class="tabbar" data-active="reports"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin(['theft_report']);
+    const $ = (id) => document.getElementById(id);
+    // Employees never see dollar amounts (the server leaves them out too).
+    const showDollars = Boolean(session) && session.role === 'owner';
+    const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+    const count = (n, word) => `${Number(n).toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`;
+    // Ticket numbers are always 3 digits, as printed on the ticket (000–029).
+    const ticketNo = (n) => String(n).padStart(3, '0');
+    const range = (line) => (line.toTicket == null ? `${ticketNo(line.fromTicket)}–End` : `${ticketNo(line.fromTicket)}–${ticketNo(line.toTicket)}`);
+    let report = null;
+
+    // "2026-10-22" -> "Wed, Oct 22, 2026"
+    function dayName(label) {
+      const [y, m, d] = label.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // "2026-10-23 07:12" -> "Thu, Oct 23, 2026, 7:12 AM"
+    function stampName(stamp) {
+      const [date, time] = String(stamp).split(' ');
+      const [h, min] = (time || '').split(':').map(Number);
+      if (Number.isNaN(h)) return dayName(date);
+      return `${dayName(date)}, ${h % 12 || 12}:${String(min).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+    }
+
+    function sinceCloseText(close) {
+      if (!close) return 'No close yet: ticket ranges are from when each pack went in.';
+      let text = `Since Last Close: ${dayName(close.date)}`;
+      if (close.closedAt) text += `, ${close.closedAt}`;
+      if (close.closedBy) text += ` by ${close.closedBy}`;
+      return text;
+    }
+
+    function el(tag, className, text) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+
+    // A table numbered 1 to N with a Total row. columns: [{ head, cell(line) -> text or node, total? }]
+    function table(lines, columns) {
+      const t = el('table', 'report-table');
+      t.append(el('thead'), el('tbody'), el('tfoot'));
+      const head = el('tr');
+      columns.forEach((c) => head.append(el('th', null, c.head)));
+      t.tHead.append(head);
+      lines.forEach((line, i) => {
+        const row = el('tr');
+        columns.forEach((c) => {
+          const value = c.cell(line, i);
+          const td = value instanceof Node ? value : el('td', c.className || null, value);
+          row.append(td);
+        });
+        t.tBodies[0].append(row);
+      });
+      const total = el('tr');
+      columns.forEach((c, i) => total.append(el('td', null, i === 1 ? 'Total' : (c.total || ''))));
+      t.tFoot.append(total);
+      const card = el('div', 'card table-card');
+      card.append(t);
+      return card;
+    }
+
+    // Game cell: game number, the pack number under it, then a small note.
+    function gameCell(gameNumber, packNumber, note) {
+      const td = el('td', 'mono', gameNumber);
+      if (packNumber) td.append(el('div', 'cell-pack', packNumber));
+      if (note) td.append(el('div', 'cell-note', note));
+      return td;
+    }
+
+    function liveTable(live) {
+      const columns = [
+        { head: '#', className: 'num-col', cell: (l, i) => String(i + 1) },
+        { head: 'Game / Pack', cell: (l) => gameCell(l.gameNumber, l.packNumber,
+          `Box ${l.box} · Slot ${l.slot}${l.newSinceClose ? ' · Put In Since Close' : ''}`) },
+        { head: 'Unsold Tickets', className: 'mono', cell: (l) => range(l) },
+        { head: 'Left', cell: (l) => String(l.tickets), total: String(live.tickets) },
+      ];
+      if (showDollars) columns.push({ head: 'Value', cell: (l) => money(l.dollars), total: money(live.dollars) });
+      return table(live.lines, columns);
+    }
+
+    function backTable(back) {
+      const columns = [
+        { head: '#', className: 'num-col', cell: (l, i) => String(i + 1) },
+        { head: 'Game', cell: (l) => gameCell(l.gameNumber, null, `${money(l.price)} · ${l.ticketsPerPack} a Pack`) },
+        { head: 'Packs', cell: (l) => String(l.packs), total: String(back.packs) },
+        { head: 'Tickets', cell: (l) => String(l.tickets), total: String(back.tickets) },
+      ];
+      if (showDollars) columns.push({ head: 'Value', cell: (l) => money(l.dollars), total: money(back.dollars) });
+      return table(back.lines, columns);
+    }
+
+    function stat(value, label) {
+      const box = el('div', 'stat');
+      box.append(el('div', 'stat-value fit', value), el('div', 'stat-label', label));
+      return box;
+    }
+
+    function show(data) {
+      report = data;
+      const { live, back } = data;
+      const packs = live.packs + (back ? back.packs : 0);
+      const tickets = live.tickets + (back ? back.tickets : 0);
+      $('storeName').textContent = STORE_NAME;
+      $('reportTitle').textContent = data.full ? 'Theft Report · Full Inventory' : 'Theft Report · Live Scratchers';
+      $('madeAt').textContent = `Made ${stampName(data.madeAt)}`;
+      $('sinceClose').textContent = sinceCloseText(data.lastClose);
+      const totals = $('totals');
+      totals.innerHTML = '';
+      totals.className = `stat-grid ${showDollars ? 'three' : 'two'}`;
+      totals.append(stat(packs.toLocaleString('en-US'), 'Packs'), stat(tickets.toLocaleString('en-US'), 'Unsold Tickets'));
+      if (showDollars) totals.append(stat(money(live.dollars + (back ? back.dollars : 0)), 'Total Value'));
+
+      $('liveList').innerHTML = '';
+      $('liveList').append(live.lines.length ? liveTable(live) : el('p', 'sub', 'No packs in the slots.'));
+      $('backSection').classList.toggle('hidden', !back);
+      $('backList').innerHTML = '';
+      if (back) $('backList').append(back.lines.length ? backTable(back) : el('p', 'sub', 'No packs in back stock.'));
+      showMessage($('shareMessage'), '');
+      $('report').classList.remove('hidden');
+      fitNumbers();
+    }
+
+    // The report as plain text, for Mail or Messages to the lottery.
+    function reportText(data) {
+      const out = [];
+      out.push(`THEFT REPORT · ${data.full ? 'FULL INVENTORY' : 'LIVE SCRATCHERS'}`, STORE_NAME,
+        `Made ${stampName(data.madeAt)}`, sinceCloseText(data.lastClose), '');
+      const { live, back } = data;
+      out.push(`LIVE PACKS IN SLOTS (${count(live.lines.length, 'pack')})`);
+      if (!live.lines.length) out.push('None.');
+      live.lines.forEach((l, i) => {
+        let line = `${i + 1}. Game ${l.gameNumber} · Pack ${l.packNumber} · Tickets ${range(l)} (${l.tickets} unsold)`;
+        if (showDollars) line += ` · ${money(l.dollars)}`;
+        out.push(line);
+      });
+      out.push(`Total: ${count(live.packs, 'pack')} · ${count(live.tickets, 'ticket')}${showDollars ? ` · ${money(live.dollars)}` : ''}`);
+      if (back) {
+        out.push('', 'BACK STOCK (sealed packs; pack numbers not tracked yet)');
+        if (!back.lines.length) out.push('None.');
+        back.lines.forEach((l, i) => {
+          let line = `${i + 1}. Game ${l.gameNumber} · ${count(l.packs, 'pack')} × ${l.ticketsPerPack} tickets = ${l.tickets} tickets`;
+          if (showDollars) line += ` · ${money(l.dollars)}`;
+          out.push(line);
+        });
+        out.push(`Total: ${count(back.packs, 'pack')} · ${count(back.tickets, 'ticket')}${showDollars ? ` · ${money(back.dollars)}` : ''}`);
+      }
+      return out.join('\n');
+    }
+
+    async function load() {
+      const full = document.querySelector('input[name="kind"]:checked').value === 'full';
+      try {
+        const data = await whileBusy($('makeBtn'), 'Making Report…', () => api('theftReport', { full }));
+        showMessage($('loadMessage'), '');
+        show(data);
+        $('report').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return true;
+      } catch (err) {
+        $('report').classList.add('hidden');
+        showLoadError($('loadMessage'), err, load);
+        return false;
+      }
+    }
+
+    // A report made for the other choice would be wrong to send, so changing the choice hides it.
+    document.querySelectorAll('input[name="kind"]').forEach((input) => input.addEventListener('change', () => {
+      $('report').classList.add('hidden');
+    }));
+    $('makeBtn').addEventListener('click', load);
+
+    // iPhone share sheet (Mail, Messages…); where there isn't one, copy the text instead.
+    $('shareBtn').addEventListener('click', async () => {
+      if (!report) return;
+      const text = reportText(report);
+      if (navigator.share) {
+        try { await navigator.share({ title: 'Theft Report', text }); } catch (err) {
+          if (err.name !== 'AbortError') showMessage($('shareMessage'), `Couldn't share: ${err.message}`);
+        }
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        showMessage($('shareMessage'), 'Copied. Paste it into an email or a text.', 'ok');
+      } catch (err) {
+        showMessage($('shareMessage'), 'Couldn\'t copy the report. Use Print / Save PDF instead.');
+      }
+    });
+    $('printBtn').addEventListener('click', () => window.print());
+  </script>
+</body>
+</html>

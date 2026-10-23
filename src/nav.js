@@ -37,7 +37,7 @@ function renderHeader(el, session) {
   const id = (name) => (name ? ` id="${navEscape(name)}"` : '');
   const top = back
     ? `<a class="back"${id(el.dataset.backId)} href="${navEscape(back)}">${icon('chevronLeft')}<span class="back-label">${navEscape(el.dataset.backLabel || 'Back')}</span></a>`
-    : '<div class="eyebrow">Route 66 Liquor</div>';
+    : `<div class="eyebrow">${navEscape(STORE_NAME)}</div>`;
   const pill = session
     ? `<a class="user-pill" href="more.html"><span class="name">${navEscape(session.username)}</span><span class="avatar">${navEscape(initials(session.username))}</span></a>`
     : '';

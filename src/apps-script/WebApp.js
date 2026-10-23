@@ -54,6 +54,7 @@ const SIGNED_IN_ACTIONS = {
   reportsPage: { owner: true, run: () => reportsPage() },
   listShipments: { owner: true, run: () => listShipments() },
   listReturns: { owner: true, run: () => listReturns() },
+  theftReport: { allow: ['theft_report'], run: (req, user) => theftReport(user, req) },
 };
 
 function doPost(e) {

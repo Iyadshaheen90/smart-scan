@@ -239,7 +239,7 @@ console.log('months folder gone: falls back to the Control folder — OK');
   assert.equal(code(() => run(`setUserPermissions('o', ['load_packs'])`)), 'bad_request');
   const list = plain(run(`setUserPermissions('E', ['full_pack_sale', 'load_packs'])`));
   assert.deepEqual(list.find((u) => u.username === 'e').permissions, ['load_packs', 'full_pack_sale']);
-  assert.equal(list.find((u) => u.username === 'o').permissions.length, 6);
+  assert.equal(list.find((u) => u.username === 'o').permissions.length, 7);
   assert.deepEqual(plain(run('permissionsOf(findUser("e"))')), ['load_packs', 'full_pack_sale']);
   assert.deepEqual(plain(run(`setUserPermissions('e', [])`)).find((u) => u.username === 'e').permissions, []);
   console.log('employee permissions saved in an older month sheet — OK');

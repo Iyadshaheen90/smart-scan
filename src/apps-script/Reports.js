@@ -72,3 +72,89 @@ function reportsPage() {
   const total = ({ packs, dollars }) => ({ packs, dollars });
   return { monthDollars, shipments: total(listShipments()), returns: total(listReturns()) };
 }
+
+// --- Theft Report (owner, or an employee with theft_report; owner's request 2026-10-23) ---
+// After a theft the store tells CA Lottery which tickets to stop: every pack's game, pack number and the
+// range of tickets still unsold at the last known close. Nothing here writes, and it's always read fresh.
+// - live: each pack in a slot, by box and slot. Its unsold tickets run from 000 to its top ticket when
+//   descending (top + 1 tickets), or from the top ticket to the last one when ascending. SlotState holds the
+//   top ticket of the last Close Day, or the activation ticket for a pack put in since (newSinceClose).
+// - back (full: true only): sealed packs in back stock, per game. Back stock keeps no pack numbers yet
+//   (they come with the database move), so only game, packs and tickets.
+// Employees get it without any dollar amounts.
+function theftReport(user, req) {
+  const full = Boolean(req.full);
+  const reserve = readTable(monthSheet('ReserveInventory'));
+  const findSize = packSizeFinder(reserve);
+  const lastClose = lastKnownClose();
+  const live = readTable(monthSheet('SlotState'))
+    .filter((s) => s.pack_key)
+    .map((s) => {
+      const order = orderOf(s);
+      const top = Number(s.current_exposed_ticket_number);
+      const price = Number(s.price_per_ticket);
+      // Ascending packs need the pack size for their last ticket; descending ones always end at 000.
+      const size = order === 'ascending' ? findSize(s.game_number, price) : null;
+      const tickets = ticketsLeft(order, top, size);
+      const lastCloseDate = dateLabel(s.last_close_date);
+      return {
+        box: Number(s.box), slot: Number(s.slot_number), gameNumber: String(s.game_number),
+        packNumber: String(s.pack_number), order, price,
+        fromTicket: order === 'ascending' ? top : 0,
+        toTicket: order === 'ascending' ? (size ? size - 1 : null) : top,
+        tickets, dollars: tickets * price,
+        // Put in after the last close: its range starts at the activation ticket, not a closing count.
+        newSinceClose: !lastCloseDate,
+      };
+    })
+    .sort((a, b) => a.box - b.box || a.slot - b.slot);
+  const back = !full ? null : reserve
+    .filter((r) => packsInBack(r) > 0 && !r.ended_date)
+    .map((r) => {
+      const packs = packsInBack(r);
+      const ticketsPerPack = Number(r.tickets_per_pack) || 0;
+      const price = Number(r.price_per_ticket) || 0;
+      return { gameNumber: String(r.game_number), price, ticketsPerPack, packs, tickets: packs * ticketsPerPack,
+        dollars: packs * ticketsPerPack * price };
+    })
+    .sort((a, b) => a.gameNumber.localeCompare(b.gameNumber));
+  const totals = (lines) => ({ packs: lines.reduce((sum, l) => sum + (l.packs || 1), 0),
+    tickets: lines.reduce((sum, l) => sum + l.tickets, 0), dollars: lines.reduce((sum, l) => sum + l.dollars, 0) });
+  const report = {
+    full,
+    madeAt: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'),
+    lastClose,
+    live: { lines: live, ...totals(live) },
+    back: back && { lines: back, ...totals(back) },
+  };
+  return user.role === 'owner' ? report : theftReportWithoutDollars(report);
+}
+
+// The last Close Day the store made: { date, closedAt?, closedBy? }, from this month's DailySummary, or the
+// month before's when this month has none yet (e.g. the morning of the 1st). null when there's none at all.
+function lastKnownClose() {
+  const latest = (rows) => rows.slice().sort((a, b) => dateLabel(a.close_date).localeCompare(dateLabel(b.close_date))).pop();
+  const row = latest(readTable(monthSheet('DailySummary'))) || lastCloseBeforeThisMonth(latest);
+  if (!row) return null;
+  const close = { date: dateLabel(row.close_date) };
+  if (row.closed_at) close.closedAt = closedAtLabel(row.closed_at);
+  if (row.closed_by) close.closedBy = String(row.closed_by);
+  return close;
+}
+
+// The newest DailySummary row of the latest month before the current one (undefined when none).
+function lastCloseBeforeThisMonth(latest) {
+  const current = getCurrentMonth().label;
+  const earlier = readTable(getControlSpreadsheet().getSheetByName('Months'))
+    .filter((m) => normalizeMonthLabel(m.month_label) < current)
+    .sort((a, b) => normalizeMonthLabel(b.month_label).localeCompare(normalizeMonthLabel(a.month_label)))[0];
+  if (!earlier) return undefined;
+  return latest(readTable(SpreadsheetApp.openById(earlier.spreadsheet_id).getSheetByName('DailySummary')));
+}
+
+// An employee's Theft Report: the same packs and ticket ranges, with every dollar amount taken out.
+function theftReportWithoutDollars(report) {
+  const strip = ({ dollars, ...rest }) => rest;
+  const section = (s) => s && { ...strip(s), lines: s.lines.map(strip) };
+  return { ...report, live: section(report.live), back: section(report.back) };
+}

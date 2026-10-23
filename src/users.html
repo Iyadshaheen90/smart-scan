@@ -52,13 +52,14 @@
       { key: 'count_stock', name: 'Manage Stock', what: 'Count the back and set how many packs are there.' },
       { key: 'full_pack_sale', name: 'Full Pack Sale', what: 'Sell a sealed pack from the back.' },
       { key: 'ticket_order', name: 'Ticket Order', what: 'Set a slot to descending or ascending while it\'s empty (slot page), or all slots at once (More).' },
+      { key: 'theft_report', name: 'Theft Report', what: 'Make the Theft Report after a break-in: every pack\'s game, pack number and unsold tickets, to send to the lottery. No dollar amounts.' },
     ];
 
     // Employees whose Permissions list is open, so it stays open when the list is redrawn after a save.
     const openPermissions = new Set();
 
     // Each switch saves at once; the list comes back from the server, so the screen shows what's saved.
-    // The switches fold away under "Permissions · N of 6 on" (closed at first, owner 2026-10-08), so the
+    // The switches fold away under "Permissions · N of 7 on" (closed at first, owner 2026-10-08), so the
     // page stays short with many employees.
     function permissionsBox(user) {
       const box = document.createElement('details');

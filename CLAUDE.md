@@ -48,7 +48,8 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   game's price and changing the slot price to fit; undo a wrong slot; put back a pack marked *sold out* today),
   **return_packs** (Returned, and putting back a returned pack), **receive_shipments** (Back stock shipment mode only),
   **count_stock** (Manage Stock), **full_pack_sale** (sell only; Undo stays the owner's), **ticket_order** (a slot's
-  Ticket order on the slot page while it's empty, and Ticket order for all slots on More). Saved as a comma list in
+  Ticket order on the slot page while it's empty, and Ticket order for all slots on More), **theft_report** (the Theft
+  Report, without $; owner 2026-10-23). Saved as a comma list in
   `Users.permissions` (column added on first save, `ensureHeaders`); `setUserPermissions` (owner). The router's
   `allow: [...]` lets in the owner or an employee with one of them; each function checks the exact one (`can`,
   `requirePermission`, `requireEndPermission`). Never $ for employees: `withoutDollars` strips `valueInBack`/`dollars`;
@@ -176,7 +177,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 ## Code map
 
 Frontend (`src/`, plain HTML + JS, no build):
-- `config.js` backend URL · `api.js` `api(action, params)`, session in localStorage, `requireLogin(role)`, `whileBusy`,
+- `config.js` backend URL and `STORE_NAME` (header eyebrow in nav.js, Theft Report) · `api.js` `api(action, params)`, session in localStorage, `requireLogin(role)`, `whileBusy`,
   and the unsent close (`getPendingClose`, `savePendingClose`, `sendPendingClose`, `canRetryClose`, `newCloseId`;
   one per phone in `smartScanPendingClose`)
 - `barcode.js` `parseTicketBarcode`, `parsePrintedTicket`, `STANDARD_PACK_SIZES` · `scanner.js` shared camera
@@ -212,10 +213,10 @@ Frontend (`src/`, plain HTML + JS, no build):
   Scan Tickets button → Close Day, and under it Close My Shift (hidden once the day is closed; a greyed "Shift Closed at
   2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
   permission the owner turned on (Load / Return Packs → Slots; Ticket Order → More; Receive a Shipment, Manage Stock, Sell a Full Pack →
-  `backstock.html?mode=…`); no dollars. · `more.html` Manage employees (owner), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
+  `backstock.html?mode=…`; Theft Report → `theft-report.html`); no dollars. · `more.html` Manage employees (owner), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
   `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner; each employee card has a switch per permission,
   `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn All On/Off; folded under a
-  "Permissions · N of 6 on" row, `details.perm-details`, closed at first and kept open across saves — owner 2026-10-08)
+  "Permissions · N of 7 on" row, `details.perm-details`, closed at first and kept open across saves — owner 2026-10-08)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
   `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page (`&from=settling`, so its back pill and
@@ -234,7 +235,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   close). Views: scanning, closed (summary, with "Submitted at 10:52 PM by <username>" from
   `DailySummary.closed_by`/`closed_at`, server time when saved; closes before 2026-09-27 have no line), and pending ("saved, not sent yet": Try sending now / Stop sending).
 - `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals; ‹ Reports pill
-- **Reports tab** (owner 2026-10-13): `reports.html` lists exactly three reports, each row with this month's numbers from one
+- **Reports tab** (owner 2026-10-13): `reports.html` lists three reports plus the Theft Report (below), each row with this month's numbers from one
   `reportsPage` request (saved answer first, Try again): **Months & Totals** (`month.html`, $ sold), **Shipments Received**
   (`shipments.html`, packs · $, icon `truck`), **Returned Packs** (`returns.html`, packs · $, icon `returned`). Each report
   has a **‹ Reports** pill back to the list (Months & Totals too, even when opened from its home tile); the list itself
@@ -252,6 +253,19 @@ Frontend (`src/`, plain HTML + JS, no build):
     reasons (game expired, damaged, stolen, other, count, adjust) are not returns. Totals: packs (slot returns count 1 each), $.
     Table: #, Game (with "Pack … · Box 1 Slot 5" or "From the Back" under it), Returned ("21 tickets" / "2 packs"), Ticket
     Price, Pack Size (a slot return's from ReserveInventory), Total Value.
+  - **Theft Report** (owner 2026-10-23): last row on Reports (muted words "Packs and Tickets to Stop", no number, icon `theft`)
+    → `theft-report.html`; also an employee's Also Allowed link with `theft_report` (their back pill is Home, set by an inline
+    script before nav.js; the owner's is ‹ Reports). Pick **Live Scratchers** (slots only) or **Full Inventory** (slots + back
+    stock) with radio cards (`.radio-card`), then **Make Report** → one `theftReport({ full })` request, always fresh (no saved
+    answer; changing the choice hides the old report; errors use `showLoadError`). Shows store (`STORE_NAME`, config.js),
+    made at (server time), "Since Last Close: <day>, <time> by <user>" (`lastKnownClose`: newest DailySummary row, else last
+    month's), totals, a table per live pack (game, pack number, box · slot, unsold range `000–024` descending / `010–049`
+    ascending, left, value; "Put In Since Close" when `last_close_date` is blank: range from the activation ticket), and for
+    Full Inventory a Back Stock table per game (packs, tickets, value) — **back stock has no pack numbers** (only game
+    counts in ReserveInventory; owner chose 2026-10-23 to add per-pack back stock with the database move, not on Sheets).
+    **Share** = `navigator.share` text (clipboard copy where there's none), **Print / Save PDF** = `window.print()` with
+    `@media print` (white, only the report; `.no-print` hides the choice and buttons). Employees: no Value column, no $ (server
+    strips them, `theftReportWithoutDollars`). Nothing is saved or written.
 - `backstock.html` (owner; an employee with Receive shipments / Manage Stock / Full pack sale gets only those modes — no
   search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a Game** search at the top (by game number as you type; packs in the back and the
   slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment Received**: a scanned/typed game opens a
@@ -293,7 +307,7 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   `shiftHomeSummary` (for `ownerHome.shifts`), `shiftStarts`, `endedInShift`, `nowStamp` (also used for `logged_at`).
   `closeStatus` also returns `myShiftToday` (an employee's own shift close today).
 - `Reports.js` (read only) `listShipments`, `listReturns`, `reportTotals`, `reportsPage` (the Reports list's numbers: this
-  month's DailySummary $ + both reports' totals).
+  month's DailySummary $ + both reports' totals), `theftReport(user, { full })`, `lastKnownClose`, `lastCloseBeforeThisMonth`.
 - `FullPacks.js` `sellFullPack`, `undoFullPackSale`, `listFullPackSales`, `fullPackTotals` (also used by `monthSummary`). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management (`setUserPermissions`)
 - `Permissions.js` `PERMISSIONS`, `permissionsOf`, `can`, `requirePermission` (employee permissions; loaded by the tests)
@@ -340,6 +354,7 @@ hand-edit them.
 node --test src/*.test.js                 # barcode parsing
 node test/backend-scenarios.js            # backend against a fake spreadsheet (store scenarios)
 node test/ticket-order-scenarios.js       # ascending/descending per slot: counts, refusals, shifts, returns, undo, swap, Set all
+node test/theft-report-scenarios.js       # Theft Report backend: ranges (desc/asc/put in since close), back stock, no $ for employees, last close
 node test/reports-scenarios.js            # Reports tab backend: shipments/returns lines (combined, tags, left out), totals = Months "Shipments in"
 node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
 
@@ -366,6 +381,7 @@ node test/browser/shifts.js               # Shift Closure report: by day, detail
 node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-today numbers before saving, Cancel from every step, nothing saved
 node test/browser/ticket-order.js         # Slots arrows, slot page Ticket order, More Set all, Close Day / return refusals (real backend code)
 node test/browser/reports.js              # Reports tab: list with numbers, Shipments Received + Returned Packs cards, ‹ Reports pills (real backend code)
+node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, print view, Try again, employee without $, no permission → home
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)

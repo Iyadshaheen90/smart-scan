@@ -374,7 +374,7 @@ a.report-day { display: block; color: var(--text); text-decoration: none; }
 .settle-card .stat-value { font-size: 18px; }
 
 /* Manage employees: a permission the owner turns on or off for one employee (users.html). */
-/* Manage employees: each employee's permission switches fold under one "Permissions · N of 6 on" row. */
+/* Manage employees: each employee's permission switches fold under one "Permissions · N of 7 on" row. */
 .perm-details { margin-top: 12px; border-top: 1px solid var(--border); }
 .perm-details summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; list-style: none; color: var(--text); }
 .perm-details summary::-webkit-details-marker { display: none; }
@@ -392,3 +392,31 @@ input.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; widt
 input.toggle:checked { background: var(--accent); }
 input.toggle:checked::after { transform: translateX(20px); }
 input.toggle:disabled { opacity: 0.5; }
+
+/* Theft Report (theft-report.html, owner 2026-10-23). Its Reports row has words, not a number, so muted. */
+.list-card .report-nums.note { display: block; color: var(--muted); font-weight: 600; }
+/* Live Scratchers / Full Inventory: one big tappable card per choice, the chosen one outlined in green. */
+.radio-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+label.radio-card {
+  display: flex; align-items: flex-start; gap: 12px; margin: 0; padding: 14px 16px; min-height: 56px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px; color: var(--text); cursor: pointer;
+}
+label.radio-card:has(input:checked) { border: 2px solid var(--accent); background: var(--accent-soft); }
+label.radio-card input { width: 22px; height: 22px; margin: 1px 0 0; flex: none; }
+.radio-title { display: block; font-size: 17px; font-weight: 700; }
+.radio-note { display: block; font-size: 14px; font-weight: 400; color: var(--muted); margin-top: 3px; line-height: 1.35; }
+.theft-head h2 { margin: 4px 0 6px; }
+.theft-store { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.theft-line { font-size: 14px; color: var(--muted); margin-top: 2px; }
+/* The pack number under the game number: what the lottery needs, so as strong as the game. */
+.report-table .cell-pack { font-weight: 700; margin-top: 2px; }
+
+/* Printing (Theft Report's Print / Save PDF): black on white, only the report. */
+@media print {
+  :root { --bg: #ffffff; --card: #ffffff; --border: #999999; --text: #000000; --muted: #333333; color-scheme: light; }
+  html, body { background: #ffffff; color: #000000; }
+  body { max-width: none; padding: 0; }
+  .app-header, .tabbar, .no-print { display: none !important; }
+  .card { break-inside: auto; border-color: #999999; }
+  .report-table tr { break-inside: avoid; }
+}
