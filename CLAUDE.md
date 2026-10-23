@@ -403,7 +403,8 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   o / e / loader / sara, deleted afterwards). Every answer and error must be identical. `p.seed({ slots, games, packs,
   closes })` gives both sides the same rows; `p.setClock(day, time)`.
   Known differences on purpose: one transaction per call (an error changes nothing); back stock by pack number; a pack
-  ended in an earlier month can't be activated again.
+  ended in an earlier month can't be activated again; months have no spreadsheet or month to start (`months-home.js`
+  drops url/currentUrl/next/canStart before comparing). The harness runs Months.js/Home.js against a one-month Control fake.
 - Tests: `node test/db/run.js` runs `supabase/tests/*_test.sql` on the dev project, each in a transaction it rolls back
   (asserts in DO blocks; switch users with `set local role authenticated` + `set local request.jwt.claims`).
   `npx --yes supabase@2.122.0 db advisors --linked` should show only the two expected warnings (definer API functions callable
