@@ -15,8 +15,9 @@ const button = (page) => page.evaluate(() => {
   const r = fab.getBoundingClientRect();
   const bar = document.querySelector('nav.tabbar').getBoundingClientRect();
   const color = getComputedStyle(fab).backgroundColor;
+  const iconColor = getComputedStyle(fab.querySelector('svg')).color;
   return { href: fab.getAttribute('href'), round: getComputedStyle(fab).borderRadius === '50%', size: Math.round(r.width),
-    aboveBar: r.bottom <= bar.top - 4, rightGap: Math.round(window.innerWidth - r.right), color, icon: Boolean(fab.querySelector('svg')) };
+    aboveBar: r.bottom <= bar.top - 4, rightGap: Math.round(window.innerWidth - r.right), color, iconColor, icon: Boolean(fab.querySelector('svg')) };
 });
 
 (async () => {
@@ -25,7 +26,7 @@ const button = (page) => page.evaluate(() => {
   let { page, base } = app;
   await page.goto(base + 'index.html'); await sleep(400);
   assert.deepEqual(await button(page), { href: 'theft-report.html', round: true, size: 64, aboveBar: true, rightGap: 16,
-    color: 'rgb(198, 40, 40)', icon: true });
+    color: 'rgb(198, 40, 40)', iconColor: 'rgb(0, 0, 0)', icon: true });
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/theft-fab-owner.png` });
   // Scrolled to the bottom, the last row (Manage Employees) sits above the button.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await sleep(200);

@@ -429,10 +429,11 @@ label.radio-card input { width: 22px; height: 22px; margin: 1px 0 0; flex: none;
   bottom: calc(80px + env(safe-area-inset-bottom));
   width: 64px; height: 64px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--danger-solid); color: #ffffff; text-decoration: none;
+  /* Red and black (owner 2026-10-23): red circle, black shield. */
+  background: var(--danger-solid); color: #000000; text-decoration: none;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(198, 40, 40, 0.3);
 }
-.theft-fab svg { width: 32px; height: 32px; }
+.theft-fab svg { width: 32px; height: 32px; stroke-width: 2.4; }
 .theft-fab:active { transform: scale(0.94); }
 body.has-tabbar.has-fab { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset-bottom)); }

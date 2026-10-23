@@ -210,7 +210,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   and their $, from `ownerHome.fullPacks`; opens `full-packs.html`), a full-width Shift Closure card (shift closes this month and
   the latest "3:02 PM · Today by sara", from `ownerHome.shifts`; opens `shifts.html`), a quieter **Close My Shift** button
   (`.action-shift`) under Close Day, Manage employees row (Scanner test is in More only, owner 2026-09-29). A big red round
-  **Theft Report** button (`#theftFab`, `.theft-fab`, icon `theft`, `--danger-solid`) floats at the bottom right above the tab bar
+  **Theft Report** button (`#theftFab`, `.theft-fab`: red `--danger-solid` circle, black `theft` icon — owner's red and black) floats at the bottom right above the tab bar
   on Home only (owner 2026-10-23; not on other pages so it never covers Close Day's camera/hold button), for the owner and
   employees with `theft_report` (`showTheftButton`); `body.has-fab` adds bottom room so it never hides the last row. Employee: status card (Ready to scan / Day closed + submitted by) and a big
   Scan Tickets button → Close Day, and under it Close My Shift (hidden once the day is closed; a greyed "Shift Closed at
