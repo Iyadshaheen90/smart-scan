@@ -17,7 +17,7 @@
   <header class="app-header" data-title="Months &amp; Totals" data-back="reports.html" data-back-label="Reports"></header>
   <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
   <div id="loadMessage" class="message"></div>
-  <p class="sub">Each month gets its own Google spreadsheet, like the monthly Excel workbook. Totals come from each day's close.</p>
+  <p class="sub" id="intro">Each month gets its own Google spreadsheet, like the monthly Excel workbook. Totals come from each day's close.</p>
 
   <div id="current" class="saved-dim">Loading…</div>
   <p id="notYet" class="sub hidden" style="margin-top: 12px"></p>
@@ -123,10 +123,112 @@
       return box;
     }
 
+    // A month's spreadsheet (Sheets backend), or with the database (no spreadsheets) its Download Month button.
     function monthHeader(label, url, prefix) {
       const top = el('div', 'row');
-      top.append(el('strong', null, `${prefix}${monthName(label)}`), link(url, 'Open Spreadsheet'));
+      let action;
+      if (url) {
+        action = link(url, 'Open Spreadsheet');
+      } else {
+        action = el('button', 'small download-month', 'Download Month');
+        action.type = 'button';
+        action.dataset.month = label;
+        action.addEventListener('click', () => downloadMonth(label, action));
+      }
+      top.append(el('strong', null, `${prefix}${monthName(label)}`), action);
       return top;
+    }
+
+    // ---- Download Month (database backend; owner's choice 2026-10-14): an Excel file like the monthly workbook ----
+    // SheetJS (pinned on the CDN, kept by the service worker after its first download) is loaded only when needed.
+    const SHEETJS = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    function loadSheetJs() {
+      if (window.XLSX) return Promise.resolve(window.XLSX);
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = SHEETJS;
+        script.onload = () => resolve(window.XLSX);
+        script.onerror = () => reject(new Error('Couldn\'t load the Excel maker. Check the connection and try again.'));
+        document.head.append(script);
+      });
+    }
+
+    const TYPE_NAMES = { close: 'Close', sold_out: 'Sold Out', returned: 'Returned', full_pack: 'Full Pack' };
+    const MONEY_FORMAT = '"$"#,##0.00';
+
+    // A sheet from rows of cells; columns in `money` get the $ format; widths fit the longest cell.
+    function sheetFrom(XLSX, rows, money = []) {
+      const sheet = XLSX.utils.aoa_to_sheet(rows);
+      const range = XLSX.utils.decode_range(sheet['!ref']);
+      for (let r = range.s.r; r <= range.e.r; r += 1) {
+        for (const c of money) {
+          const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+          if (cell && cell.t === 'n') cell.z = MONEY_FORMAT;
+        }
+      }
+      const widths = [];
+      rows.forEach((row) => row.forEach((v, i) => { widths[i] = Math.max(widths[i] || 8, String(v ?? '').length + 2); }));
+      sheet['!cols'] = widths.map((wch) => ({ wch: Math.min(wch, 40) }));
+      return sheet;
+    }
+
+    // Summary, then one tab per day (every slot's numbers and the packs ended or sold whole), Shipments, Back Stock Out.
+    function workbookFrom(XLSX, data) {
+      const book = XLSX.utils.book_new();
+      const s = data.summary;
+      const num = (n) => (n == null ? null : Number(n));
+      const summaryRows = [[data.storeName], [`Scratchers · ${monthName(s.label)}`], [],
+        ['Day', 'Tickets Sold', 'Sales', 'Inventory at Close', 'Closed By', 'Closed At']];
+      for (const d of data.days) {
+        summaryRows.push([dayName(d.date), num(d.ticketsSold), num(d.dollarsSold), num(d.inventoryValue),
+          d.closed ? d.closedBy || null : 'Not closed', d.closedAt || null]);
+      }
+      summaryRows.push(['Total', num(s.ticketsSold), num(s.dollarsSold), num(s.endingInventoryValue)], [],
+        ['Shipments In', null, num(s.shipmentValue)], ['Full Packs Sold', num(s.fullPacks.count), num(s.fullPacks.dollars)]);
+      XLSX.utils.book_append_sheet(book, sheetFrom(XLSX, summaryRows, [2, 3]), 'Summary');
+      for (const d of data.days) {
+        const rows = [[`${dayName(d.date)}${d.closed ? '' : ' (not closed)'}`], [],
+          ['#', 'Box', 'Slot', 'Game', 'Pack', 'Ticket Price', 'Start Ticket', 'End Ticket', 'Tickets Sold', 'Sales', 'Type', 'By']];
+        d.lines.forEach((l, i) => rows.push([i + 1, l.box, l.slot, l.gameNumber, l.packNumber, num(l.price), l.startTicket, l.endTicket,
+          num(l.ticketsSold), num(l.dollars), TYPE_NAMES[l.type] || l.type, l.by || null]));
+        rows.push([null, null, null, null, null, null, null, 'Total', num(d.ticketsSold), num(d.dollarsSold)]);
+        XLSX.utils.book_append_sheet(book, sheetFrom(XLSX, rows, [5, 9]), dayName(d.date).slice(0, 31));
+      }
+      const shipments = [['Date', 'Game', 'Packs', 'Ticket Price', 'Pack Size', 'Value', 'Added by Hand']];
+      for (const l of data.shipments.slice().reverse()) {
+        shipments.push([l.date, l.gameNumber, l.packs, num(l.price), l.ticketsPerPack, num(l.dollars), l.addedByHand ? 'Yes' : null]);
+      }
+      XLSX.utils.book_append_sheet(book, sheetFrom(XLSX, shipments, [3, 5]), 'Shipments');
+      const out = [['Date', 'Game', 'Packs', 'Tickets', 'Reason', 'Notes', 'By']];
+      for (const a of data.returns) out.push([a.date, a.gameNumber, a.packs, a.tickets, a.reason, a.notes || null, a.by || null]);
+      XLSX.utils.book_append_sheet(book, sheetFrom(XLSX, out), 'Back Stock Out');
+      return book;
+    }
+
+    // Like the Theft Report's PDF: the iPhone home-screen app can't download, so the file goes to the share sheet
+    // (Save to Files, Mail…); elsewhere it downloads.
+    async function downloadMonth(label, button) {
+      await whileBusy(button, 'Making…', async () => {
+        try {
+          const [data, XLSX] = await Promise.all([api('monthWorkbook', { label }), loadSheetJs()]);
+          const bytes = XLSX.write(workbookFrom(XLSX, data), { bookType: 'xlsx', type: 'array' });
+          const name = `${data.storeName} ${monthName(label)}.xlsx`;
+          const file = new File([bytes], name, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ files: [file], title: name }); } catch (err) { if (err.name !== 'AbortError') throw err; }
+            return;
+          }
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(file);
+          a.download = name;
+          document.body.append(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+        } catch (err) {
+          showMessage(message, err.message);
+        }
+      });
     }
 
     function showCurrent(summary) {
@@ -141,6 +243,13 @@
     }
 
     function showStart() {
+      // The database has no months to start (no next month): no Start box and no "You can start" line.
+      if (!status.next) {
+        $('startBox').classList.add('hidden');
+        $('notYet').classList.add('hidden');
+        $('intro').textContent = 'Totals come from each day\'s close. Download any month as an Excel file: a summary, one tab per day, shipments and back stock out.';
+        return;
+      }
       const current = monthName(status.current);
       const next = monthName(status.next);
       document.querySelectorAll('.currentMonth').forEach((e) => { e.textContent = current; });

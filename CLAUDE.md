@@ -237,7 +237,12 @@ Frontend (`src/`, plain HTML + JS, no build):
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
   close). Views: scanning, closed (summary, with "Submitted at 10:52 PM by <username>" from
   `DailySummary.closed_by`/`closed_at`, server time when saved; closes before 2026-09-27 have no line), and pending ("saved, not sent yet": Try sending now / Stop sending).
-- `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals; ‹ Reports pill
+- `month.html` (owner) Months & totals: this month's totals + per-day table, Start New Month, past months' totals; ‹ Reports pill.
+  With the database backend (a month's `url` null, `status.next` null) there's no Start box or "You can start" line, and each
+  month has **Download Month** (`downloadMonth`): `monthWorkbook` → an .xlsx made in the browser with SheetJS
+  (`xlsx@0.18.5` from jsdelivr, loaded only on tap): Summary, one tab per day (every line: box, slot, game, pack, price,
+  start/end ticket, sold, $, type, by), Shipments, Back Stock Out; $ cells formatted. Shared as a file (iPhone share sheet:
+  Save to Files, Mail), else downloaded. Test: test/browser/month-download.js.
 - **Reports tab** (owner 2026-10-13): `reports.html` lists three reports plus the Theft Report (below), each row with this month's numbers from one
   `reportsPage` request (saved answer first, Try again): **Months & Totals** (`month.html`, $ sold), **Shipments Received**
   (`shipments.html`, packs · $, icon `truck`), **Returned Packs** (`returns.html`, packs · $, icon `returned`). Each report
@@ -388,7 +393,9 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
 - Ported so far (parity-checked, `test/parity/*.js`): listSlots, closeStatus, activatePack, endPack, undoActivation, undoEndPack,
   swapSlots, setSlotPrice, setPackSize, setSlotOrder, setAllSlotsOrder, submitClose, reopenClose; listBackStock, saveBackStock,
   removeBackStock, adjustBackStock, endGame, bringBackGame, sellFullPack, undoFullPackSale, listFullPackSales; shiftStatus,
-  submitShiftClose, listShiftCloses, deleteShiftClose; listShipments, listReturns, reportsPage, theftReport.
+  submitShiftClose, listShiftCloses, deleteShiftClose; listShipments, listReturns, reportsPage, theftReport; ownerHome, monthStatus,
+  monthSummary, listMonths, monthsPage (no spreadsheets: `url`/`currentUrl` null, no month to start: `next` null, `canStart`
+  false), plus the database-only `monthWorkbook` (a month's data for the Excel download).
   Counted back stock (shipments, counts, removals, Manage packs) works on `games.unnumbered_in_back` first, then numbered packs.
 - **Parity tests** (`test/parity/*.js`, harness `test/parity/harness.js`): the same steps on the real Apps Script code (fake
   sheets = the answer key, run through `SIGNED_IN_ACTIONS` like doPost) and on a throwaway test store in smart-scan-dev
@@ -404,8 +411,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.
-- **Next (Phase 2 continues):** owner home + Months & Totals (months from Close Day dates; Download Month Excel replaces the
-  monthly sheets and Start New Month), users + Supabase Auth email sign-in + login page, then the `api.js` seam (`BACKEND`
+- **Next (Phase 2 continues):** users + Supabase Auth email sign-in + login page, then the `api.js` seam (`BACKEND`
   switch in config.js). Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
   Needed from the owner before the sign-in work: everyone who uses the app, with an email each.
 
@@ -453,6 +459,7 @@ node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-
 node test/browser/ticket-order.js         # Slots arrows, slot page Ticket order, More Set all, Close Day / return refusals (real backend code)
 node test/browser/reports.js              # Reports tab: list with numbers, Shipments Received + Returned Packs cards, ‹ Reports pills (real backend code)
 node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, PDF (bytes, xref, multi-page), print fallback, Try again, employee without $, no permission → home
+node test/browser/month-download.js       # Months on the database backend: Download Month makes the Excel file (tabs, rows, $ format), share or download; no Start
 node test/browser/theft-fab.js            # Home's red Theft Report button: owner + employees with the permission, above the tab bar, never hides the last row, opens the report
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 

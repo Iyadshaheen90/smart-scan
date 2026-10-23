@@ -36,17 +36,25 @@ function sheetsBackend(clock) {
       : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${clock.today} ${clock.time}` : fmt === 'yyyy-MM-dd HH:mm' ? `${clock.today} ${clock.time.slice(0, 5)}`
         : fmt === 'h:mm a' ? clock.time : clock.today) },
     Session: { getScriptTimeZone: () => 'x' }, LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-    fakeSheetFn: fakeSheet };
+    fakeSheetFn: fakeSheet, CLOCK: clock };
   vm.createContext(ctx);
   for (const f of ['Schema.js', 'Sheets.js', 'Tickets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js',
-    'Permissions.js', 'Reports.js', 'WebApp.js']) {
+    'Permissions.js', 'Reports.js', 'Months.js', 'Home.js', 'WebApp.js']) {
     vm.runInContext(fs.readFileSync(path.join(SCRIPT, f), 'utf8'), ctx);
   }
   vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
     let sheets = {};
     function resetSheets() { sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h); return sheets; }
     resetSheets();
-    function monthSheet(n) { return sheets[n]; }`, ctx);
+    function monthSheet(n) { return sheets[n]; }
+    // One month, today's, whose spreadsheet is the sheets above (Months.js / Home.js read it through Control).
+    function getCurrentMonth() { return { label: CLOCK.today.slice(0, 7), spreadsheetId: 'current' }; }
+    function getControlSpreadsheet() {
+      const months = fakeSheetFn(CONTROL_TABS.Months);
+      months.rows.push([CLOCK.today.slice(0, 7), 'current', '', 'active']);
+      return { getSheetByName: () => months };
+    }
+    const SpreadsheetApp = { openById: () => ({ getSheetByName: (n) => sheets[n] }) };`, ctx);
   const addRow = (sheets, tab, obj) => sheets[tab].rows.push(sheets[tab].rows[0].map((h) => (h in obj ? obj[h] : '')));
   return {
     seed(state) {
