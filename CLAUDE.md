@@ -201,6 +201,13 @@ Frontend (`src/`, plain HTML + JS, no build):
 - **Try again** (`showLoadError(el, err, load)` in api.js; owner 2026-10-04): when Slots, Back stock, Months & totals, Reports,
   Shipments Received or Returned Packs can't load, the reason shows at the top of the page (`#loadMessage`, under the header, seen without scrolling) with a Try
   again button that runs the page's loader again (it returns true once loaded, which clears the message). Back stock starts its camera only after it loads, so its Try again starts the camera too.
+- **Launch screen** (`splash.js` + `.splash` styles; owner 2026-10-26): once per app open (sessionStorage `smartScanSplash`),
+  on Home (signed in only, `data-needs-session`) and Sign In, loaded first in `<body>`. SMART types across in white and SCAN
+  down in green sharing the S (white→green), with carets; the corner barcode (made-up bars) grows with each letter, stretches
+  to full width after the T, then a green beam sweeps back and forth. Tagline "Scratcher Inventory and Sales Tracking" and a
+  Loading bar at the bottom. Closes once the animation has played (~2.4 s) **and** the page is ready: Home (`data-wait`)
+  calls `splashReady()` when its first `loadStatus()` finishes; never past 8 s. Reduced motion: shown whole, ~0.6 s.
+  Browser tests skip it (harness sets the flag) unless `openApp({ splash: true })`.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not Closed / Closed chip, big number = last
@@ -512,6 +519,7 @@ node test/browser/reports.js              # Reports tab: list with numbers, Ship
 node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, PDF (bytes, xref, multi-page), print fallback, Try again, employee without $, no permission → home
 node test/browser/month-download.js       # Months on the database backend: Download Month makes the Excel file (tabs, rows, $ format), share or download; no Start
 node test/browser/theft-fab.js            # Home's red Theft Report button: owner + employees with the permission, above the tab bar, never hides the last row, opens the report
+node test/browser/splash.js               # launch screen: typing, stretch, beam, waits for Home's numbers, 8 s limit, once per open, Sign In, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 

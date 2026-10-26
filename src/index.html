@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <script src="splash.js" data-wait data-needs-session></script>
   <header class="app-header" data-title="Smart Scan"></header>
 
   <a id="pendingClose" class="message banner hidden" href="close.html"></a>
@@ -149,7 +150,7 @@
       if (!isOwner) showExtraActions(session);
       else showTheftButton(session);
       $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
-      loadStatus();
+      loadStatus().finally(splashReady);
     }
 
     function todayOnPhone() {

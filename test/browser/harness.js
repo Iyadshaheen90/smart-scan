@@ -21,7 +21,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // For the database backend (test/browser/db-sign-in.js): configJs is served instead of config.js, signedIn: false
 // starts signed out, and intercept(req) may answer any other request itself (returns true when it did).
 async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e', permissions, handle, onDialog, configJs,
-  signedIn = true, intercept }) {
+  signedIn = true, intercept, splash = false }) {
   const server = http.createServer((req, res) => {
     if (configJs && req.url.split('?')[0] === '/config.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript' });
@@ -42,6 +42,7 @@ async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e'
   page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
   page.on('dialog', (d) => (onDialog ? onDialog(d) : d.accept()));
   await page.setBypassServiceWorker(true);
+  if (!splash) await page.evaluateOnNewDocument(() => { try { sessionStorage.setItem('smartScanSplash', '1'); } catch (e) {} });
   await page.setRequestInterception(true);
   page.on('request', async (req) => {
     if (intercept && await intercept(req)) return;

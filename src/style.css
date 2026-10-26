@@ -441,3 +441,65 @@ label.radio-card input { width: 22px; height: 22px; margin: 1px 0 0; flex: none;
 .theft-fab:active { transform: scale(0.94); }
 body.has-tabbar.has-fab { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
+
+/* Launch screen (splash.js; owner 2026-10-26). SMART across in white, SCAN down in green, sharing the S; a barcode in the
+   corner stretches to full width, then a green beam sweeps across it. Covers the page until it fades out. */
+.splash {
+  position: fixed; inset: 0; z-index: 1000; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom));
+  transition: opacity 0.35s ease;
+  --cell: calc(min(100vw - 48px, 400px) / 5);
+}
+.splash.out { opacity: 0; pointer-events: none; }
+.splash-logo {
+  display: grid; grid-template-columns: repeat(5, var(--cell)); grid-template-rows: repeat(4, calc(var(--cell) * 1.02));
+  margin-bottom: 12vh;
+}
+.splash-letter {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-size: calc(var(--cell) * 1.08); font-weight: 800; line-height: 1;
+  display: flex; align-items: center; justify-content: center; position: relative;
+  visibility: hidden;
+}
+.splash-letter.on { visibility: visible; }
+.splash-letter.across { color: var(--text); }
+.splash-letter.down { color: var(--accent-bright); }
+/* The shared S: white toward SMART (top right), green toward SCAN (bottom left). */
+.splash-letter.shared {
+  background: linear-gradient(225deg, var(--text) 38%, var(--accent-bright) 62%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+/* Typing carets: a bar after the newest letter across, a line under the newest letter down. */
+.splash-letter.caret-across::after, .splash-letter.caret-down::before {
+  content: ''; position: absolute; background: var(--accent-bright); animation: splash-blink 0.34s steps(1) infinite;
+}
+.splash-letter.caret-across::after { right: -2px; top: 14%; bottom: 14%; width: 3px; }
+.splash-letter.caret-down::before { left: 18%; right: 18%; bottom: -3px; height: 3px; }
+@keyframes splash-blink { 50% { opacity: 0; } }
+.splash-code { position: relative; margin: 14% 4% 6% 10%; }
+.splash-bars {
+  position: absolute; inset: 0; display: flex; transform-origin: left center;
+  transform: scaleX(var(--grow, 0.15)); transition: transform 0.16s ease-out;
+}
+.splash-code.stretched .splash-bars { transition: transform 0.52s cubic-bezier(0.2, 1.25, 0.35, 1); }
+.splash-bars .bar { background: var(--text); height: 100%; }
+.splash-bars .gap { height: 100%; }
+.splash-beam {
+  position: absolute; top: -8%; bottom: -8%; left: 0; width: 3px; margin-left: -1.5px; opacity: 0;
+  background: var(--accent-bright); border-radius: 2px;
+  box-shadow: 0 0 10px 3px rgba(76, 197, 138, 0.75), 0 0 28px 8px rgba(76, 197, 138, 0.3);
+}
+.splash-code.scanning .splash-beam { opacity: 1; animation: splash-sweep 0.9s ease-in-out infinite alternate; }
+@keyframes splash-sweep { from { left: 0; } to { left: 100%; } }
+.splash-foot { position: absolute; left: 16px; right: 16px; bottom: calc(28px + env(safe-area-inset-bottom)); text-align: center; }
+.splash-tagline { color: var(--muted); font-size: 15px; font-weight: 600; margin-bottom: 18px; }
+.splash-loading { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.splash-track { width: 160px; height: 4px; margin: 0 auto; border-radius: 2px; background: var(--card-2); overflow: hidden; }
+/* Fills to 90% over the shortest time it's up (splash.js sets the duration), and the rest once the page is ready. */
+.splash-fill { height: 100%; width: 0; background: var(--accent); border-radius: 2px; animation: splash-fill linear forwards; }
+.splash.done .splash-fill { width: 100%; animation: none; transition: width 0.18s ease-out; }
+@keyframes splash-fill { to { width: 90%; } }
+@media (prefers-reduced-motion: reduce) {
+  .splash-code.scanning .splash-beam { animation: none; left: 50%; }
+}
