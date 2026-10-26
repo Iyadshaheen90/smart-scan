@@ -450,7 +450,8 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   for tests), **public sign-up off**. Known difference: the owner setting a password doesn't sign that person out (Sheets
   ended their sessions); turning them off does, on their next request.
   **Before cutover:** custom SMTP for the emails (Supabase's own mailer only sends to the project's team, a few an hour) and
-  email templates in the store's words; the prod project; the owner's list of users + emails for the import.
+  email templates in the store's words; the prod project; the owner's list of users + emails for the import. After the
+  switch the owner enters the retailer number again on More (the Sheets copy is in Script Properties; the import can't read it).
 - **Next:** the import (Sep–Nov sheets → the database, members with their emails), prod project + SMTP, a full side-by-side
   run with `BACKEND = 'supabase'`. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
 
