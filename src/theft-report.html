@@ -41,6 +41,7 @@
   <div id="report" class="hidden">
     <div class="card theft-head">
       <div class="theft-store" id="storeName"></div>
+      <div class="theft-line retailer-line hidden" id="retailer"></div>
       <h2 id="reportTitle"></h2>
       <div class="theft-line" id="madeAt"></div>
       <div class="theft-line" id="sinceClose"></div>
@@ -189,12 +190,21 @@
       return box;
     }
 
+    // The store's CA Lottery retailer number (More → Retailer Number, owner only). Not entered yet: the owner is told
+    // where to add it; an employee's report just leaves the line out.
+    function retailerText(data) {
+      if (data.retailerNumber) return `Retailer Number: ${data.retailerNumber}`;
+      return showDollars ? 'Retailer Number: Not Set (Add It on More)' : '';
+    }
+
     function show(data) {
       report = data;
       const { live, back } = data;
       const packs = live.packs + (back ? back.packs : 0);
       const tickets = live.tickets + (back ? back.tickets : 0);
       $('storeName').textContent = STORE_NAME;
+      $('retailer').textContent = retailerText(data);
+      $('retailer').classList.toggle('hidden', !retailerText(data));
       $('reportTitle').textContent = data.full ? 'Theft Report · Full Inventory' : 'Theft Report · Live Scratchers';
       $('madeAt').textContent = `Made ${stampName(data.madeAt)}`;
       $('sinceClose').textContent = sinceCloseText(data.lastClose);
@@ -219,8 +229,9 @@
     // The report as plain text, for Mail or Messages to the lottery.
     function reportText(data) {
       const out = [];
-      out.push(`THEFT REPORT · ${data.full ? 'FULL INVENTORY' : 'LIVE SCRATCHERS'}`, STORE_NAME,
-        `Made ${stampName(data.madeAt)}`, sinceCloseText(data.lastClose));
+      out.push(`THEFT REPORT · ${data.full ? 'FULL INVENTORY' : 'LIVE SCRATCHERS'}`, STORE_NAME);
+      if (data.retailerNumber) out.push(`Retailer Number: ${data.retailerNumber}`);
+      out.push(`Made ${stampName(data.madeAt)}`, sinceCloseText(data.lastClose));
       if (data.lastShift) out.push(sinceShiftText(data.lastShift));
       out.push('');
       const { live, back } = data;
@@ -263,6 +274,7 @@
       const LEFT = 40, RIGHT = 572, BOTTOM = 740, ROW = 17;
       let y = 50;
       pdf.text(LEFT, y, STORE_NAME.toUpperCase(), { size: 10, bold: true, gray: 0.35 });
+      if (data.retailerNumber) pdf.text(LEFT, y += 14, `Retailer Number: ${data.retailerNumber}`, { size: 11, bold: true });
       pdf.text(LEFT, y += 24, data.full ? 'Theft Report · Full Inventory' : 'Theft Report · Live Scratchers', { size: 20, bold: true });
       pdf.text(LEFT, y += 20, `Made ${stampName(data.madeAt)}`, { size: 11, gray: 0.25 });
       pdf.text(LEFT, y += 15, sinceCloseText(data.lastClose), { size: 11, gray: 0.25 });

@@ -408,6 +408,8 @@ label.radio-card input { width: 22px; height: 22px; margin: 1px 0 0; flex: none;
 .theft-head h2 { margin: 4px 0 6px; }
 .theft-store { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .theft-line { font-size: 14px; color: var(--muted); margin-top: 2px; }
+/* The retailer number is what the lottery asks for first, so it reads clearly (owner 2026-10-26). */
+.retailer-line { color: var(--text); font-weight: 600; }
 /* The pack number under the game number: what the lottery needs, so as strong as the game. */
 .report-table .cell-pack { font-weight: 700; margin-top: 2px; }
 

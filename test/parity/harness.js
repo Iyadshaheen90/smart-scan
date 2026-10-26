@@ -36,10 +36,11 @@ function sheetsBackend(clock) {
       : fmt === 'yyyy-MM-dd HH:mm:ss' ? `${clock.today} ${clock.time}` : fmt === 'yyyy-MM-dd HH:mm' ? `${clock.today} ${clock.time.slice(0, 5)}`
         : fmt === 'h:mm a' ? clock.time : clock.today) },
     Session: { getScriptTimeZone: () => 'x' }, LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+    PropertiesService: (() => { const props = {}; return { getScriptProperties: () => ({ getProperty: (k) => props[k] ?? null, setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: (k) => { delete props[k]; } }) }; })(),
     fakeSheetFn: fakeSheet, CLOCK: clock };
   vm.createContext(ctx);
   for (const f of ['Schema.js', 'Sheets.js', 'Tickets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js',
-    'Permissions.js', 'Reports.js', 'Months.js', 'Home.js', 'Auth.js', 'Users.js', 'WebApp.js']) {
+    'Permissions.js', 'Reports.js', 'Store.js', 'Months.js', 'Home.js', 'Auth.js', 'Users.js', 'WebApp.js']) {
     vm.runInContext(fs.readFileSync(path.join(SCRIPT, f), 'utf8'), ctx);
   }
   // ApiError comes from Auth.js.

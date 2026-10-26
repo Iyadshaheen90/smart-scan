@@ -134,6 +134,8 @@ function theftReport(user, req) {
   const sum = (lines, field) => lines.reduce((total, l) => total + l[field], 0);
   const report = {
     full,
+    // Everyone who can make the report sees it (owner's choice 2026-10-26); null until the owner enters it on More.
+    retailerNumber: retailerNumber(),
     madeAt: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'),
     lastClose,
     lastShift: latestShift ? { closedAt: closedAtLabel(latestShift.closed_at), closedBy: String(latestShift.closed_by) } : null,

@@ -216,7 +216,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   Scan Tickets button → Close Day, and under it Close My Shift (hidden once the day is closed; a greyed "Shift Closed at
   2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
   permission the owner turned on (Load / Return Packs → Slots; Ticket Order → More; Receive a Shipment, Manage Stock, Sell a Full Pack →
-  `backstock.html?mode=…`; Theft Report → `theft-report.html`); no dollars. · `more.html` Manage employees (owner), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
+  `backstock.html?mode=…`; Theft Report → `theft-report.html`); no dollars. · `more.html` Manage employees (owner), **Retailer Number** (owner only: a pop-up that asks for the number only when
+  opened, Cancel / Save; `getRetailerNumber` / `setRetailerNumber`; icon `store`), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
   `login.html` (Email + Forgot Password? on the database) · `set-password.html` (database: invite / password email links) ·
   `setup-owner.html` · `account.html` · `users.html` (owner; on the database an employee is added by username + email; each employee card has a switch per permission,
   `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn All On/Off; folded under a
@@ -267,7 +268,9 @@ Frontend (`src/`, plain HTML + JS, no build):
     script before nav.js; the owner's is ‹ Reports). Pick **Live Scratchers** (slots only) or **Full Inventory** (slots + back
     stock) with radio cards (`.radio-card`), then **Make Report** → one `theftReport({ full })` request, always fresh (no saved
     answer; changing the choice hides the old report; errors use `showLoadError`). Shows store (`STORE_NAME`, config.js),
-    made at (server time), "Last Close: <day>, <time> by <user>" (`lastKnownClose`: newest DailySummary row, else last
+    made at (server time), **Retailer Number** under the store name (also first lines of the shared text and the PDF;
+    `theftReport.retailerNumber`; shown in full to everyone who can make the report, employees with theft_report too —
+    owner's choice 2026-10-26; not entered: the owner sees "Not Set (Add It on More)", an employee no line), "Last Close: <day>, <time> by <user>" (`lastKnownClose`: newest DailySummary row, else last
     month's), "Last Shift Close: Today, <time> by <user>" (only while today isn't closed), totals, a table per live pack
     (game, pack number, box · slot · where its count is from, unsold range `000–024` descending / `010–049` ascending, left,
     value). **Each pack's range starts at its newest count** (owner 2026-10-23, for a theft after a mid-day shift close):
@@ -334,6 +337,9 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
   month's DailySummary $ + both reports' totals), `theftReport(user, { full })`, `lastKnownClose`, `lastCloseBeforeThisMonth`.
 - `FullPacks.js` `sellFullPack`, `undoFullPackSale`, `listFullPackSales`, `fullPackTotals` (also used by `monthSummary`). Each Web App request costs ~2 s however small, so a page should ask once, not once per number.
 - `Auth.js` / `Users.js` logins, sessions, owner setup code, employee management (`setUserPermissions`)
+- `Store.js` the store's **retailer number** (owner 2026-10-26; see Theft Report): `retailerNumber()`, `getRetailerNumber`,
+  `setRetailerNumber` (owner only, digits 4–12, spaces/dashes dropped). Kept in Script Properties `RETAILER_NUMBER` only —
+  **never in a sheet, the code, tests, git or notes** (the repo is public). Tests use made-up numbers.
 - `Permissions.js` `PERMISSIONS`, `permissionsOf`, `can`, `requirePermission` (employee permissions; loaded by the tests)
 - `Tickets.js` ticket order math (see "Ticket order per slot" above)
 - `Slots.js` `listSlots` (`slotOrder`, `pack.order`), `setSlotOrder`, `setAllSlotsOrder`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
@@ -397,7 +403,12 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   submitShiftClose, listShiftCloses, deleteShiftClose; listShipments, listReturns, reportsPage, theftReport; ownerHome, monthStatus,
   monthSummary, listMonths, monthsPage (no spreadsheets: `url`/`currentUrl` null, no month to start: `next` null, `canStart`
   false), plus the database-only `monthWorkbook` (a month's data for the Excel download); listUsers, setUserActive,
-  setUserPermissions (`test/parity/users.js`; listUsers adds `email` and `signedIn`).
+  setUserPermissions (`test/parity/users.js`; listUsers adds `email` and `signedIn`); getRetailerNumber, setRetailerNumber
+  and theftReport's `retailerNumber` (`test/parity/retailer.js`). The retailer number is **encrypted in Supabase Vault**
+  (one secret per store, `retailer_number:<store id>`, migration 0014), never in a table. Vault is readable only by postgres,
+  so `app.store_retailer_number()` / `app.save_retailer_number()` / `app.forget_retailer_number()` are the one exception
+  owned by postgres: they touch only the entered store's secret and only smart_scan_api may call them. `public.theft_report`
+  now wraps `app.theft_report_body` (the 0010 report) and adds the number.
   Counted back stock (shipments, counts, removals, Manage packs) works on `games.unnumbered_in_back` first, then numbered packs.
 - **Parity tests** (`test/parity/*.js`, harness `test/parity/harness.js`): the same steps on the real Apps Script code (fake
   sheets = the answer key, run through `SIGNED_IN_ACTIONS` like doPost) and on a throwaway test store in smart-scan-dev
@@ -479,6 +490,7 @@ node test/browser/sw-offline.js           # real service worker: every file save
 node test/browser/sw-cache-first.js       # real service worker: opens with no answer from the server; a deploy downloads as one set (?v=), shows from the next page, old set deleted; back to the front checks
 node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
+node test/browser/retailer-number.js     # More → Retailer Number (owner only, pop-up, refusals) and the number on the Theft Report (screen, text, PDF; owner + employee)
 node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against a dev test store: email sign-in, Forgot Password, invite → set password, change password, token renewal, owner sets password / turns off
 node test/sw-version.js                   # CACHE bumped after any change to a saved file (--update records it); every page/script is in SHELL
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
