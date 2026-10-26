@@ -18,8 +18,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // handle(body) gets the request ({ action, ...params }) and returns the response data, throws
 // { code, message } for an error answer, or returns ABORT. onDialog answers alert/confirm/prompt
 // (default: accept). setHandle swaps in a different handle for later requests.
-async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e', permissions, handle, onDialog }) {
+// For the database backend (test/browser/db-sign-in.js): configJs is served instead of config.js, signedIn: false
+// starts signed out, and intercept(req) may answer any other request itself (returns true when it did).
+async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e', permissions, handle, onDialog, configJs,
+  signedIn = true, intercept }) {
   const server = http.createServer((req, res) => {
+    if (configJs && req.url.split('?')[0] === '/config.js') {
+      res.writeHead(200, { 'Content-Type': 'text/javascript' });
+      return res.end(configJs);
+    }
     const file = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]));
     if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
@@ -37,6 +44,7 @@ async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e'
   await page.setBypassServiceWorker(true);
   await page.setRequestInterception(true);
   page.on('request', async (req) => {
+    if (intercept && await intercept(req)) return;
     if (!req.url().startsWith(API_URL)) return req.continue();
     let out;
     try {
@@ -51,7 +59,7 @@ async function openApp({ role = 'owner', username = role === 'owner' ? 'o' : 'e'
   });
 
   await page.goto(base + 'login.html');
-  await page.evaluate((session) => {
+  if (signedIn) await page.evaluate((session) => {
     localStorage.clear();
     localStorage.setItem('smartScanSession', JSON.stringify(session));
   }, { token: 't', username, role, permissions, expiresAt: '2099-01-01' });

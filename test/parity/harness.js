@@ -39,11 +39,11 @@ function sheetsBackend(clock) {
     fakeSheetFn: fakeSheet, CLOCK: clock };
   vm.createContext(ctx);
   for (const f of ['Schema.js', 'Sheets.js', 'Tickets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js',
-    'Permissions.js', 'Reports.js', 'Months.js', 'Home.js', 'WebApp.js']) {
+    'Permissions.js', 'Reports.js', 'Months.js', 'Home.js', 'Auth.js', 'Users.js', 'WebApp.js']) {
     vm.runInContext(fs.readFileSync(path.join(SCRIPT, f), 'utf8'), ctx);
   }
-  vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
-    let sheets = {};
+  // ApiError comes from Auth.js.
+  vm.runInContext(`let sheets = {};
     function resetSheets() { sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h); return sheets; }
     resetSheets();
     function monthSheet(n) { return sheets[n]; }
@@ -59,6 +59,11 @@ function sheetsBackend(clock) {
   return {
     seed(state) {
       const sheets = vm.runInContext('resetSheets()', ctx);
+      // The same people as the test store's members, in the same order (listUsers lists them in row order).
+      for (const [username, person] of Object.entries(PEOPLE)) {
+        addRow(sheets, 'Users', { username, role: person.role, active: true, created_date: '2026-10-01',
+          permissions: person.permissions.join(',') });
+      }
       for (const s of state.slots || []) {
         addRow(sheets, 'SlotConfig', { box: s.box, slot_number: s.slot, price_per_ticket: s.price, ticket_order: s.order || '' });
         const p = (state.packs || []).find((x) => x.status === 'live' && x.box === s.box && x.slot === s.slot);
@@ -198,4 +203,5 @@ async function parity({ today, time = '12:00:00' }) {
   };
 }
 
-module.exports = { parity, PEOPLE };
+// keys/http/service/URL also serve the database browser test (test/browser/db-sign-in.js).
+module.exports = { parity, PEOPLE, keys, http, service, URL };

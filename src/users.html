@@ -24,8 +24,15 @@
   <form id="addForm">
     <label for="username">Username</label>
     <input id="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
-    <label for="password">Starting Password</label>
-    <input id="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" minlength="6" required>
+    <div id="passwordField">
+      <label for="password">Starting Password</label>
+      <input id="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" minlength="6" required>
+    </div>
+    <div id="emailField" class="hidden">
+      <label for="email">Email</label>
+      <input id="email" type="email" inputmode="email" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <p class="sub">They get an email with a link to choose their own password and sign in with this email.</p>
+    </div>
     <button class="primary" type="submit">Add Employee</button>
   </form>
   <div id="addMessage" class="message"></div>
@@ -43,6 +50,14 @@
     const listMessage = document.getElementById('listMessage');
     const addForm = document.getElementById('addForm');
     const addMessage = document.getElementById('addMessage');
+
+    // The database adds an employee by email (an invite), not with a starting password.
+    if (USE_DATABASE) {
+      document.getElementById('passwordField').classList.add('hidden');
+      addForm.password.required = false;
+      document.getElementById('emailField').classList.remove('hidden');
+      addForm.email.required = true;
+    }
 
     // The permissions the owner can turn on per employee (same names as PERMISSIONS on the server).
     const PERMISSIONS = [
@@ -146,8 +161,16 @@
         // "Employee", "Owner · Inactive"
         const role = user.role.charAt(0).toUpperCase() + user.role.slice(1);
         tag.textContent = user.active ? role : `${role} · Inactive`;
+        // Database: invited but hasn't chosen a password and signed in yet.
+        if (user.active && user.signedIn === false) tag.textContent = `${role} · Invited`;
         top.append(name, tag);
         card.append(top);
+        if (user.email) {
+          const email = document.createElement('div');
+          email.className = 'slot-detail';
+          email.textContent = user.email;
+          card.append(email);
+        }
 
         if (user.username !== session.username) {
           const actions = document.createElement('div');
@@ -195,11 +218,15 @@
       e.preventDefault();
       try {
         const username = addForm.username.value;
-        const users = await whileBusy(addForm.querySelector('button'), 'Adding…', () =>
-          api('createUser', { username, password: addForm.password.value, role: 'employee' }));
+        const email = addForm.email.value.trim();
+        const users = await whileBusy(addForm.querySelector('button'), 'Adding…', () => api('createUser', USE_DATABASE
+          ? { username, email }
+          : { username, password: addForm.password.value, role: 'employee' }));
         render(users);
         addForm.reset();
-        showMessage(addMessage, `Added ${username.trim().toLowerCase()}.`, 'ok');
+        showMessage(addMessage, USE_DATABASE
+          ? `Added ${username.trim().toLowerCase()}. An invite is on its way to ${email}. If it doesn't arrive, tap Reset Password on their card to give them a password.`
+          : `Added ${username.trim().toLowerCase()}.`, 'ok');
       } catch (err) {
         showMessage(addMessage, err.message);
       }

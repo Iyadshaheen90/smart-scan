@@ -26,7 +26,8 @@
   </form>
   <div id="message" class="message"></div>
 
-  <p class="sub" style="margin-top: 32px;">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
+  <p id="forgotLine" class="sub hidden" style="margin-top: 20px;"><a href="#" id="forgot">Forgot Password?</a></p>
+  <p id="setupLine" class="sub" style="margin-top: 32px;">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
 
   <script src="config.js"></script>
   <script src="api.js"></script>
@@ -38,13 +39,39 @@
     const form = document.getElementById('form');
     const messageEl = document.getElementById('message');
 
+    // The database signs everyone in by email (and can email a new password link); the owner's first account is
+    // made with the store, so there's no owner setup link.
+    if (USE_DATABASE) {
+      document.querySelector('label[for="username"]').textContent = 'Email';
+      form.username.type = 'email';
+      form.username.setAttribute('inputmode', 'email');
+      document.getElementById('forgotLine').classList.remove('hidden');
+      document.getElementById('setupLine').classList.add('hidden');
+    }
+
+    document.getElementById('forgot').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = form.username.value.trim();
+      if (!email) {
+        showMessage(messageEl, 'Type your email above first, then tap Forgot Password.');
+        return;
+      }
+      try {
+        await api('forgotPassword', { email });
+        showMessage(messageEl, `If ${email} has an account, an email with a link to choose a new password is on its way.`, 'ok');
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       messageEl.className = 'message';
       messageEl.textContent = '';
       try {
-        const session = await whileBusy(form.querySelector('button'), 'Signing in…', () =>
-          api('login', { username: form.username.value, password: form.password.value }));
+        const session = await whileBusy(form.querySelector('button'), 'Signing in…', () => api('login', USE_DATABASE
+          ? { email: form.username.value, password: form.password.value }
+          : { username: form.username.value, password: form.password.value }));
         saveSession(session);
         location.replace('index.html');
       } catch (err) {

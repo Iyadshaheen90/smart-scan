@@ -69,8 +69,9 @@ begin
     perform public.me('00000000-0000-4000-8000-00000000000a');
     raise exception 'inactive member got in';
   exception when raise_exception then
+    -- Signed out, as requireSession does for an account the owner turned off (migration 0012).
     get stacked diagnostics h = pg_exception_hint;
-    assert h = 'forbidden', h;
+    assert h = 'unauthorized', h;
   end;
 end $$;
 set local request.jwt.claims = '';

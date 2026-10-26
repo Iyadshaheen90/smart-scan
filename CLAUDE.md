@@ -217,7 +217,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
   permission the owner turned on (Load / Return Packs → Slots; Ticket Order → More; Receive a Shipment, Manage Stock, Sell a Full Pack →
   `backstock.html?mode=…`; Theft Report → `theft-report.html`); no dollars. · `more.html` Manage employees (owner), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
-  `login.html` · `setup-owner.html` · `account.html` · `users.html` (owner; each employee card has a switch per permission,
+  `login.html` (Email + Forgot Password? on the database) · `set-password.html` (database: invite / password email links) ·
+  `setup-owner.html` · `account.html` · `users.html` (owner; on the database an employee is added by username + email; each employee card has a switch per permission,
   `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn All On/Off; folded under a
   "Permissions · N of 7 on" row, `details.perm-details`, closed at first and kept open across saves — owner 2026-10-08)
 - `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
@@ -395,7 +396,8 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   removeBackStock, adjustBackStock, endGame, bringBackGame, sellFullPack, undoFullPackSale, listFullPackSales; shiftStatus,
   submitShiftClose, listShiftCloses, deleteShiftClose; listShipments, listReturns, reportsPage, theftReport; ownerHome, monthStatus,
   monthSummary, listMonths, monthsPage (no spreadsheets: `url`/`currentUrl` null, no month to start: `next` null, `canStart`
-  false), plus the database-only `monthWorkbook` (a month's data for the Excel download).
+  false), plus the database-only `monthWorkbook` (a month's data for the Excel download); listUsers, setUserActive,
+  setUserPermissions (`test/parity/users.js`; listUsers adds `email` and `signedIn`).
   Counted back stock (shipments, counts, removals, Manage packs) works on `games.unnumbered_in_back` first, then numbered packs.
 - **Parity tests** (`test/parity/*.js`, harness `test/parity/harness.js`): the same steps on the real Apps Script code (fake
   sheets = the answer key, run through `SIGNED_IN_ACTIONS` like doPost) and on a throwaway test store in smart-scan-dev
@@ -412,9 +414,34 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.
-- **Next (Phase 2 continues):** users + Supabase Auth email sign-in + login page, then the `api.js` seam (`BACKEND`
-  switch in config.js). Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
-  Needed from the owner before the sign-in work: everyone who uses the app, with an email each.
+- **Sign-in and the `api.js` seam (built 2026-10-26):** `config.js` `BACKEND` ('sheets' until cutover; 'supabase' then,
+  back to 'sheets' = rollback), `SUPABASE_URL` / `SUPABASE_ANON_KEY` (empty until cutover, filled with the **prod**
+  project's). With 'supabase', `api(action)` → `dbApi`: `public.<snake_case>` with `{ p_store, req }`, the hint → `ApiError`
+  code; `DB_ACTIONS` covers what isn't a database function: login (email + password → `my_stores` → session with
+  `storeId`, the first store by name — a store chooser is Phase 5), logout (this phone only), forgotPassword, setNewPassword,
+  changePassword (checks the current one by signing in, keeps the new sign-in's tokens since a new password ends the
+  others), createUser / resetPassword (→ the **members Edge Function**), me, claimOwner (refused). The session keeps the
+  access token (1 h) and refresh token; `freshToken` renews a minute early (one renewal at a time), a 401 is retried once,
+  `unauthorized` → Sign In. Signed in 12 h, as on Sheets (`DB_SESSION_HOURS`).
+  `login.html` asks for Email and shows **Forgot Password?** (no owner setup link). `set-password.html` (new) is where invite
+  and password emails land: the one-time sign-in in the `#` is taken out of the address, they choose a password and are
+  signed in (a note says to sign in again in the home-screen app: iOS keeps its own storage). `users.html` adds an employee
+  by **username + email** (no starting password; "Employee · Invited" until they first sign in, `store_members.signed_in_at`
+  set by `my_stores`), shows each email; Reset Password = the owner sets one (also confirms the account, so it works without
+  the invite email). Migration 0012: `store_members.email/signed_in_at/seq`, a turned-off account → `unauthorized` "This
+  account is no longer active." on its next request, `member_admin_check` (the owner's checks before the function touches
+  any account), `service_add_member` (service key only).
+  `supabase/functions/members/index.ts` (Deno, plain fetch): `invite` (Supabase Auth invite email; a **test store gets
+  `testLink` back** instead, via generate_link; an email with an account already → refused; account deleted again if adding
+  the member fails) and `setPassword`. Deploy: `npx --yes supabase@2.122.0 functions deploy members --use-api` (no Docker).
+  Auth settings live in `supabase/config.toml` `[auth]` and go up with `npx --yes supabase@2.122.0 config push` (answer only
+  the auth prompt; it shows the diff first): site_url = the GitHub Pages `src/`, redirect list (Pages + `http://localhost:*`
+  for tests), **public sign-up off**. Known difference: the owner setting a password doesn't sign that person out (Sheets
+  ended their sessions); turning them off does, on their next request.
+  **Before cutover:** custom SMTP for the emails (Supabase's own mailer only sends to the project's team, a few an hour) and
+  email templates in the store's words; the prod project; the owner's list of users + emails for the import.
+- **Next:** the import (Sep–Nov sheets → the database, members with their emails), prod project + SMTP, a full side-by-side
+  run with `BACKEND = 'supabase'`. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
 
@@ -452,6 +479,7 @@ node test/browser/sw-offline.js           # real service worker: every file save
 node test/browser/sw-cache-first.js       # real service worker: opens with no answer from the server; a deploy downloads as one set (?v=), shows from the next page, old set deleted; back to the front checks
 node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
+node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against a dev test store: email sign-in, Forgot Password, invite → set password, change password, token renewal, owner sets password / turns off
 node test/sw-version.js                   # CACHE bumped after any change to a saved file (--update records it); every page/script is in SHELL
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)

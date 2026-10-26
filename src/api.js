@@ -1,5 +1,5 @@
-// Talks to the Apps Script backend and remembers who is signed in on this phone.
-// Needs config.js loaded first (for SMART_SCAN_API_URL).
+// Talks to the backend and remembers who is signed in on this phone: the Apps Script backend, or with BACKEND
+// 'supabase' the database (see "The database" below; same actions, same answers). Needs config.js loaded first.
 
 const SESSION_STORAGE_KEY = 'smartScanSession';
 
@@ -59,6 +59,7 @@ async function loadSaved(name, request, show) {
 
 // Sent as text/plain so the browser doesn't need a CORS preflight, which Apps Script can't answer.
 async function api(action, params = {}) {
+  if (USE_DATABASE) return dbApi(action, params);
   const session = getSession();
   let body;
   try {
@@ -79,6 +80,189 @@ async function api(action, params = {}) {
     throw new ApiError(body.code, body.error);
   }
   return body.data;
+}
+
+// --- The database (BACKEND 'supabase', the database move) ---
+// Every action is a database function of the same name in snake_case (listSlots -> list_slots), called with the
+// store and the request: { p_store, req }. Its answer is the same JSON as the Apps Script action's, and an error
+// carries the app's code in its hint. Everyone signs in with their own email (Supabase Auth): the session keeps a
+// short-lived access token, renewed with the refresh token when it runs out. Adding an employee and the owner setting
+// someone's password go through the members Edge Function (only the server's secret key can do those).
+
+const USE_DATABASE = typeof BACKEND !== 'undefined' && BACKEND === 'supabase';
+// Signed in for this long, as on the Apps Script backend (Auth.js SESSION_HOURS).
+const DB_SESSION_HOURS = 12;
+
+async function dbFetch(path, { method = 'POST', body, token } = {}) {
+  let res;
+  try {
+    res = await fetch(SUPABASE_URL + path, {
+      method,
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new ApiError('network', 'Could not reach the server. Check the internet connection and try again.');
+  }
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) {}
+  return { status: res.status, data };
+}
+
+const serverError = () => new ApiError('server_error', 'Something went wrong on the server. Try again.');
+const signedOut = () => new ApiError('unauthorized', 'Your session has ended. Please sign in again.');
+
+// Supabase Auth's error code (newer servers say error_code, older ones code or error).
+function authErrorCode(r) {
+  return (r.data && (r.data.error_code || r.data.code || r.data.error)) || '';
+}
+
+// The session for a sign-in's tokens: the person's first store (by name) and who they are there.
+async function dbSessionFor(tokens) {
+  const r = await dbFetch('/rest/v1/rpc/my_stores', { body: {}, token: tokens.access_token });
+  if (r.status >= 300) throw (r.data && r.data.hint ? new ApiError(r.data.hint, r.data.message) : serverError());
+  const store = r.data[0];
+  if (!store) throw new ApiError('bad_login', 'This account is no longer active.');
+  return {
+    backend: 'supabase',
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token,
+    accessExpiresAt: Date.now() + tokens.expires_in * 1000,
+    email: tokens.user && tokens.user.email,
+    storeId: store.storeId,
+    storeName: store.storeName,
+    username: store.username,
+    role: store.role,
+    permissions: store.permissions,
+    expiresAt: new Date(Date.now() + DB_SESSION_HOURS * 3600 * 1000).toISOString(),
+  };
+}
+
+async function dbSignIn(email, password) {
+  const r = await dbFetch('/auth/v1/token?grant_type=password', { body: { email: String(email || '').trim(), password: String(password || '') } });
+  if (r.status === 429) throw new ApiError('too_many_attempts', 'Too many tries. Wait a few minutes and try again.');
+  if (authErrorCode(r) === 'email_not_confirmed') {
+    throw new ApiError('bad_login', 'Open the invite email first and tap its link to choose a password.');
+  }
+  if (r.status >= 300) throw new ApiError('bad_login', 'Wrong email or password.');
+  return r.data;
+}
+
+// An access token that's good for at least another minute, renewed if needed (one renewal at a time: each refresh
+// token works once).
+let refreshingToken = null;
+async function freshToken(force = false) {
+  const session = getSession();
+  if (!session || !session.refreshToken) throw signedOut();
+  if (!force && session.accessExpiresAt - 60 * 1000 > Date.now()) return session.accessToken;
+  if (!refreshingToken) {
+    refreshingToken = (async () => {
+      const r = await dbFetch('/auth/v1/token?grant_type=refresh_token', { body: { refresh_token: session.refreshToken } });
+      if (r.status >= 500) throw serverError();
+      if (r.status >= 300) throw signedOut();
+      saveSession({ ...getSession(), accessToken: r.data.access_token, refreshToken: r.data.refresh_token,
+        accessExpiresAt: Date.now() + r.data.expires_in * 1000 });
+      return r.data.access_token;
+    })().finally(() => { refreshingToken = null; });
+  }
+  return refreshingToken;
+}
+
+// A database function as the signed-in person; a token the server no longer takes is renewed once.
+async function dbRpc(fn, body) {
+  let r = await dbFetch(`/rest/v1/rpc/${fn}`, { body, token: await freshToken() });
+  if (r.status === 401) r = await dbFetch(`/rest/v1/rpc/${fn}`, { body, token: await freshToken(true) });
+  if (r.status < 300) return r.data;
+  if (r.data && r.data.hint) throw new ApiError(r.data.hint, r.data.message);
+  if (r.status === 401) throw signedOut();
+  throw serverError();
+}
+
+// The members Edge Function (invite, setPassword); it answers { ok, data, code, error } like Apps Script.
+async function dbMembers(action, params) {
+  const session = getSession();
+  const r = await dbFetch('/functions/v1/members', { body: { action, storeId: session && session.storeId, ...params }, token: await freshToken() });
+  if (r.data && r.data.ok) return r.data.data;
+  if (r.data && r.data.code) throw new ApiError(r.data.code, r.data.error);
+  if (r.status === 401) throw signedOut();
+  throw serverError();
+}
+
+// Where an invite or password email's link opens (allowed in the Supabase project's redirect list).
+function setPasswordUrl() {
+  return new URL('set-password.html', location.href).href;
+}
+
+// The actions that aren't a database function of the same name.
+const DB_ACTIONS = {
+  // Returns the session to save, like the Apps Script login.
+  login: async ({ email, password }) => dbSessionFor(await dbSignIn(email, password)),
+  // Signs out this phone only (other phones of the same person stay signed in, as before).
+  logout: async () => {
+    const session = getSession();
+    if (session && session.accessToken) await dbFetch('/auth/v1/logout?scope=local', { body: {}, token: session.accessToken });
+    return {};
+  },
+  // Emails a link to choose a new password; says nothing about whether the email has an account.
+  forgotPassword: async ({ email }) => {
+    const r = await dbFetch(`/auth/v1/recover?redirect_to=${encodeURIComponent(setPasswordUrl())}`, { body: { email: String(email || '').trim() } });
+    if (r.status === 429) throw new ApiError('too_many_emails', 'Too many emails just now. Try again in an hour.');
+    if (r.status >= 300 && r.status !== 404) throw serverError();
+    return {};
+  },
+  // From an invite or password email's link (set-password.html): its tokens, then the new password. Returns the session.
+  setNewPassword: async ({ tokens, password }) => {
+    if (String(password || '').length < 6) throw new ApiError('bad_password', 'Password must be at least 6 characters.');
+    const r = await dbFetch('/auth/v1/user', { method: 'PUT', body: { password }, token: tokens.access_token });
+    if (r.status === 401 || r.status === 403) {
+      throw new ApiError('expired_link', 'This link has expired. Ask the owner for a new one, or use Forgot Password on the sign-in page.');
+    }
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a longer one.');
+    if (r.status >= 300 && authErrorCode(r) !== 'same_password') throw serverError();
+    return dbSessionFor({ ...tokens, user: r.data || tokens.user });
+  },
+  // As changeOwnPassword: the current password must be right, then the new one is checked and saved.
+  changePassword: async ({ currentPassword, newPassword }) => {
+    const session = getSession();
+    let tokens;
+    try {
+      tokens = await dbSignIn(session.email, currentPassword);
+    } catch (err) {
+      if (err.code === 'bad_login') throw new ApiError('bad_password', 'Your current password is wrong.');
+      throw err;
+    }
+    if (String(newPassword || '').length < 6) throw new ApiError('bad_password', 'Password must be at least 6 characters.');
+    const r = await dbFetch('/auth/v1/user', { method: 'PUT', body: { password: newPassword }, token: tokens.access_token });
+    if (authErrorCode(r) === 'same_password') throw new ApiError('bad_password', 'The new password is the same as the old one.');
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a longer one.');
+    if (r.status >= 300) throw serverError();
+    // A new password ends the person's other sign-ins, this phone's saved one too: keep the one just made.
+    saveSession({ ...getSession(), accessToken: tokens.access_token, refreshToken: tokens.refresh_token,
+      accessExpiresAt: Date.now() + tokens.expires_in * 1000 });
+    return {};
+  },
+  // Manage Employees: an employee is added by email (they get an invite), not with a starting password.
+  createUser: ({ username, email }) => dbMembers('invite', { username, email, redirectTo: setPasswordUrl() }),
+  resetPassword: ({ username, newPassword }) => dbMembers('setPassword', { username, newPassword }),
+  me: () => dbRpc('me', { p_store: getSession().storeId }),
+  claimOwner: async () => { throw new ApiError('bad_request', 'With the database, a store and its owner are set up by Smart Scan.'); },
+};
+
+async function dbApi(action, params) {
+  try {
+    if (DB_ACTIONS[action]) return await DB_ACTIONS[action](params);
+    const session = getSession();
+    if (!session || !session.storeId) throw signedOut();
+    const fn = action.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+    return await dbRpc(fn, { p_store: session.storeId, req: params });
+  } catch (err) {
+    if (err.code === 'unauthorized') {
+      clearSession();
+      location.href = 'login.html';
+    }
+    throw err;
+  }
 }
 
 // --- A close waiting to be sent ---
