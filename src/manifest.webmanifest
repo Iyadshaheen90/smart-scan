@@ -1,7 +1,7 @@
 {
   "name": "Smart Scan",
   "short_name": "Smart Scan",
-  "description": "Route 66 Liquor scratcher tracking",
+  "description": "Scratcher inventory and sales tracking for retailers",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",

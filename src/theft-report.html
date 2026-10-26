@@ -26,7 +26,7 @@
 
   <!-- After a break-in (owner 2026-10-23): pick what was taken, then Make Report. Always made fresh, never a saved copy. -->
   <div class="no-print">
-    <p class="sub">After a theft, make this report and send it to the CA Lottery so they can stop the stolen tickets.
+    <p class="sub">After a theft, make this report and send it to the lottery so they can stop the stolen tickets.
       It lists every pack's game, pack number and the tickets still unsold at the last count (shift close or close).</p>
     <div class="radio-list" role="radiogroup">
       <label class="radio-card"><input type="radio" name="kind" value="live" checked>
@@ -59,6 +59,8 @@
       <p class="sub">Sealed packs in the back. Pack numbers for back stock aren't tracked yet, so only game, packs and tickets.</p>
       <div id="backList"></div>
     </div>
+
+    <p class="fine-print" id="reportFooter"></p>
 
     <div class="no-print">
       <button type="button" class="primary" id="shareBtn">Share</button>
@@ -190,7 +192,7 @@
       return box;
     }
 
-    // The store's CA Lottery retailer number (More → Retailer Number, owner only). Not entered yet: the owner is told
+    // The store's lottery retailer number (More → Retailer Number, owner only). Not entered yet: the owner is told
     // where to add it; an employee's report just leaves the line out.
     function retailerText(data) {
       if (data.retailerNumber) return `Retailer Number: ${data.retailerNumber}`;
@@ -203,6 +205,7 @@
       const packs = live.packs + (back ? back.packs : 0);
       const tickets = live.tickets + (back ? back.tickets : 0);
       $('storeName').textContent = STORE_NAME;
+      $('reportFooter').textContent = REPORT_FOOTER;
       $('retailer').textContent = retailerText(data);
       $('retailer').classList.toggle('hidden', !retailerText(data));
       $('reportTitle').textContent = data.full ? 'Theft Report · Full Inventory' : 'Theft Report · Live Scratchers';
@@ -258,6 +261,7 @@
         });
         out.push(`Total: ${count(back.packs, 'pack')} · ${count(back.tickets, 'ticket')}${showDollars ? ` · ${money(back.dollars)}` : ''}`);
       }
+      out.push('', REPORT_FOOTER);
       return out.join('\n');
     }
 
@@ -344,9 +348,10 @@
           table(back.lines, columns);
         }
       }
-      // Page numbers, now that the number of pages is known.
+      // The footer and page numbers on every page, now that the number of pages is known (rows stop at BOTTOM).
       pdf.pages.forEach((page, i) => {
         pdf.page = page;
+        pdf.text(PDF_PAGE_WIDTH / 2, 758, REPORT_FOOTER, { size: 8, gray: 0.45, align: 'center' });
         pdf.text(PDF_PAGE_WIDTH / 2, 770, `Theft Report · ${STORE_NAME} · Page ${i + 1} of ${pdf.pages.length}`, { size: 8, gray: 0.45, align: 'center' });
       });
       return pdf.blob();

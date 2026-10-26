@@ -217,7 +217,7 @@
       setNumber('liveSlots', String(live.length));
       // Tickets left in the slots × price: what's on display as of the last close (plus packs put in since).
       setNumber('liveValue', money(live.reduce((sum, s) => sum + (Number(s.pack.remaining) || 0) * (Number(s.pack.price) || 0), 0)));
-      // Packs CA Lottery settles soon or already has (Settling page); amber when there are any.
+      // Packs the lottery settles soon or already has (Settling page); amber when there are any.
       const settling = settlingPacks(home.slots).length;
       setNumber('settlingCount', `${settling} ${settling === 1 ? 'Pack' : 'Packs'}`);
       $('settlingCount').classList.toggle('amber', settling > 0);

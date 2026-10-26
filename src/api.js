@@ -3,6 +3,13 @@
 
 const SESSION_STORAGE_KEY = 'smartScanSession';
 
+// Smart Scan is a third-party tool (owner 2026-10-26, for the App Store and Google Play): it never claims a lottery
+// approved it, and never shows game names, lottery logos or pictures of tickets. Shown on Sign In and More → About.
+const APP_DISCLAIMER = 'Smart Scan is an independent bookkeeping tool for retailers. It is not affiliated with, endorsed by'
+  + ' or approved by the California State Lottery or any other lottery. It does not sell tickets or offer any game.';
+// At the end of the Theft Report (screen, shared text and PDF), so it isn't taken for an official lottery form.
+const REPORT_FOOTER = 'Made with Smart Scan, a third-party tool. Not an official lottery form.';
+
 // Makes the app installable to the home screen, and opens pages from the phone's saved copy (see sw.js).
 // The phone looks for a new deploy each time a page opens; an iPhone app brought back to the front opens
 // no page, so it looks then too.
@@ -371,7 +378,7 @@ function showLoadError(el, err, load) {
   el.append(button);
 }
 
-// CA Lottery settles (charges the store for) a pack 50–60 days after it's activated, sold or not.
+// The lottery settles (charges the store for) a pack 50–60 days after it's activated, sold or not.
 // From this many days live, a pack is marked on Slots and listed on the Settling page.
 const OLD_PACK_DAYS = 50;
 // From this many days, it has most likely been settled already.

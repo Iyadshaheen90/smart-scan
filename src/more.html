@@ -18,13 +18,15 @@
   <p class="sub" id="who"></p>
 
   <a class="list-card owner-only hidden" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage Employees</span><span class="chev" data-icon="chevronRight"></span></a>
-  <!-- Owner only: the store's CA Lottery retailer number, printed on the Theft Report. -->
+  <!-- Owner only: the store's lottery retailer number, printed on the Theft Report. -->
   <button type="button" class="list-card owner-only hidden" id="retailerRow"><span class="icon-box" data-icon="store"></span><span class="grow">Retailer Number</span><span class="chev" data-icon="chevronRight"></span></button>
   <div id="retailerResult" class="message"></div>
   <!-- Owner, or an employee with Ticket order: set every slot to descending or ascending at once. -->
   <button type="button" class="list-card hidden" id="orderRow"><span class="icon-box" data-icon="order"></span><span class="grow">Ticket Order</span><span class="chev" data-icon="chevronRight"></span></button>
   <div id="orderResult" class="message"></div>
   <a class="list-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span><span class="grow">Scanner Test</span><span class="chev" data-icon="chevronRight"></span></a>
+  <!-- About (everyone): the app is a third-party tool, not a lottery app (owner 2026-10-26). -->
+  <button type="button" class="list-card" id="aboutRow"><span class="icon-box" data-icon="info"></span><span class="grow">About Smart Scan</span><span class="chev" data-icon="chevronRight"></span></button>
   <a class="list-card" href="account.html"><span class="icon-box" data-icon="key"></span><span class="grow">Change My Password</span><span class="chev" data-icon="chevronRight"></span></a>
   <button type="button" class="list-card danger" id="signOut"><span class="icon-box" data-icon="logout"></span><span class="grow">Sign Out</span></button>
 
@@ -47,13 +49,23 @@
   <div id="retailerDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="retailerTitle">
     <div class="dialog">
       <div class="dialog-title" id="retailerTitle">Retailer Number</div>
-      <div class="slot-detail">The store's CA Lottery retailer number. It's printed on the Theft Report. Only you can see or change it here; it's kept private, never in a spreadsheet.</div>
+      <div class="slot-detail">The store's lottery retailer number. It's printed on the Theft Report. Only you can see or change it here; it's kept private, never in a spreadsheet.</div>
       <label for="retailerInput">Retailer Number</label>
       <input id="retailerInput" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" disabled>
       <div id="retailerError" class="message"></div>
       <div class="dialog-buttons">
         <button type="button" class="cancel" id="retailerCancel">Cancel</button>
         <button type="button" class="save" id="retailerSave" disabled>Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="aboutDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="aboutTitle">About Smart Scan</div>
+      <div class="slot-detail" id="aboutText"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="save" id="aboutClose">Close</button>
       </div>
     </div>
   </div>
@@ -73,6 +85,10 @@
     document.getElementById('signOut').addEventListener('click', () => signOut());
 
     const $ = (id) => document.getElementById(id);
+
+    $('aboutText').textContent = APP_DISCLAIMER;
+    $('aboutRow').addEventListener('click', () => $('aboutDialog').classList.remove('hidden'));
+    $('aboutClose').addEventListener('click', () => $('aboutDialog').classList.add('hidden'));
 
     // Retailer number (owner): asked for only when the pop-up opens, so it isn't on the screen otherwise.
     $('retailerRow').addEventListener('click', async () => {

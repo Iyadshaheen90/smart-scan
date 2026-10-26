@@ -28,6 +28,7 @@
 
   <p id="forgotLine" class="sub hidden" style="margin-top: 20px;"><a href="#" id="forgot">Forgot Password?</a></p>
   <p id="setupLine" class="sub" style="margin-top: 32px;">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
+  <p class="fine-print" id="disclaimer"></p>
 
   <script src="config.js"></script>
   <script src="api.js"></script>
@@ -35,6 +36,7 @@
   <script src="nav.js"></script>
   <script>
     if (getSession()) location.replace('index.html');
+    document.getElementById('disclaimer').textContent = APP_DISCLAIMER;
 
     const form = document.getElementById('form');
     const messageEl = document.getElementById('message');

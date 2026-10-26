@@ -357,6 +357,15 @@ by hand-made markup, so it gets the grid layout and `fitBackLabels` (long text s
 page they go back to). `test/browser/home-pill.js` finds every page with `data-back=` by itself and checks short and
 long usernames; a page whose pill changes with the address (like `?date=` or `&from=`) needs that address added there.
 
+**Third-party tool (owner's rule 2026-10-26; App Store + Google Play plan `~/.claude/plans/smart-scan-app-store-launch.md`):**
+Smart Scan is an independent bookkeeping tool, **not** a lottery app. It never claims or suggests a lottery approved,
+endorsed or partnered with it. **No scratcher (game) names, no lottery logos or trademarks, no pictures of tickets**
+anywhere: screens, icons, store listings, screenshots, website, emails, test data. Games show by number only. Screens say
+"the lottery", never "CA Lottery" (`test/browser/disclaimer.js` fails on "CA Lottery" in any `src/` page or script). Never add
+a game catalog, ticket art, prize tables, odds or "prizes remaining". The disclaimer is `APP_DISCLAIMER` (api.js), shown in
+small print on Sign In (`.fine-print`) and in More → **About Smart Scan** (everyone, a pop-up with Close, icon `info`);
+`REPORT_FOOTER` ends the Theft Report on screen, in the shared text and on every PDF page.
+
 **Wording (owner's rule 2026-10-08): Title Case** for page titles, section titles, pop-up titles, permission names,
 buttons and links, tabs, form labels, stat/tile labels and tags/chips ("Sell a Full Pack", "Shipment Received",
 "Price per Ticket ($)", "25 Left", "Out of Stock", "Not Closed"). Small words (a, an, the, and, or, of, to, in, on, at,
@@ -503,6 +512,7 @@ node test/browser/reports.js              # Reports tab: list with numbers, Ship
 node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, PDF (bytes, xref, multi-page), print fallback, Try again, employee without $, no permission → home
 node test/browser/month-download.js       # Months on the database backend: Download Month makes the Excel file (tabs, rows, $ format), share or download; no Start
 node test/browser/theft-fab.js            # Home's red Theft Report button: owner + employees with the permission, above the tab bar, never hides the last row, opens the report
+node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)

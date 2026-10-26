@@ -77,8 +77,11 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
     'LIVE PACKS IN SLOTS (2 packs)',
     '1. Game 1747 · Pack 0012345 · Tickets 000–024 (25 unsold) · $500 · from last close',
     '2. Game 1111 · Pack 0000777 · Tickets 010–049 (40 unsold) · $400 · put in since close',
-    'Total: 2 packs · 65 tickets · $900',
+    'Total: 2 packs · 65 tickets · $900', '',
+    'Made with Smart Scan, a third-party tool. Not an official lottery form.',
   ].join('\n'));
+  // The footer on screen too (owner 2026-10-26: not to be taken for an official lottery form).
+  assert.equal(await text(page, '#reportFooter'), 'Made with Smart Scan, a third-party tool. Not an official lottery form.');
   // No share sheet (a computer): copied instead.
   await page.evaluate(() => { delete navigator.share; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
     navigator.clipboard.writeText = async (t) => { window.copied = t; }; });
@@ -107,7 +110,8 @@ const made = (page) => page.waitForFunction(() => !document.getElementById('repo
   // WinAnsi bytes: · = \xB7, – = \x96.
   for (const part of ['(ROUTE 66 LIQUOR)', '(Theft Report \xB7 Live Scratchers)', '(Made Fri, Oct 23, 2026, 7:12 AM)',
     '(0012345)', '(000\x96024)', '(010\x96049)', '(Put in since close)', '($900)', '(2 Packs \xB7 65 Unsold Tickets \xB7 $900 Total Value)',
-    '(Theft Report \xB7 Route 66 Liquor \xB7 Page 1 of 1)']) assert.ok(pdf.text.includes(part), part);
+    '(Theft Report \xB7 Route 66 Liquor \xB7 Page 1 of 1)',
+    '(Made with Smart Scan, a third-party tool. Not an official lottery form.)']) assert.ok(pdf.text.includes(part), part);
   assert.ok(!pdf.text.includes('Back Stock'), 'live only');
   // The xref table points at each object.
   const xrefAt = Number(pdf.text.match(/startxref\n(\d+)/)[1]);

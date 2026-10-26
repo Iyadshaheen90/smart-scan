@@ -61,7 +61,7 @@
   </div>
   <div id="stockMessage" class="message"></div>
 
-  <!-- Games CA Lottery has stopped, hidden from the list above. -->
+  <!-- Games the lottery has stopped, hidden from the list above. -->
   <details id="endedBox" class="hidden saved-dim saved-lock" style="margin-top: 18px;">
     <summary id="endedTitle"></summary>
     <p class="sub">Hidden from back stock. Receiving a pack of one, or putting one in a slot, brings it back by itself.</p>
@@ -414,7 +414,7 @@
       button.className = 'small';
       button.textContent = 'Game Ended…';
       button.addEventListener('click', () => {
-        if (!confirm(`Mark game ${g.gameNumber} as ended? Do this when CA Lottery has stopped the game. It disappears from back stock. Its sales history stays, and receiving a pack of it later brings it back.`)) return;
+        if (!confirm(`Mark game ${g.gameNumber} as ended? Do this when the lottery has stopped the game. It disappears from back stock. Its sales history stays, and receiving a pack of it later brings it back.`)) return;
         changeGame(button, 'endGame', g, messageEl, `Game ${g.gameNumber} marked ended and hidden. It's under "Ended Games" at the bottom if you need it back.`);
       });
       return button;
