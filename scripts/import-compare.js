@@ -72,7 +72,7 @@ async function compareOnDev(rows, sheets, now) {
   const ids = []; const tokens = {};
   try {
     // Made-up sign-ins: the real emails only ever go to the production project.
-    const password = crypto.randomBytes(18).toString('base64url');
+    const password = `${crypto.randomBytes(18).toString('base64url')}Aa1!`; // the password rule: capital, lowercase, number, sign
     const members = [];
     for (const p of rows.people) {
       const email = `${p.username.toLowerCase()}-${store.slice(0, 8)}@${EMAIL_DOMAIN}`;

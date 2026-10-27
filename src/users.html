@@ -26,7 +26,8 @@
     <input id="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
     <div id="passwordField">
       <label for="password">Starting Password</label>
-      <input id="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" minlength="6" required>
+      <input id="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" minlength="8" required>
+      <p class="sub password-rule"></p>
     </div>
     <div id="emailField" class="hidden">
       <label for="email">Email</label>
@@ -50,6 +51,7 @@
     const listMessage = document.getElementById('listMessage');
     const addForm = document.getElementById('addForm');
     const addMessage = document.getElementById('addMessage');
+    document.querySelectorAll('.password-rule').forEach((el) => { el.textContent = PASSWORD_RULE; });
 
     // The database adds an employee by email (an invite), not with a starting password.
     if (USE_DATABASE) {
@@ -183,8 +185,9 @@
               return api('setUserActive', { username: user.username, active: !user.active });
             }),
             actionButton('Reset Password', () => {
-              const newPassword = prompt(`New password for ${user.username} (at least 6 characters):`);
+              const newPassword = prompt(`New password for ${user.username}.\n${PASSWORD_RULE}.`);
               if (!newPassword) return null;
+              checkNewPassword(newPassword);
               return api('resetPassword', { username: user.username, newPassword })
                 .then((users) => { showMessage(listMessage, `Password for ${user.username} changed. Tell them the new one.`, 'ok'); return users; });
             }),
@@ -219,6 +222,7 @@
       try {
         const username = addForm.username.value;
         const email = addForm.email.value.trim();
+        if (!USE_DATABASE) checkNewPassword(addForm.password.value);
         const users = await whileBusy(addForm.querySelector('button'), 'Adding…', () => api('createUser', USE_DATABASE
           ? { username, email }
           : { username, password: addForm.password.value, role: 'employee' }));

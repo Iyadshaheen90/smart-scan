@@ -28,6 +28,28 @@ class ApiError extends Error {
   }
 }
 
+// Password rule (owner 2026-10-27): at least 8 characters with a capital letter, a lowercase letter, a number and one of
+// ? ! @ # $ % &. The same check is in the Sheets backend (Auth.js passwordProblem) and the members Edge Function; pages
+// check before sending and show PASSWORD_RULE under each new password field. Existing passwords keep working.
+const PASSWORD_RULE = 'At least 8 characters, with a capital letter, a lowercase letter, a number and one of ? ! @ # $ % &';
+// What a new password is missing ("Password needs a capital letter and a number."), or '' when it's fine.
+function passwordProblem(password) {
+  const p = String(password || '');
+  const missing = [];
+  if (p.length < 8) missing.push('at least 8 characters');
+  if (!/[A-Z]/.test(p)) missing.push('a capital letter');
+  if (!/[a-z]/.test(p)) missing.push('a lowercase letter');
+  if (!/[0-9]/.test(p)) missing.push('a number');
+  if (!/[?!@#$%&]/.test(p)) missing.push('one of ? ! @ # $ % &');
+  if (!missing.length) return '';
+  const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
+  return `Password needs ${list}.`;
+}
+function checkNewPassword(password) {
+  const problem = passwordProblem(password);
+  if (problem) throw new ApiError('bad_password', problem);
+}
+
 function getSession() {
   try {
     const session = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null');
@@ -220,12 +242,12 @@ const DB_ACTIONS = {
   },
   // From an invite or password email's link (set-password.html): its tokens, then the new password. Returns the session.
   setNewPassword: async ({ tokens, password }) => {
-    if (String(password || '').length < 6) throw new ApiError('bad_password', 'Password must be at least 6 characters.');
+    checkNewPassword(password);
     const r = await dbFetch('/auth/v1/user', { method: 'PUT', body: { password }, token: tokens.access_token });
     if (r.status === 401 || r.status === 403) {
       throw new ApiError('expired_link', 'This link has expired. Ask the owner for a new one, or use Forgot Password on the sign-in page.');
     }
-    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a longer one.');
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
     if (r.status >= 300 && authErrorCode(r) !== 'same_password') throw serverError();
     return dbSessionFor({ ...tokens, user: r.data || tokens.user });
   },
@@ -239,10 +261,10 @@ const DB_ACTIONS = {
       if (err.code === 'bad_login') throw new ApiError('bad_password', 'Your current password is wrong.');
       throw err;
     }
-    if (String(newPassword || '').length < 6) throw new ApiError('bad_password', 'Password must be at least 6 characters.');
+    checkNewPassword(newPassword);
     const r = await dbFetch('/auth/v1/user', { method: 'PUT', body: { password: newPassword }, token: tokens.access_token });
     if (authErrorCode(r) === 'same_password') throw new ApiError('bad_password', 'The new password is the same as the old one.');
-    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a longer one.');
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
     if (r.status >= 300) throw serverError();
     // A new password ends the person's other sign-ins, this phone's saved one too: keep the one just made.
     saveSession({ ...getSession(), accessToken: tokens.access_token, refreshToken: tokens.refresh_token,

@@ -14,7 +14,7 @@ const DOMAIN = 'signin.smartscan.test';
 const tag = crypto.randomBytes(3).toString('hex');
 const ownerEmail = `owner-${tag}@${DOMAIN}`;
 const newbieEmail = `newbie-${tag}@${DOMAIN}`;
-const ownerPassword = crypto.randomBytes(12).toString('base64url');
+const ownerPassword = `${crypto.randomBytes(12).toString('base64url')}Aa1!`; // the password rule: capital, lowercase, number, sign
 
 async function deleteTestUsers() {
   const listed = await http('GET', '/auth/v1/admin/users?per_page=200', { key: keys().service });
@@ -146,12 +146,12 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.waitForFunction(() => location.pathname.endsWith('set-password.html'), { timeout: 20000 });
     assert.equal(await page.evaluate(() => location.hash), '', 'the sign-in is taken out of the address');
     assert.match(await text(page, '#intro'), /Welcome to Smart Scan/);
-    await page.type('#password', 'first-pass');
+    await page.type('#password', 'First-pass1!');
     await page.type('#confirm', 'first-pasz');
     await page.click('#form button');
     assert.equal(await text(page, '#message'), "The two passwords don't match.");
     await page.$eval('#confirm', (e) => { e.value = ''; });
-    await page.type('#confirm', 'first-pass');
+    await page.type('#confirm', 'First-pass1!');
     await page.click('#form button');
     await page.waitForFunction(() => /Password saved/.test(document.querySelector('#message').textContent));
     assert.equal(await text(page, '#message'), "Password saved. You're signed in as newbie.");
@@ -169,14 +169,24 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
 
     // ---- Change My Password ----
     await page.goto(base + 'account.html');
+    assert.equal(await text(page, '.password-rule'), 'At least 8 characters, with a capital letter, a lowercase letter, a number and one of ? ! @ # $ % &');
+    // A new password that breaks the rule is refused on the page, before anything is sent.
+    await page.type('#current', 'First-pass1!');
+    await page.type('#next', 'secondpass');
+    await page.type('#confirm', 'secondpass');
+    await page.click('#form button');
+    await page.waitForFunction(() => document.querySelector('#message').textContent);
+    assert.equal(await text(page, '#message'), 'Password needs a capital letter, a number and one of ? ! @ # $ % &.');
+    for (const id of ['#current', '#next', '#confirm']) await page.$eval(id, (e) => { e.value = ''; });
+    await page.$eval('#message', (e) => { e.textContent = ''; });
     await page.type('#current', 'wrong-pass');
-    await page.type('#next', 'second-pass');
-    await page.type('#confirm', 'second-pass');
+    await page.type('#next', 'Second-pass2!');
+    await page.type('#confirm', 'Second-pass2!');
     await page.click('#form button');
     await page.waitForFunction(() => document.querySelector('#message').textContent);
     assert.equal(await text(page, '#message'), 'Your current password is wrong.');
     await page.$eval('#current', (e) => { e.value = ''; });
-    await page.type('#current', 'first-pass');
+    await page.type('#current', 'First-pass1!');
     await page.click('#form button');
     await page.waitForFunction(() => document.querySelector('#message').textContent === 'Password changed.');
 
@@ -198,10 +208,10 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.evaluate(() => signOut());
     await page.waitForFunction(() => location.pathname.endsWith('login.html'));
     assert.equal(await page.evaluate(() => localStorage.getItem('smartScanSession')), null);
-    await signIn(newbieEmail, 'first-pass');
+    await signIn(newbieEmail, 'First-pass1!');
     await page.waitForFunction(() => document.querySelector('#message').textContent);
     assert.equal(await text(page, '#message'), 'Wrong email or password.');
-    await signIn(newbieEmail, 'second-pass');
+    await signIn(newbieEmail, 'Second-pass2!');
     await page.waitForFunction(() => location.pathname.endsWith('index.html'));
     const newbieSession = await page.evaluate(() => localStorage.getItem('smartScanSession'));
 
@@ -217,8 +227,12 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     promptAnswer = '123';
     await (await button('Reset Password')).click();
     await page.waitForFunction(() => document.querySelector('#listMessage').textContent);
-    assert.equal(await text(page, '#listMessage'), 'Password must be at least 6 characters.');
-    promptAnswer = 'third-pass';
+    assert.equal(await text(page, '#listMessage'), 'Password needs at least 8 characters, a capital letter, a lowercase letter and one of ? ! @ # $ % &.');
+    promptAnswer = 'Thirdpass3';
+    await (await button('Reset Password')).click();
+    await page.waitForFunction(() => /one of/.test(document.querySelector('#listMessage').textContent));
+    assert.equal(await text(page, '#listMessage'), 'Password needs one of ? ! @ # $ % &.');
+    promptAnswer = 'Third-pass3!';
     await (await button('Reset Password')).click();
     await page.waitForFunction(() => /Password for newbie changed/.test(document.querySelector('#listMessage').textContent));
     await (await button('Deactivate')).click();
@@ -229,7 +243,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.goto(base + 'slots.html');
     await page.waitForFunction(() => location.pathname.endsWith('login.html'), { timeout: 20000 });
     assert.equal(await page.evaluate(() => localStorage.getItem('smartScanSession')), null);
-    await signIn(newbieEmail, 'third-pass');
+    await signIn(newbieEmail, 'Third-pass3!');
     await page.waitForFunction(() => document.querySelector('#message').textContent);
     assert.equal(await text(page, '#message'), 'This account is no longer active.');
 

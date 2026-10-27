@@ -72,15 +72,31 @@ async function invite(token: string, req: Record<string, string>) {
   }
 }
 
+// Password rule (owner 2026-10-27): at least 8 characters with a capital letter, a lowercase letter, a number and one of
+// ? ! @ # $ % &. Same check and words as passwordProblem in src/api.js and validateNewPassword in Auth.js.
+function passwordProblem(password: string): string {
+  const p = String(password || '');
+  const missing: string[] = [];
+  if (p.length < 8) missing.push('at least 8 characters');
+  if (!/[A-Z]/.test(p)) missing.push('a capital letter');
+  if (!/[a-z]/.test(p)) missing.push('a lowercase letter');
+  if (!/[0-9]/.test(p)) missing.push('a number');
+  if (!/[?!@#$%&]/.test(p)) missing.push('one of ? ! @ # $ % &');
+  if (!missing.length) return '';
+  const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
+  return `Password needs ${list}.`;
+}
+
 async function setPassword(token: string, req: Record<string, string>) {
-  // resetPassword's order: the password's length first, then the person.
-  if (String(req.newPassword || '').length < 6) throw new ApiError('bad_password', 'Password must be at least 6 characters.');
+  // resetPassword's order: the password first, then the person.
+  const problem = passwordProblem(req.newPassword);
+  if (problem) throw new ApiError('bad_password', problem);
   const checked = await rpc('member_admin_check', { p_store: req.storeId, req: { action: 'setPassword', username: req.username } }, token);
   // Confirmed too, so someone who never opened the invite email can sign in with the password the owner gives them.
   const changed = await admin('PUT', `/admin/users/${checked.userId}`, { password: req.newPassword, email_confirm: true });
   if (!changed.ok) {
     const code = changed.data && (changed.data.error_code || changed.data.code);
-    if (code === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a longer one.');
+    if (code === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
     throw new Error(`setPassword: ${changed.status} ${JSON.stringify(changed.data)}`);
   }
   return { data: await rpc('list_users', { p_store: req.storeId, req: {} }, token) };

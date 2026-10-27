@@ -149,7 +149,7 @@ async function dbBackend() {
   }
   const store = await service('test_create_store', { p_name: 'Parity Test Store' });
   const tokens = {}; const ids = [];
-  const password = crypto.randomBytes(18).toString('base64url');
+  const password = `${crypto.randomBytes(18).toString('base64url')}Aa1!`; // the password rule: capital, lowercase, number, sign
   const members = [];
   for (const [username, person] of Object.entries(PEOPLE)) {
     const email = `${username}-${store.slice(0, 8)}@${EMAIL_DOMAIN}`;

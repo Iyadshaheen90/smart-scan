@@ -20,9 +20,10 @@
     <label for="current">Current Password</label>
     <input id="current" type="password" autocomplete="current-password" required>
     <label for="next">New Password</label>
-    <input id="next" type="password" autocomplete="new-password" minlength="6" required>
+    <input id="next" type="password" autocomplete="new-password" minlength="8" required>
+    <p class="sub password-rule"></p>
     <label for="confirm">Type the New Password Again</label>
-    <input id="confirm" type="password" autocomplete="new-password" minlength="6" required>
+    <input id="confirm" type="password" autocomplete="new-password" minlength="8" required>
     <button class="primary" type="submit">Change Password</button>
   </form>
   <div id="message" class="message"></div>
@@ -37,11 +38,16 @@
     const session = requireLogin();
     const form = document.getElementById('form');
     const messageEl = document.getElementById('message');
+    document.querySelectorAll('.password-rule').forEach((el) => { el.textContent = PASSWORD_RULE; });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (form.next.value !== form.confirm.value) {
         showMessage(messageEl, "The two new passwords don't match.");
+        return;
+      }
+      if (passwordProblem(form.next.value)) {
+        showMessage(messageEl, passwordProblem(form.next.value));
         return;
       }
       try {

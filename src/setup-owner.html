@@ -23,9 +23,10 @@
     <label for="username">Choose a Username</label>
     <input id="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
     <label for="password">Choose a Password</label>
-    <input id="password" type="password" autocomplete="new-password" minlength="6" required>
+    <input id="password" type="password" autocomplete="new-password" minlength="8" required>
+    <p class="sub password-rule"></p>
     <label for="confirm">Type the Password Again</label>
-    <input id="confirm" type="password" autocomplete="new-password" minlength="6" required>
+    <input id="confirm" type="password" autocomplete="new-password" minlength="8" required>
     <button class="primary" type="submit">Create Owner Account</button>
   </form>
   <div id="message" class="message"></div>
@@ -37,11 +38,16 @@
   <script>
     const form = document.getElementById('form');
     const messageEl = document.getElementById('message');
+    document.querySelectorAll('.password-rule').forEach((el) => { el.textContent = PASSWORD_RULE; });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (form.password.value !== form.confirm.value) {
         showMessage(messageEl, "The two passwords don't match.");
+        return;
+      }
+      if (passwordProblem(form.password.value)) {
+        showMessage(messageEl, passwordProblem(form.password.value));
         return;
       }
       try {

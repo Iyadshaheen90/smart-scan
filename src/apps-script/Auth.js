@@ -58,10 +58,19 @@ function validateNewCredentials(username, password) {
   validateNewPassword(password);
 }
 
+// Password rule (owner 2026-10-27): at least 8 characters with a capital letter, a lowercase letter, a number and one of
+// ? ! @ # $ % &. Same check and words as passwordProblem in api.js. Only new passwords are checked: existing ones still sign in.
 function validateNewPassword(password) {
-  if (String(password || '').length < 6) {
-    throw new ApiError('bad_password', 'Password must be at least 6 characters.');
-  }
+  const p = String(password || '');
+  const missing = [];
+  if (p.length < 8) missing.push('at least 8 characters');
+  if (!/[A-Z]/.test(p)) missing.push('a capital letter');
+  if (!/[a-z]/.test(p)) missing.push('a lowercase letter');
+  if (!/[0-9]/.test(p)) missing.push('a number');
+  if (!/[?!@#$%&]/.test(p)) missing.push('one of ? ! @ # $ % &');
+  if (!missing.length) return;
+  const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
+  throw new ApiError('bad_password', `Password needs ${list}.`);
 }
 
 // --- Sessions ---
