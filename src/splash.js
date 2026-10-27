@@ -1,7 +1,8 @@
-// Launch screen (owner 2026-10-26): SMART fades in across in white and SCAN fades in down in green, sharing the first S
-// (each letter fades in while the one before is still finishing, owner 2026-10-26: smoother than typing); a barcode
-// fills the corner between them and grows with each letter. After the last letter it stretches out to full
-// width and a green scanner beam sweeps back and forth across it. The tagline and the Loading bar sit at the bottom.
+// Launch screen (owner 2026-10-26): SMART across in white and SCAN down in green, sharing the first S. The letters come
+// in one at a time, S M A R T then C A N, each with a quick fade, while a green cursor blinks in the next letter's place.
+// Two beats after the N, a barcode slides open in the corner between them and a green scanner beam sweeps back and
+// forth across it. The tagline and the Loading bar sit at the bottom. (Motion from the owner's smart-scan-splash.html,
+// with the app's own colors, sizes, words and Loading bar.)
 // Shown once each time the app is opened (sessionStorage), on Home and Sign In only. Load it as the first thing in
 // <body> so the page never shows under it. data-wait: stay up until the page calls splashReady() (Home, until its
 // numbers arrive). data-needs-session: skip it with no sign-in (Home sends you on to Sign In, which shows it).
@@ -17,12 +18,10 @@
     return; // No storage (private mode): never risk showing it on every page.
   }
 
-  const STEP = 170;         // ms between letters starting to fade in
-  const FADE = 480;         // ms each letter takes to fade in (matches style.css)
-  const FIRST = 150;        // ms before the S
-  const STRETCH = 520;      // ms the barcode takes to stretch out
-  const MIN_SWEEPS = 1;     // full passes of the beam before it may close (one pass = SWEEP ms)
-  const SWEEP = 900;        // ms for the beam to cross once (matches style.css)
+  const STEP = 140;         // ms between letters (one beat)
+  const OPEN_AT = 10;       // beat the barcode opens on (the N comes on beat 8)
+  const OPEN = 800;         // ms the barcode takes to slide open (matches style.css)
+  const SWEEP = 1300;       // ms for the beam to cross once (matches style.css)
   const LONGEST = 8000;     // never stay up longer than this, even with no answer from the server
   const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -32,16 +31,18 @@
   const bars = PATTERN.map((units, i) => `<span class="${i % 2 ? 'gap' : 'bar'}" style="width:${(units / total) * 100}%"></span>`).join('');
 
   // A 5 × 4 grid: S M A R T across the top row, C A N down the first column, the barcode in the corner.
-  const across = ['M', 'A', 'R', 'T'].map((ch, i) => `<span class="splash-letter across" data-step="${i + 1}" style="grid-area:1/${i + 2}">${ch}</span>`).join('');
-  const down = ['C', 'A', 'N'].map((ch, i) => `<span class="splash-letter down" data-step="${i + 1}" style="grid-area:${i + 2}/1">${ch}</span>`).join('');
+  // [letter, column, row, kind], in the order they come in.
+  const CELLS = [['S', 1, 1, 'shared'], ['M', 2, 1, 'across'], ['A', 3, 1, 'across'], ['R', 4, 1, 'across'], ['T', 5, 1, 'across'],
+    ['C', 1, 2, 'down'], ['A', 1, 3, 'down'], ['N', 1, 4, 'down']];
+  const letterHtml = CELLS.map(([ch, col, row, kind], i) => `<span class="splash-letter ${kind}" data-step="${i}" style="grid-area:${row}/${col}">${ch}</span>`).join('');
   const el = document.createElement('div');
   el.className = 'splash';
   el.setAttribute('role', 'status');
   el.setAttribute('aria-label', 'Loading Smart Scan');
   el.innerHTML = `
     <div class="splash-logo" aria-hidden="true">
-      <span class="splash-letter shared" data-step="0" style="grid-area:1/1">S</span>${across}${down}
-      <div class="splash-code" style="grid-area:2/2/5/6"><div class="splash-bars">${bars}</div><div class="splash-beam"></div></div>
+      ${letterHtml}<span class="splash-cursor"></span>
+      <div class="splash-code" style="grid-area:2/2/5/6"><div class="splash-bars">${bars}<div class="splash-beam"></div></div></div>
     </div>
     <div class="splash-foot">
       <div class="splash-tagline">Scratcher Inventory and Sales Tracking</div>
@@ -51,29 +52,29 @@
   document.body.append(el);
 
   const started = Date.now();
-  const letters = (step) => el.querySelectorAll(`.splash-letter[data-step="${step}"]`);
   const code = el.querySelector('.splash-code');
-  // The barcode fills more of the corner with each letter, then stretches to full width.
-  const grow = (part) => code.style.setProperty('--grow', part);
-  let typedAt;
+  const cursor = el.querySelector('.splash-cursor');
+  // The cursor sits under the place the next letter goes, and goes away after the last one.
+  const placeCursor = (step) => {
+    if (step >= CELLS.length) { cursor.remove(); return; }
+    cursor.style.gridArea = `${CELLS[step][2]}/${CELLS[step][1]}`;
+  };
+  // The barcode opens and the beam starts sweeping at the same moment.
+  const open = () => code.classList.add('stretched', 'scanning');
   if (still) {
     el.querySelectorAll('.splash-letter').forEach((l) => l.classList.add('on'));
-    grow(1);
-    typedAt = 0;
+    cursor.remove();
+    open();
   } else {
-    grow(0.15);
-    for (let step = 0; step <= 4; step += 1) {
-      setTimeout(() => {
-        letters(step).forEach((l) => l.classList.add('on'));
-        if (step < 4) grow(0.15 + step * 0.12);
-      }, FIRST + step * STEP);
-    }
-    // The barcode stretches once the T is mostly in.
-    typedAt = FIRST + 4 * STEP + FADE * 0.6;
-    setTimeout(() => { code.classList.add('stretched'); grow(1); }, typedAt);
-    setTimeout(() => code.classList.add('scanning'), typedAt + STRETCH);
+    placeCursor(0);
+    CELLS.forEach((cell, step) => setTimeout(() => {
+      el.querySelector(`.splash-letter[data-step="${step}"]`).classList.add('on');
+      placeCursor(step + 1);
+    }, (step + 1) * STEP));
+    setTimeout(open, OPEN_AT * STEP);
   }
-  const earliest = still ? 600 : typedAt + STRETCH + MIN_SWEEPS * SWEEP;
+  // Up at least until the barcode is open and the beam has crossed once.
+  const earliest = still ? 600 : OPEN_AT * STEP + Math.max(OPEN, SWEEP);
   el.querySelector('.splash-fill').style.animationDuration = `${earliest}ms`;
 
   let ready = !script.hasAttribute('data-wait');

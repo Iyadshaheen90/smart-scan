@@ -1,6 +1,6 @@
-// Launch screen (owner 2026-10-26): once per app open, on Home (signed in) and Sign In. SMART fades in across and SCAN
-// down sharing the S, the corner barcode stretches out, then the beam sweeps; Home keeps it up until its numbers arrive
-// (never past 8 s); Sign In closes it once the animation has played. Not shown again in the same session, nor on Home
+// Launch screen (owner 2026-10-26): once per app open, on Home (signed in) and Sign In. SMART comes in across and SCAN
+// down sharing the S, a letter at a time behind a cursor, then the corner barcode opens and the beam sweeps; Home keeps
+// it up until its numbers arrive (never past 8 s); Sign In closes it once the animation has played. Not shown again in the same session, nor on Home
 // with no sign-in. Reduced motion: everything at once, short.
 // Run: node test/browser/splash.js   (SHOTS=dir saves a screenshot of each stage)
 const assert = require('assert/strict');
@@ -45,15 +45,17 @@ const freshOpen = async (page, url) => {
   await freshOpen(page, base + 'index.html');
   assert.equal(await up(page), true, 'shown on opening Home');
   await sleep(Math.max(0, 380 - (Date.now() - t0))); await shot(page, 'splash-1-letters');
+  assert.equal(await page.evaluate(() => Boolean(document.querySelector('.splash-cursor'))), true, 'cursor while the letters come in');
   // Each stage is waited for (a busy test machine runs late), then checked in order.
   await page.waitForFunction(() => document.querySelector('.splash-code.stretched'), { timeout: 3000 });
-  assert.equal(await typed(page), 'SMARTCAN', 'all letters in before it stretches (the S once)');
+  assert.equal(await typed(page), 'SMARTCAN', 'all letters in before the barcode opens (the S once)');
   await shot(page, 'splash-2-stretch');
   await page.waitForFunction(() => document.querySelector('.splash-code.scanning'), { timeout: 3000 });
   assert.deepEqual(await state(page), { stretched: true, scanning: true }, 'beam sweeping');
-  // S first, then both words a letter at a time (M with C, A with A, R with N), T last, then stretch, then the beam.
+  // S M A R T, then C A N, then the barcode opens and the beam starts at the same moment; the cursor is gone by then.
   assert.deepEqual(await page.evaluate(() => window.splashLog),
-    ['S', 'M', 'C', 'A', 'A', 'R', 'N', 'T', 'stretched', 'scanning']);
+    ['S', 'M', 'A', 'R', 'T', 'C', 'A', 'N', 'stretched', 'scanning']);
+  assert.equal(await page.evaluate(() => Boolean(document.querySelector('.splash-cursor'))), false, 'cursor gone after the N');
   await sleep(100);
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.splash-beam')).opacity), '1');
   await shot(page, 'splash-3-beam');

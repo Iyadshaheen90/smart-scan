@@ -442,8 +442,9 @@ label.radio-card input { width: 22px; height: 22px; margin: 1px 0 0; flex: none;
 body.has-tabbar.has-fab { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
 
-/* Launch screen (splash.js; owner 2026-10-26). SMART across in white, SCAN down in green, sharing the S; a barcode in the
-   corner stretches to full width, then a green beam sweeps across it. Covers the page until it fades out. */
+/* Launch screen (splash.js; owner 2026-10-26). SMART across in white, SCAN down in green, sharing the S, coming in one
+   letter at a time behind a blinking green cursor; then a barcode slides open in the corner and a green beam sweeps
+   across it. Covers the page until it fades out. */
 .splash {
   position: fixed; inset: 0; z-index: 1000; background: var(--bg);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -460,11 +461,9 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   font-size: calc(var(--cell) * 1.08); font-weight: 800; line-height: 1;
   display: flex; align-items: center; justify-content: center; position: relative;
-  /* Each letter fades in and rises a little (splash.js starts the next before this one is done). */
-  opacity: 0; transform: translateY(0.08em);
-  transition: opacity 0.48s ease-out, transform 0.48s cubic-bezier(0.2, 0.8, 0.3, 1);
+  opacity: 0; transition: opacity 0.12s;
 }
-.splash-letter.on { opacity: 1; transform: none; }
+.splash-letter.on { opacity: 1; }
 .splash-letter.across { color: var(--text); }
 .splash-letter.down { color: var(--accent-bright); }
 /* The shared S: white toward SMART (top right), green toward SCAN (bottom left). */
@@ -472,21 +471,30 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
   background: linear-gradient(225deg, var(--text) 38%, var(--accent-bright) 62%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
-.splash-code { position: relative; margin: 14% 4% 6% 10%; }
-.splash-bars {
-  position: absolute; inset: 0; display: flex; transform-origin: left center;
-  transform: scaleX(var(--grow, 0.15)); transition: transform 0.16s ease-out;
+/* The cursor: a green bar at the bottom of the place the next letter goes (splash.js moves it). */
+.splash-cursor {
+  align-self: end; justify-self: center; margin-bottom: calc(var(--cell) * 0.11);
+  width: calc(var(--cell) * 0.6); height: calc(var(--cell) * 0.1); border-radius: 2px; background: var(--accent-bright);
+  animation: splash-blink 1s steps(1) infinite;
 }
-.splash-code.stretched .splash-bars { transition: transform 0.52s cubic-bezier(0.2, 1.25, 0.35, 1); }
+@keyframes splash-blink { 50% { opacity: 0; } }
+.splash-code { position: relative; margin: 14% 4% 6% 10%; }
+/* Hidden until it opens: slides out from the left to full width, the bars widening with it. */
+.splash-bars {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 0; display: flex;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.splash-code.stretched .splash-bars { width: 100%; }
 .splash-bars .bar { background: var(--text); height: 100%; }
 .splash-bars .gap { height: 100%; }
+/* Inside the bars, so it sweeps only as far as they've opened. */
 .splash-beam {
-  position: absolute; top: -8%; bottom: -8%; left: 0; width: 3px; margin-left: -1.5px; opacity: 0;
+  position: absolute; top: -8%; bottom: -8%; left: 0; width: 3px; opacity: 0;
   background: var(--accent-bright); border-radius: 2px;
   box-shadow: 0 0 10px 3px rgba(76, 197, 138, 0.75), 0 0 28px 8px rgba(76, 197, 138, 0.3);
 }
-.splash-code.scanning .splash-beam { opacity: 1; animation: splash-sweep 0.9s ease-in-out infinite alternate; }
-@keyframes splash-sweep { from { left: 0; } to { left: 100%; } }
+.splash-code.scanning .splash-beam { opacity: 1; animation: splash-sweep 1.3s ease-in-out infinite alternate; }
+@keyframes splash-sweep { from { left: 0; } to { left: calc(100% - 3px); } }
 .splash-foot { position: absolute; left: 16px; right: 16px; bottom: calc(28px + env(safe-area-inset-bottom)); text-align: center; }
 .splash-tagline { color: var(--muted); font-size: 15px; font-weight: 600; margin-bottom: 18px; }
 .splash-loading { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
@@ -497,5 +505,5 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
 @keyframes splash-fill { to { width: 90%; } }
 @media (prefers-reduced-motion: reduce) {
   .splash-code.scanning .splash-beam { animation: none; left: 50%; }
-  .splash-letter { transition: none; transform: none; }
+  .splash-letter, .splash-bars { transition: none; }
 }
