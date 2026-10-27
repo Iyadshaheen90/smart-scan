@@ -10,14 +10,17 @@
   window.splashReady = () => {};
   const script = document.currentScript;
   const KEY = 'smartScanSplash';
-  if (document.documentElement.classList.contains('leaving')) return; // Sign In passing a signed-in user on to Home.
+  // window.splashNote: what it did, for the launch log (api.js).
+  if (document.documentElement.classList.contains('leaving')) { window.splashNote = 'skipped (leaving)'; return; } // Sign In passing a signed-in user on to Home.
   try {
-    if (sessionStorage.getItem(KEY)) return;
-    if (script.hasAttribute('data-needs-session') && !localStorage.getItem('smartScanSession')) return;
+    if (sessionStorage.getItem(KEY)) { window.splashNote = 'skipped (already shown this open)'; return; }
+    if (script.hasAttribute('data-needs-session') && !localStorage.getItem('smartScanSession')) { window.splashNote = 'skipped (not signed in)'; return; }
     sessionStorage.setItem(KEY, '1');
   } catch (e) {
+    window.splashNote = 'skipped (no storage)';
     return; // No storage (private mode): never risk showing it on every page.
   }
+  window.splashNote = `shown at ${Math.round(performance.now())} ms`;
 
   const STEP = 140;         // ms between letters (one beat)
   const OPEN_AT = 10;       // beat the barcode opens on (the N comes on beat 8)

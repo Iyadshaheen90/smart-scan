@@ -244,6 +244,10 @@ Frontend (`src/`, plain HTML + JS, no build):
   keeps building and drawing a page after `location.replace` until the next one arrives (Chrome stops at once), so that
   script also sets `html.leaving` (style.css hides the body; splash.js skips its turn). The test holds the switch back with
   the Navigation API to play out Safari's way.
+  **Launch log (temporary, owner 2026-10-26: a header still flashes before the launch screen):** api.js `logLaunch` adds a
+  line per page opened (page, navigation type, first paint ms, `window.splashNote` from splash.js, app/browser, referrer)
+  to localStorage `smartScanLaunchLog`; Sign In's pass-on writes its own line; shown with the app version (cache name) at
+  the top of Scanner Test (Copy / Clear). Remove all of it once the flash is found.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not Closed / Closed chip, big number = last

@@ -36,6 +36,14 @@
 </head>
 <body>
   <header class="app-header" data-title="Scanner Test"></header>
+  <!-- Launch log (temporary, owner 2026-10-26; see api.js): what happened each time a page opened, newest last. -->
+  <div class="card" style="margin-bottom: 14px;">
+    <strong>Launch Log</strong>
+    <p class="sub">Close the app fully, open it, then come here. <span id="launchVersion"></span></p>
+    <pre id="launchLog" style="white-space: pre-wrap; font-size: 12px; margin: 8px 0; max-height: 320px; overflow: auto;"></pre>
+    <button id="launchCopy" type="button">Copy Launch Log</button>
+    <button id="launchClear" type="button">Clear Launch Log</button>
+  </div>
   <p class="sub">Point the camera at the barcode on the back of the ticket (under "SCAN FRONT BARCODE FOR VALIDATION"), fill the box with it, and hold steady. Shows exactly what was decoded, plus the parsed game / pack / ticket.</p>
 
   <div id="modeSwitch" class="segmented">
@@ -95,6 +103,24 @@
   <script src="icons.js"></script>
   <script src="nav.js"></script>
   <script src="barcode.js"></script>
+  <script>
+    // Launch log (temporary; see api.js).
+    function showLaunchLog() {
+      let lines = [];
+      try { lines = JSON.parse(localStorage.getItem(LAUNCH_LOG_KEY) || '[]'); } catch (e) {}
+      document.getElementById('launchLog').textContent = lines.join('\n') || 'Nothing yet.';
+    }
+    showLaunchLog();
+    if (window.caches) caches.keys().then((keys) => { document.getElementById('launchVersion').textContent = `App version: ${keys.join(', ') || 'none saved'}.`; });
+    document.getElementById('launchCopy').addEventListener('click', async () => {
+      const text = `${document.getElementById('launchVersion').textContent}\n${document.getElementById('launchLog').textContent}`;
+      try { await navigator.clipboard.writeText(text); document.getElementById('launchCopy').textContent = 'Copied'; } catch (e) {}
+    });
+    document.getElementById('launchClear').addEventListener('click', () => {
+      try { localStorage.removeItem(LAUNCH_LOG_KEY); } catch (e) {}
+      showLaunchLog();
+    });
+  </script>
   <script type="module">
     // zxing-wasm is the ZXing C++ engine compiled to WebAssembly. It decodes these tickets'
     // ITF barcodes reliably; html5-qrcode (ZXing-js) never managed to, even on sharp photos.

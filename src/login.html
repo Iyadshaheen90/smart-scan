@@ -34,6 +34,10 @@
     if (saved && new Date(saved.expiresAt) > new Date()) {
       document.documentElement.classList.add('leaving');
       location.replace('index.html');
+      // Launch log (temporary; see api.js): this page never finishes loading, so it writes its line here.
+      const log = JSON.parse(localStorage.getItem('smartScanLaunchLog') || '[]');
+      log.push(`${new Date().toTimeString().slice(0, 8)} login.html · passed on to Home at ${Math.round(performance.now())} ms · ${navigator.standalone ? 'app' : 'browser'}`);
+      localStorage.setItem('smartScanLaunchLog', JSON.stringify(log.slice(-60)));
     }
   } catch (e) {}
 </script>

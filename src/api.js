@@ -21,6 +21,28 @@ if ('serviceWorker' in navigator) {
   }).catch(() => {});
 }
 
+// Launch log (temporary, owner 2026-10-26: a header flashes before the launch screen on opening the app). Every page
+// opened adds a line on this phone: when, which page, how it was opened, when it first drew, and what the launch screen
+// did (window.splashNote from splash.js; Sign In passing a signed-in user on writes its own line). Read on Scanner Test.
+// Remove once the flash is found.
+const LAUNCH_LOG_KEY = 'smartScanLaunchLog';
+function logLaunch(line) {
+  try {
+    const log = JSON.parse(localStorage.getItem(LAUNCH_LOG_KEY) || '[]');
+    log.push(line);
+    localStorage.setItem(LAUNCH_LOG_KEY, JSON.stringify(log.slice(-60)));
+  } catch (e) {}
+}
+function launchLine(event) {
+  const nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {};
+  const paint = (performance.getEntriesByType ? performance.getEntriesByType('paint') : []).map((p) => `${p.name.replace('first-', '')} ${Math.round(p.startTime)}`).join(', ');
+  return `${new Date().toTimeString().slice(0, 8)} ${location.pathname.split('/').pop() || '(none)'} · ${event} · ${nav.type || '?'}`
+    + ` · drew: ${paint || 'not yet'} · splash: ${window.splashNote || 'none on this page'}`
+    + ` · ${navigator.standalone ? 'app' : 'browser'}${document.referrer ? ` · from ${document.referrer.split('/').pop()}` : ''}`;
+}
+window.addEventListener('pageshow', (e) => { if (e.persisted) logLaunch(launchLine('back from memory')); });
+window.addEventListener('load', () => setTimeout(() => logLaunch(launchLine('opened')), 0));
+
 class ApiError extends Error {
   constructor(code, message) {
     super(message);
