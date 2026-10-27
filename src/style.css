@@ -4,7 +4,7 @@
 :root {
   color-scheme: dark;
   --bg: #0e1010;
-  --launch-bg: #000000; /* launch screen: pure black like iOS's opening zoom (owner 2026-10-27) */
+  --launch-bg: #1a191a; /* launch screen: iOS's own gray between its opening zoom and the page (owner 2026-10-27) */
   --card: #181b1b;
   --card-2: #1f2323;
   --border: #2a2f2f;
@@ -454,7 +454,7 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
   --cell: calc(min(100vw - 48px, 400px) / 5);
 }
 .splash.out { opacity: 0; pointer-events: none; }
-/* Opening the app (index.html / login.html <head>): pure black under the launch screen until it fades into the page. */
+/* Opening the app (index.html / login.html <head>): --launch-bg under the launch screen until it fades into the page. */
 html.launching, html.launching body { background: var(--launch-bg); }
 /* Home on its way to Sign In (index.html): only the background shows until Sign In arrives. */
 html.leaving body { display: none; }

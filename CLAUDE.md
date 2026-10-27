@@ -234,21 +234,18 @@ Frontend (`src/`, plain HTML + JS, no build):
   Tracking" and a Loading bar at the bottom. Closes once the animation has played (~2.7 s) **and** the page is ready: Home (`data-wait`)
   calls `splashReady()` when its first `loadStatus()` finishes; never past 8 s. Reduced motion: shown whole, ~0.6 s.
   Browser tests skip it (harness sets the flag) unless `openApp({ splash: true })`.
-- **Black launch** (owner 2026-10-26/27: a flash on opening the app). The owner's screen recordings (2026-10-27, read
-  frame by frame) showed no Home or header before the launch screen: iOS zooms the black icon open into a **pure black**
-  window (~0.1 s), then the page's gray `--bg` came in, and that black→gray step was the flash. So the whole launch is
-  pure black (`--launch-bg`): the launch screen's background, and the page under it while `html.launching` is on (set in
-  the `<head>` of index.html and login.html when the launch screen hasn't played this session; splash.js takes it off as
-  it fades, so the gray comes back under the fade). `tools/startup-images.js` writes solid black
-  `apple-touch-startup-image` PNGs per iPhone size into `src/icons/startup/` (`launch-black-*`; a new color needs new
-  file names, iOS keeps the old pictures) and prints the `<link>`s for index.html and login.html; re-run it when a new
-  iPhone size comes out. Each picture has a light and a dark `prefers-color-scheme` link (exactly one matches either
-  way), and both start pages have `<meta name="color-scheme" content="dark">` before style.css. Manifest
-  `background_color` is black too. iOS may only pick up the pictures when the app is added to the home screen again.
-  **Open (2026-10-27 recording):** black zoom, then 2 frames of iOS's own neutral gray (~#1A191A, not an app color;
-  no reload, no app page) when the page drew ~0.5 s after the tap (an open right after re-adding, from the network),
-  then the black launch screen. The scheme links + meta are the try for it; if still there on later opens (saved copy),
-  next idea: match the launch color to that gray instead of black.
+- **Launch color** (owner 2026-10-26/27: a flash on opening the home-screen app; never in Safari). Screen recordings
+  read frame by frame (python3 cv2, frames in order): iOS zooms the black icon open in **black**, then on **every** open
+  (10 of 10, warm or cold) shows its own neutral gray (~#1A191A, measured) until the page's first frame; the app can't
+  draw before that. With an app-colored launch, iOS's gray sat between: black → gray → black (or → --bg) blinked. So the
+  launch screen and the page under it use `--launch-bg` = that gray: black zoom, then one steady gray, then the launch
+  screen fades into Home (--bg). `html.launching` (set in the `<head>` of index.html and login.html when the launch
+  screen hasn't played this session; splash.js takes it off as it fades) keeps the page that color.
+  `tools/startup-images.js` writes solid `--launch-bg` `apple-touch-startup-image` PNGs per iPhone size into
+  `src/icons/startup/` (`launch-gray-*`; a new color needs new file names, iOS keeps old pictures), a light and a dark
+  `prefers-color-scheme` link each; re-run it when a new iPhone size comes out or the color changes. Both start pages
+  also have `<meta name="color-scheme" content="dark">`. Manifest `background_color` = `--launch-bg`. (Black throughout
+  was tried first, `d7b349d`/`e22bfbe`: iOS's gray still blinked between.)
 - **Home signed out, or after the 12-hour sign-in** (owner 2026-10-26: Home's empty page flashed before Sign In's launch
   screen): Home's `<head>` script sends it on to Sign In before anything draws. Safari keeps building and drawing a page
   after `location.replace` until the next one arrives (Chrome stops at once), so it also sets `html.leaving` (style.css
