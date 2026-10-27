@@ -26,11 +26,15 @@
 <title>Smart Scan — Sign In</title>
 <link rel="stylesheet" href="style.css">
 <script>
-  // Already signed in (the home-screen app can open here): on to Home before anything is drawn, so Sign In never
-  // flashes up and Home plays the launch screen (owner 2026-10-26). Same check as getSession() in api.js.
+  // Already signed in (the home-screen app can open here): on to Home, so Sign In never flashes up and Home plays the
+  // launch screen (owner 2026-10-26). Same check as getSession() in api.js. Safari keeps building and drawing this page
+  // until Home arrives, so html.leaving hides it (style.css) and keeps splash.js from using up its once-per-open turn here.
   try {
     const saved = JSON.parse(localStorage.getItem('smartScanSession') || 'null');
-    if (saved && new Date(saved.expiresAt) > new Date()) location.replace('index.html');
+    if (saved && new Date(saved.expiresAt) > new Date()) {
+      document.documentElement.classList.add('leaving');
+      location.replace('index.html');
+    }
   } catch (e) {}
 </script>
 </head>

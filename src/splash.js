@@ -10,6 +10,7 @@
   window.splashReady = () => {};
   const script = document.currentScript;
   const KEY = 'smartScanSplash';
+  if (document.documentElement.classList.contains('leaving')) return; // Sign In passing a signed-in user on to Home.
   try {
     if (sessionStorage.getItem(KEY)) return;
     if (script.hasAttribute('data-needs-session') && !localStorage.getItem('smartScanSession')) return;

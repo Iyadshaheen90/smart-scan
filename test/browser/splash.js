@@ -95,6 +95,24 @@ const freshOpen = async (page, url) => {
   assert.equal(await page.evaluate(() => sessionStorage.getItem('drewSignIn')), null, 'Sign In never drew');
   await app.close();
 
+  // Safari keeps building and drawing Sign In until Home arrives (Chrome stops at once), which still flashed Sign In and
+  // used up the launch screen there (owner 2026-10-26). Holding the switch back here plays that out: nothing of Sign In
+  // shows, its launch screen doesn't start, and Home still gets its turn.
+  app = await openApp({ role: 'owner', splash: true, handle: async () => ({}) });
+  ({ page, base } = app);
+  await page.evaluateOnNewDocument(() => {
+    if (location.pathname.endsWith('login.html')) {
+      navigation.addEventListener('navigate', (e) => { window.heldBack = e.destination.url; e.preventDefault(); });
+    }
+  });
+  await freshOpen(page, base + 'login.html');
+  await sleep(300);
+  assert.deepEqual(await page.evaluate(() => ({ heldBack: window.heldBack.replace(location.origin, ''),
+    signInShows: getComputedStyle(document.body).display !== 'none', splash: Boolean(document.querySelector('.splash')),
+    turnUsed: sessionStorage.getItem('smartScanSplash') })),
+  { heldBack: '/index.html', signInShows: false, splash: false, turnUsed: null });
+  await app.close();
+
   // ---- Small phone (320 wide): the logo fits ----
   app = await openApp({ role: 'owner', splash: true, handle: async () => { await sleep(5000); return {}; } });
   ({ page, base } = app);
