@@ -512,9 +512,9 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   for tests), **public sign-up off**. Known difference: the owner setting a password doesn't sign that person out (Sheets
   ended their sessions); turning them off does, on their next request.
   **Before cutover:** custom SMTP for the emails (Supabase's own mailer only sends to the project's team, a few an hour) and
-  email templates in the store's words; the prod project; the owner's list of users + emails for the import. After the
+  email templates in the store's words; the prod project. (Users + emails: given 2026-10-27, in `~/.smart-scan/members.json`.) After the
   switch the owner enters the retailer number again on More (the Sheets copy is in Script Properties; the import can't read it).
-- **Password rule (owner 2026-10-27), on both backends:** a new password needs at least 8 characters, a capital letter,
+- **Password rule (owner 2026-10-27), on both backends (live on Sheets: backend @40, sw v44; database: dev only so far):** a new password needs at least 8 characters, a capital letter,
   a lowercase letter, a number and one of `? ! @ # $ % &` (other signs allowed but don't count). Written three times with
   the same words — `passwordProblem` / `checkNewPassword` / `PASSWORD_RULE` in api.js, `validateNewPassword` in Auth.js
   (claimOwner, createUser, resetPassword, changePassword), `passwordProblem` in the members Edge Function — and
@@ -543,8 +543,10 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   the sheets' order so id order matches row order). Packs: live from the newest SlotState, ended from every month's
   PackHistory; activation ticket = the first close line's previous ticket; ended_at = the ending close line's logged_at.
   Prod import (real emails, invites) still to build at cutover.
-- **Next:** the import (Sep–Nov sheets → the database, members with their emails), prod project + SMTP, a full side-by-side
-  run with `BACKEND = 'supabase'`. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
+- **Next (owner's decisions pending):** prod project (Supabase Pro $25/month — owner's OK before creating it; its auth
+  settings from config.toml, incl. the password rule), custom SMTP (owner picks the service and sender address), the prod
+  import (real emails from `~/.smart-scan/members.json`; invite emails vs owner-set first passwords is the owner's call),
+  a full side-by-side run with `BACKEND = 'supabase'`, then the final Nov export + import after the Nov 30 close. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
 - **After the cutover: App Store + Google Play launch** (plan `~/.claude/plans/smart-scan-app-store-launch.md`; Phase A, the
   third-party wording, is done). Owner's choices: billing both (in-app via RevenueCat + Stripe web checkout), an LLC as the
   seller, California first then more states, keep the name Smart Scan. Still open: price and trial; whether Route 66 Liquor
