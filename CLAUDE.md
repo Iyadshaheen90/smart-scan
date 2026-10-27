@@ -238,6 +238,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   PNGs per iPhone size into `src/icons/startup/` and prints the `<link>`s that sit in index.html and login.html; re-run
   it if `--bg` changes or a new iPhone size comes out. Manifest `background_color` is `--bg` too. iOS may only pick these
   up when the app is added to the home screen again.
+  The owner's home-screen app opens on **Sign In** (added from it): signed in, Sign In's `<head>` script sends it on to
+  Home before anything draws (otherwise Sign In used up the splash flag, flashed, and Home had no launch screen).
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not Closed / Closed chip, big number = last

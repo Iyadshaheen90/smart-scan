@@ -25,6 +25,14 @@
 <meta name="apple-mobile-web-app-title" content="Smart Scan">
 <title>Smart Scan — Sign In</title>
 <link rel="stylesheet" href="style.css">
+<script>
+  // Already signed in (the home-screen app can open here): on to Home before anything is drawn, so Sign In never
+  // flashes up and Home plays the launch screen (owner 2026-10-26). Same check as getSession() in api.js.
+  try {
+    const saved = JSON.parse(localStorage.getItem('smartScanSession') || 'null');
+    if (saved && new Date(saved.expiresAt) > new Date()) location.replace('index.html');
+  } catch (e) {}
+</script>
 </head>
 <body>
   <script src="splash.js"></script>

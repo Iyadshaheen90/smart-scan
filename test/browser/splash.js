@@ -78,6 +78,19 @@ const freshOpen = async (page, url) => {
   await freshOpen(page, base + 'index.html');
   await page.waitForFunction(() => !document.querySelector('.splash'), { timeout: 10000 });
   assert.ok(Date.now() - t1 < 11000 && Date.now() - t1 > 7500, `closed at the 8 s limit (${Date.now() - t1} ms)`);
+
+  // Signed in and the app opens on Sign In (owner 2026-10-26: Sign In flashed up): straight on to Home before Sign In
+  // draws anything, and Home plays the launch screen.
+  answerAt = 3000;
+  await page.evaluateOnNewDocument(() => {
+    if (location.pathname.endsWith('login.html')) {
+      window.addEventListener('DOMContentLoaded', () => { sessionStorage.setItem('drewSignIn', '1'); });
+    }
+  });
+  await freshOpen(page, base + 'login.html');
+  await page.waitForFunction(() => location.pathname.endsWith('index.html'));
+  assert.equal(await up(page), true, 'Home plays the launch screen after Sign In passes it on');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('drewSignIn')), null, 'Sign In never drew');
   await app.close();
 
   // ---- Small phone (320 wide): the logo fits ----
