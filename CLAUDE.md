@@ -498,6 +498,11 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   switch the owner enters the retailer number again on More (the Sheets copy is in Script Properties; the import can't read it).
 - **Next:** the import (Sep–Nov sheets → the database, members with their emails), prod project + SMTP, a full side-by-side
   run with `BACKEND = 'supabase'`. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
+- **After the cutover: App Store + Google Play launch** (plan `~/.claude/plans/smart-scan-app-store-launch.md`; Phase A, the
+  third-party wording, is done). Owner's choices: billing both (in-app via RevenueCat + Stripe web checkout), an LLC as the
+  seller, California first then more states, keep the name Smart Scan. Still open: price and trial; whether Route 66 Liquor
+  stays on the web app. Needs self sign-up + setup wizard, subscriptions, in-app account deletion, privacy/terms pages, a
+  demo store, Capacitor apps with cloud builds (this Mac can't run Xcode 26).
 
 ## Data (one spreadsheet per month, "Smart Scan — YYYY-MM", in Drive folder "Smart Scan Monthly Sheets")
 
