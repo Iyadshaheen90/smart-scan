@@ -514,7 +514,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   **Before cutover:** custom SMTP for the emails (Supabase's own mailer only sends to the project's team, a few an hour) and
   email templates in the store's words; the prod project; the owner's list of users + emails for the import. After the
   switch the owner enters the retailer number again on More (the Sheets copy is in Script Properties; the import can't read it).
-- **The import (built 2026-10-27, checked on made-up data; not yet run on the real sheets):** Sheets `exportMonth`
+- **The import (built 2026-10-27; real Sep + Oct exported and checked 2026-10-27 10:22: no problems, 1221 close lines, 67 packs, 25 reads identical; totals matched the owner's phone):** Sheets `exportMonth`
   (`Export.js`, owner only, read only, no page calls it): no label → the month list; a label → every tab as plain rows,
   dates as store-time text, no Sessions or password columns. `scripts/import-sheets.js export` signs in as the owner
   (password typed, hidden; run it in Terminal, not with `!`), saves each month to `~/.smart-scan/export/` (outside the
