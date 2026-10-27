@@ -242,8 +242,13 @@ Frontend (`src/`, plain HTML + JS, no build):
   it fades, so the gray comes back under the fade). `tools/startup-images.js` writes solid black
   `apple-touch-startup-image` PNGs per iPhone size into `src/icons/startup/` (`launch-black-*`; a new color needs new
   file names, iOS keeps the old pictures) and prints the `<link>`s for index.html and login.html; re-run it when a new
-  iPhone size comes out. Manifest `background_color` is black too. iOS may only pick up the pictures when the app is
-  added to the home screen again.
+  iPhone size comes out. Each picture has a light and a dark `prefers-color-scheme` link (exactly one matches either
+  way), and both start pages have `<meta name="color-scheme" content="dark">` before style.css. Manifest
+  `background_color` is black too. iOS may only pick up the pictures when the app is added to the home screen again.
+  **Open (2026-10-27 recording):** black zoom, then 2 frames of iOS's own neutral gray (~#1A191A, not an app color;
+  no reload, no app page) when the page drew ~0.5 s after the tap (an open right after re-adding, from the network),
+  then the black launch screen. The scheme links + meta are the try for it; if still there on later opens (saved copy),
+  next idea: match the launch color to that gray instead of black.
 - **Home signed out, or after the 12-hour sign-in** (owner 2026-10-26: Home's empty page flashed before Sign In's launch
   screen): Home's `<head>` script sends it on to Sign In before anything draws. Safari keeps building and drawing a page
   after `location.replace` until the next one arrives (Chrome stops at once), so it also sets `html.leaving` (style.css

@@ -50,6 +50,9 @@ fs.mkdirSync(dir, { recursive: true });
 const links = SCREENS.map(([w, h, dpr]) => {
   const file = `launch-black-${w * dpr}x${h * dpr}.png`;
   fs.writeFileSync(path.join(dir, file), solidPng(w * dpr, h * dpr, BG));
-  return `<link rel="apple-touch-startup-image" href="icons/startup/${file}" media="(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${dpr}) and (orientation: portrait)">`;
+  // One link per color scheme (same picture), so exactly one matches in dark mode and in light mode: iOS may skip a
+  // picture whose media doesn't name the scheme (owner 2026-10-27: iOS's own gray showed between the black zoom and
+  // the page, so our black picture wasn't on screen).
+  return ['light', 'dark'].map((scheme) => `<link rel="apple-touch-startup-image" href="icons/startup/${file}" media="(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${dpr}) and (orientation: portrait) and (prefers-color-scheme: ${scheme})">`).join('\n');
 });
 console.log(links.join('\n'));
