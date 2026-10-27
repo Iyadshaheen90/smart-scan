@@ -13,13 +13,6 @@ const state = (page) => page.evaluate(() => {
   const code = document.querySelector('.splash-code');
   return code ? { stretched: code.classList.contains('stretched'), scanning: code.classList.contains('scanning') } : null;
 });
-const LAUNCH = 'rgb(26, 25, 26)'; // --launch-bg
-const GRAY = 'rgb(14, 16, 16)'; // --bg
-const bgs = (page) => page.evaluate(() => {
-  const bg = (el) => (el ? getComputedStyle(el).backgroundColor : null);
-  return { launching: document.documentElement.classList.contains('launching'), html: bg(document.documentElement),
-    body: bg(document.body), splash: bg(document.querySelector('.splash')) };
-});
 const freshOpen = async (page, url) => {
   await page.evaluate(() => sessionStorage.removeItem('smartScanSplash'));
   await page.goto(url);
@@ -51,9 +44,6 @@ const freshOpen = async (page, url) => {
   const t0 = Date.now();
   await freshOpen(page, base + 'index.html');
   assert.equal(await up(page), true, 'shown on opening Home');
-  // iOS's own gray while it's up, page and launch screen alike (owner 2026-10-27: iOS shows that gray between its
-  // opening zoom and the page's first frame on every open; a black launch screen blinked black → gray → black).
-  assert.deepEqual(await bgs(page), { launching: true, html: LAUNCH, body: LAUNCH, splash: LAUNCH }, 'launch gray while opening');
   await sleep(Math.max(0, 380 - (Date.now() - t0))); await shot(page, 'splash-1-letters');
   assert.equal(await page.evaluate(() => Boolean(document.querySelector('.splash-cursor'))), true, 'cursor while the letters come in');
   // Each stage is waited for (a busy test machine runs late), then checked in order.
@@ -77,14 +67,12 @@ const freshOpen = async (page, url) => {
   await page.waitForFunction(() => !document.querySelector('.splash'), { timeout: 5000 });
   assert.ok(Date.now() - t0 > answerAt, 'closed after the answer');
   assert.ok(Date.now() - t0 < 7000, `closed on the answer, not at the limit (${Date.now() - t0} ms)`);
-  assert.deepEqual(await bgs(page), { launching: false, html: GRAY, body: GRAY, splash: null }, 'the app\'s own gray after');
 
   // Same session: another page and Home again show nothing.
   await page.goto(base + 'more.html');
   assert.equal(await up(page), false, 'not on other pages');
   await page.goto(base + 'index.html');
   assert.equal(await up(page), false, 'once per app open');
-  assert.deepEqual(await bgs(page), { launching: false, html: GRAY, body: GRAY, splash: null }, 'no black without it');
 
   // A server that never answers: gone by 8 s anyway.
   answerAt = 60000;
@@ -114,7 +102,6 @@ const freshOpen = async (page, url) => {
   await freshOpen(page, base + 'index.html');
   await page.waitForFunction(() => location.pathname.endsWith('login.html'));
   assert.equal(await up(page), true, 'Sign In shows it');
-  assert.equal((await bgs(page)).html, LAUNCH, 'Sign In: launch gray while opening');
   await page.waitForFunction(() => !document.querySelector('.splash'), { timeout: 7000 });
   assert.ok(Date.now() - t2 > 2000 && Date.now() - t2 < 6000, `Sign In: closes after the animation, no waiting (${Date.now() - t2} ms)`);
 

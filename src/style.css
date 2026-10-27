@@ -4,7 +4,6 @@
 :root {
   color-scheme: dark;
   --bg: #0e1010;
-  --launch-bg: #1a191a; /* launch screen: iOS's own gray between its opening zoom and the page (owner 2026-10-27) */
   --card: #181b1b;
   --card-2: #1f2323;
   --border: #2a2f2f;
@@ -447,15 +446,13 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
    letter at a time behind a blinking green cursor; then a barcode slides open in the corner and a green beam sweeps
    across it. Covers the page until it fades out. */
 .splash {
-  position: fixed; inset: 0; z-index: 1000; background: var(--launch-bg);
+  position: fixed; inset: 0; z-index: 1000; background: var(--bg);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom));
   transition: opacity 0.35s ease;
   --cell: calc(min(100vw - 48px, 400px) / 5);
 }
 .splash.out { opacity: 0; pointer-events: none; }
-/* Opening the app (index.html / login.html <head>): --launch-bg under the launch screen until it fades into the page. */
-html.launching, html.launching body { background: var(--launch-bg); }
 /* Home on its way to Sign In (index.html): only the background shows until Sign In arrives. */
 html.leaving body { display: none; }
 .splash-logo {

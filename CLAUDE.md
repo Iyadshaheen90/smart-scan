@@ -234,18 +234,17 @@ Frontend (`src/`, plain HTML + JS, no build):
   Tracking" and a Loading bar at the bottom. Closes once the animation has played (~2.7 s) **and** the page is ready: Home (`data-wait`)
   calls `splashReady()` when its first `loadStatus()` finishes; never past 8 s. Reduced motion: shown whole, ~0.6 s.
   Browser tests skip it (harness sets the flag) unless `openApp({ splash: true })`.
-- **Launch color** (owner 2026-10-26/27: a flash on opening the home-screen app; never in Safari). Screen recordings
-  read frame by frame (python3 cv2, frames in order): iOS zooms the black icon open in **black**, then on **every** open
-  (10 of 10, warm or cold) shows its own neutral gray (~#1A191A, measured) until the page's first frame; the app can't
-  draw before that. With an app-colored launch, iOS's gray sat between: black → gray → black (or → --bg) blinked. So the
-  launch screen and the page under it use `--launch-bg` = that gray: black zoom, then one steady gray, then the launch
-  screen fades into Home (--bg). `html.launching` (set in the `<head>` of index.html and login.html when the launch
-  screen hasn't played this session; splash.js takes it off as it fades) keeps the page that color.
-  `tools/startup-images.js` writes solid `--launch-bg` `apple-touch-startup-image` PNGs per iPhone size into
-  `src/icons/startup/` (`launch-gray-*`; a new color needs new file names, iOS keeps old pictures), a light and a dark
-  `prefers-color-scheme` link each; re-run it when a new iPhone size comes out or the color changes. Both start pages
-  also have `<meta name="color-scheme" content="dark">`. Manifest `background_color` = `--launch-bg`. (Black throughout
-  was tried first, `d7b349d`/`e22bfbe`: iOS's gray still blinked between.)
+- **iPhone launch pictures** (owner 2026-10-26: a flash on opening the app): before the first page draws, iOS shows a
+  blank screen or a saved picture of the app from an earlier open unless an `apple-touch-startup-image` fits the phone. `tools/startup-images.js` writes solid `--bg`
+  PNGs per iPhone size into `src/icons/startup/` and prints the `<link>`s that sit in index.html and login.html; re-run
+  it if `--bg` changes or a new iPhone size comes out. Manifest `background_color` is `--bg` too. iOS may only pick these
+  up when the app is added to the home screen again.
+  **Opening gray blink: iOS's, left as is (owner 2026-10-27).** Screen recordings read frame by frame (python3 cv2,
+  frames in order) showed no Home/header before the launch screen. Only on the home-screen app (never in Safari), on
+  every open, iOS zooms the black icon open in black and then shows its own gray (~#1A191A) until the page's first
+  frame; a web page can't draw before that. Tried and reverted at the owner's request: a black launch (still blinked
+  black → gray → black) and a launch in iOS's gray (owner didn't like it). Don't retry those. The native app (App Store
+  plan, Phase C) fixes it with a real launch screen in --bg.
 - **Home signed out, or after the 12-hour sign-in** (owner 2026-10-26: Home's empty page flashed before Sign In's launch
   screen): Home's `<head>` script sends it on to Sign In before anything draws. Safari keeps building and drawing a page
   after `location.replace` until the next one arrives (Chrome stops at once), so it also sets `html.leaving` (style.css
@@ -575,7 +574,7 @@ node test/browser/close-yesterday.js      # Close Yesterday: Home button (employ
 node test/parity/missed-day.js            # missed day + Close Yesterday on Sheets vs Supabase: offered/blocked/refused, totals incl. the missed day's sold outs, reopen, full pack undo
 node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
 node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
-node test/browser/splash.js               # launch screen: black while up then gray, letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
+node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
