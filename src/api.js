@@ -310,7 +310,8 @@ function sendPendingClose() {
       const pending = getPendingClose();
       if (!pending) return null;
       try {
-        const summary = await api('submitClose', { closeId: pending.closeId, date: pending.date, entries: pending.entries });
+        const summary = await api('submitClose', { closeId: pending.closeId, date: pending.date, entries: pending.entries,
+          ...(pending.late ? { late: true } : {}) });
         clearPendingClose();
         return summary;
       } catch (err) {

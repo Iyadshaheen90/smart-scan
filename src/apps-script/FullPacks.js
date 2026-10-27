@@ -70,14 +70,15 @@ function sellFullPack(user, req) {
   });
 }
 
-// Puts a full pack sale back (pack returns to the back), while its sales day isn't closed yet.
+// Puts a full pack sale back (pack returns to the back), while no close has counted it yet (its day's, or the next one
+// after a missed day).
 function undoFullPackSale(req) {
   const packKey = String(req.packKey || '');
   return withLock(() => {
     const isSale = (r) => r.pack_key === packKey && r.close_type === FULL_PACK_TYPE;
     const sale = readTable(monthSheet('DailyCloseLog')).find(isSale);
     if (!sale) throw new ApiError('nothing_to_undo', `Pack ${packKey} wasn't sold as a full pack this month.`);
-    if (summaryOn(dateLabel(sale.close_date))) {
+    if (coveredByClose(dateLabel(sale.close_date))) {
       throw new ApiError('already_closed', "That day's close already counted this sale, so it can't be undone.");
     }
     const gameNumber = packKey.split('-')[0];
@@ -109,7 +110,7 @@ function listFullPackSales() {
       ticketsPerPack: Number(r.tickets_sold),
       dollars: Number(r.dollars_sold),
       soldBy: String(r.performed_by || ''),
-      canUndo: !summaryOn(date),
+      canUndo: !coveredByClose(date),
     };
   }).reverse().sort((a, b) => b.date.localeCompare(a.date));
   return { ...fullPackTotals(rows), sales };

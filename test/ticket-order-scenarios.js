@@ -12,7 +12,8 @@ for (const f of ['Schema.js', 'Sheets.js', 'Tickets.js', 'Slots.js', 'Close.js',
 const OLD = { SlotConfig: 3, SlotState: 13, PackHistory: 12 };
 vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
   const sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h, OLD[n] ? h.slice(0, OLD[n]) : null, 100);
-  function monthSheet(n) { return sheets[n]; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet, OLD }));
+  function monthSheet(n) { return sheets[n]; }
+  function getCurrentMonth() { return { label: todayLabel().slice(0, 7) }; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet, OLD }));
 const S = vm.runInContext('sheets', ctx);
 for (let slot = 1; slot <= 4; slot++) { S.SlotConfig.rows.push([1, slot, 20]); S.SlotState.rows.push([1, slot]); }
 S.ReserveInventory.rows.push(['1747', 20, 30, 10, 300]);

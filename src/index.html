@@ -39,6 +39,11 @@
     </div>
   </div>
 
+  <!-- Close Yesterday (owner 2026-10-26; owner and employees): the morning after a day nobody closed, until 12:00 PM.
+       blocked: something already changed today, so only the reason shows. -->
+  <a id="closeYesterdayBtn" class="action-main action-month hidden" href="close.html?yesterday=1"><span data-icon="check"></span><span id="closeYesterdayText">Close Yesterday</span></a>
+  <p class="sub hidden" id="closeYesterdayNote"></p>
+
   <!-- Owner -->
   <div class="owner-only hidden">
     <!-- From the 1st until the owner starts the new month's spreadsheet; gone once it's started. -->
@@ -109,6 +114,18 @@
     const HOME_CACHE_KEY = `smartScanOwnerHome:${session && session.username}`;
 
     // "2026-09-28" -> "Mon, Sep 28"
+    // Close Yesterday: a button while yesterday can still be closed, the reason when it can't; nothing otherwise.
+    function showCloseYesterday(late) {
+      const open = Boolean(late && !late.closed && !late.blocked);
+      $('closeYesterdayBtn').classList.toggle('hidden', !open);
+      $('closeYesterdayNote').classList.toggle('hidden', !late || Boolean(late.closed));
+      if (!late || late.closed) return;
+      $('closeYesterdayText').textContent = `Close Yesterday · ${dayName(late.date)}`;
+      $('closeYesterdayNote').textContent = open
+        ? `Nobody closed yesterday. Scan every slot before selling any scratchers today, before ${late.until}.`
+        : `Yesterday (${dayName(late.date)}) wasn't closed. ${late.blocked}`;
+    }
+
     function dayName(label) {
       const [y, m, d] = label.split('-').map(Number);
       return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -185,6 +202,7 @@
       } else {
         try {
           const status = await api('closeStatus');
+          showCloseYesterday(status.closeYesterday);
           updateSessionPermissions(status.permissions);
           showExtraActions(getSession());
           $('todayLabel').textContent = `Today · ${dayName(status.today)}`;
@@ -204,6 +222,8 @@
     // fresh: just loaded. Otherwise it's the last load saved on this phone: dimmed until the fresh one
     // arrives, and if it's from an earlier day, that day's close is now the last close.
     function showOwnerHome(home, fresh) {
+      // Only from a fresh answer: a saved one may be from before yesterday was closed, or past noon.
+      showCloseYesterday(fresh ? home.closeYesterday : null);
       $('statusCard').classList.toggle('stale', !fresh);
       document.querySelector('.tile-grid').classList.toggle('stale', !fresh);
       let { closed, lastClose } = home;

@@ -97,7 +97,23 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Close Day: sold = last top ticket − today's top ticket. A pack activated today counts from its activation ticket.
 - Ending a pack logs sales immediately in `DailyCloseLog`: sold out = all remaining; returned = tickets above the
   scanned top ticket (the rest go back). Close type `sold_out` / `returned`; Close Day rows are `close`.
-- Day totals (`DailySummary`) = every `DailyCloseLog` row dated that day, so mid-day sold-outs are included.
+- Day totals (`DailySummary`) = every `DailyCloseLog` row dated **after the previous close up to that day** (`buildSummary`,
+  `lastCloseBefore`), so mid-day sold-outs are included, and a day nobody closed has its sold outs, returns and full pack
+  sales counted by the next close (owner 2026-10-26; its scanned sales already were, since tickets count from the last
+  close). A full pack sale's Undo stops once any close has counted it (`coveredByClose`: a close on that day or later).
+- **Close Yesterday** (owner 2026-10-26: a broken or forgotten phone; owner **and** employees): the morning after a day
+  nobody closed, until **12:00 PM** (`CLOSE_YESTERDAY_UNTIL`), that day can be closed late: `close.html?yesterday=1` (own
+  draft `smartScanLateDraft:<user>`) → `submitClose { late: true, date: yesterday }`, saved under yesterday (close rows,
+  `last_close_date`, summary; a slot marked Sold out in it ends yesterday: `endPackInSlot(..., onDate)`). Refused
+  (`too_late`) once today is closed, from noon, on Sheets when yesterday is in last month's finished spreadsheet, or once
+  something changed today (`changedToday`: a pack put in today, any log row dated today — sold out / returned / full pack —
+  or a shift close today), since those would mix today's sales into yesterday's. `closeStatus.closeYesterday` (so also
+  `ownerHome`) = `{ date, until, blocked }` while it applies (blocked = the reason, else null), `{ date, until, closed }` for
+  this morning's late close, else null. Home shows an amber **Close Yesterday · Mon, Oct 26** button (both roles; owner from
+  a fresh answer only) with a note, or just the note with the reason when blocked; Close Day shows a banner linking to it.
+  A late close's summary has `closedLate` ("Submitted the next morning at 9:00 AM by e", "sold that day"). The owner can
+  reopen it (`reopenClose { date: yesterday }`) on the same terms; an on-time close of yesterday can't be reopened.
+  The unsent-close queue carries `late`. Nothing changes if nobody uses it: tonight's close then counts both days.
 - A pack ended **after** today's close is logged to the next day (`salesDate()`).
 - One close per day (`already_closed`); the owner can reopen it (`reopenClose`).
 - **Shift close** (optional; owner's request 2026-09-30; `Shifts.js`, `close.html?shift=1`): whoever ends a shift scans
@@ -134,6 +150,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   isn't closed. If a replacement went in, undo that activation first.
 - Swap/move is its own undo (swap the same two slots again).
 - Wrong activation date → set it again on the slot page (`setActivationDate`).
+- Close Yesterday done wrong → the owner reopens it on Close Yesterday (before noon, today not closed).
 - Wrong pack size → `setPackSize` (refused if a live pack's top ticket wouldn't fit). Wrong slot price → `setSlotPrice`.
 - Wrong close → `reopenClose` restores every top ticket (found by pack, so moves after the close are fine).
 - Close submitted by mistake while still unsent → "Stop sending and change scans" on Close Day.
@@ -428,7 +445,10 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   false), plus the database-only `monthWorkbook` (a month's data for the Excel download); listUsers, setUserActive,
   setUserPermissions (`test/parity/users.js`; listUsers adds `email` and `signedIn`); getRetailerNumber, setRetailerNumber
   and theftReport's `retailerNumber` (`test/parity/retailer.js`); setActivationDate (migration 0015,
-  `test/parity/activation-date.js`). The retailer number is **encrypted in Supabase Vault**
+  `test/parity/activation-date.js`); missed days + Close Yesterday (migration 0016: `build_summary` window,
+  `covered_by_close`, `changed_today`, `close_yesterday_json`, `submit_close` late, `reopen_close` date, `end_pack_in_slot`
+  on_date, `summary_json` closedLate; `test/parity/missed-day.js`). Known difference: the database also offers it on the 1st
+  after a month start (no spreadsheets). The retailer number is **encrypted in Supabase Vault**
   (one secret per store, `retailer_number:<store id>`, migration 0014), never in a table. Vault is readable only by postgres,
   so `app.store_retailer_number()` / `app.save_retailer_number()` / `app.forget_retailer_number()` are the one exception
   owned by postgres: they touch only the entered store's secret and only smart_scan_api may call them. `public.theft_report`
@@ -527,6 +547,8 @@ node test/browser/reports.js              # Reports tab: list with numbers, Ship
 node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, PDF (bytes, xref, multi-page), print fallback, Try again, employee without $, no permission → home
 node test/browser/month-download.js       # Months on the database backend: Download Month makes the Excel file (tabs, rows, $ format), share or download; no Start
 node test/browser/theft-fab.js            # Home's red Theft Report button: owner + employees with the permission, above the tab bar, never hides the last row, opens the report
+node test/browser/close-yesterday.js      # Close Yesterday: Home button (employee/owner), Close Day banner, late close + summary, owner reopen, blocked reason, gone at noon (real backend code)
+node test/parity/missed-day.js            # missed day + Close Yesterday on Sheets vs Supabase: offered/blocked/refused, totals incl. the missed day's sold outs, reopen, full pack undo
 node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
 node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
 node test/browser/splash.js               # launch screen: typing, stretch, beam, waits for Home's numbers, 8 s limit, once per open, Sign In, small phone, reduced motion

@@ -11,7 +11,8 @@ vm.createContext(ctx);
 for (const f of ['Schema.js', 'Sheets.js', 'Tickets.js', 'Slots.js', 'Close.js', 'Backstock.js', 'FullPacks.js', 'Shifts.js', 'Permissions.js', 'WebApp.js']) vm.runInContext(fs.readFileSync(`${dir}/${f}`, 'utf8'), ctx);
 vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
   const sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h, n === 'SlotState' ? h.slice(0, 10) : null);
-  function monthSheet(n) { return sheets[n]; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet }));
+  function monthSheet(n) { return sheets[n]; }
+  function getCurrentMonth() { return { label: todayLabel().slice(0, 7) }; }`, Object.assign(ctx, { fakeSheetFn: fakeSheet }));
 const S = vm.runInContext('sheets', ctx);
 S.SlotConfig.rows.push([1, 1, 20], [1, 2, 10]);
 S.SlotState.rows.push([1, 1], [1, 2]);
@@ -365,6 +366,8 @@ console.log('game ended scenarios pass');
 {
   const saved = globalThis.TODAY; globalThis.TODAY = '2026-10-20';
   S.ReserveInventory.rows.push(['3333', 20, 30, 2, 60]);
+  // (Earlier scenarios left sales on days nobody closed; a close counts those too, so the sales here are what's added.)
+  const salesBefore = run(`buildSummary('2026-10-20', owner)`).total_dollars_sold;
   const back = () => run('findReserve("3333")');
   assert.deepEqual([...run('SIGNED_IN_ACTIONS.sellFullPack.allow')], ['full_pack_sale']); assert.equal(run('SIGNED_IN_ACTIONS.undoFullPackSale.owner'), true);
   assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '3333' })`)), 'bad_request');          // pack number needed
@@ -387,7 +390,7 @@ console.log('game ended scenarios pass');
   r = run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000003' })`); assert.equal(r.after, 0);
   assert.equal(code(() => run(`sellFullPack(owner, { gameNumber: '3333', packNumber: '0000004' })`)), 'none_in_back');   // never below 0
   // in the day's totals, and listed on its own
-  assert.equal(run(`buildSummary('2026-10-20', owner)`).total_dollars_sold, 1200);
+  assert.equal(run(`buildSummary('2026-10-20', owner)`).total_dollars_sold, salesBefore + 1200);
   let list = run('listFullPackSales()');
   assert.deepEqual([list.count, list.dollars], [2, 1200]);
   assert.equal(JSON.stringify(list.sales.map((x) => [x.packNumber, x.price, x.ticketsPerPack, x.dollars, x.date, x.canUndo])),

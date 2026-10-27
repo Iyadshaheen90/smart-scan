@@ -270,7 +270,8 @@ function requireEndPermission(user, reason) {
 // Logs the pack's sales since the last close, records it in PackHistory, and clears the slot.
 // Sold out: every remaining ticket sold. Returned: tickets above the scanned top ticket sold,
 // the rest go back to the lottery. Call inside withLock.
-function endPackInSlot(user, state, reason, topTicket) {
+// onDate: Close Yesterday marking a pack sold out — its sales and end date are yesterday's, not today's.
+function endPackInSlot(user, state, reason, topTicket, onDate) {
   const exposed = Number(state.current_exposed_ticket_number);
   const price = Number(state.price_per_ticket);
   const order = orderOf(state);
@@ -288,10 +289,10 @@ function endPackInSlot(user, state, reason, topTicket) {
     remaining = ticketsLeft(order, topTicket, size);
   }
   const soldNow = ticketsLeft(order, exposed, size) - remaining;
-  const today = todayLabel();
+  const today = onDate || todayLabel();
 
   appendObject(closeLogSheet(), {
-    close_date: salesDate(),
+    close_date: onDate || salesDate(),
     box: Number(state.box),
     slot_number: Number(state.slot_number),
     pack_key: state.pack_key,

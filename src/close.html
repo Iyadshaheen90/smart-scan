@@ -23,8 +23,18 @@
       document.currentScript.previousElementSibling.dataset.title = 'Close Shift';
       document.title = 'Smart Scan — Close Shift';
     }
+    // close.html?yesterday=1 is Close Yesterday (owner 2026-10-26): the morning after a day nobody closed (a broken or
+    // forgotten phone), anyone can close that day late, before 12:00 PM and before anything changes today.
+    const LATE_MODE = !SHIFT_MODE && new URLSearchParams(location.search).get('yesterday') === '1';
+    if (LATE_MODE) {
+      document.currentScript.previousElementSibling.dataset.title = 'Close Yesterday';
+      document.title = 'Smart Scan — Close Yesterday';
+    }
   </script>
   <p class="sub" id="dateLine">Loading…</p>
+
+  <!-- Close Day: yesterday wasn't closed and still can be (Close Yesterday). -->
+  <a id="lateBanner" class="message banner hidden" href="close.html?yesterday=1"></a>
 
   <!-- Today is already closed. -->
   <div id="closedView" class="hidden">
@@ -109,8 +119,8 @@
     const pad3 = (n) => String(n).padStart(3, '0');
     const keyOf = (s) => `${s.box}-${s.slot}`;
     const packKeyOf = (s) => `${s.pack.gameNumber}-${s.pack.packNumber}`;
-    // A shift close has its own draft, so it never mixes with tonight's Close Day scans.
-    const DRAFT_KEY = `${SHIFT_MODE ? 'smartScanShiftDraft' : 'smartScanCloseDraft'}:${session ? session.username : ''}`;
+    // A shift close and Close Yesterday have their own drafts, so they never mix with tonight's Close Day scans.
+    const DRAFT_KEY = `${SHIFT_MODE ? 'smartScanShiftDraft' : LATE_MODE ? 'smartScanLateDraft' : 'smartScanCloseDraft'}:${session ? session.username : ''}`;
     const MODE_KEY = 'smartScanCloseMode';
     // Why a saved close was refused, shown again after the page reloads.
     const REFUSED_KEY = 'smartScanCloseRefused';
@@ -127,6 +137,9 @@
     try { mode = localStorage.getItem(MODE_KEY) === 'auto' ? 'auto' : 'hold'; } catch (e) {}
 
 
+    // The day this close is for: today, or yesterday on Close Yesterday.
+    const closeDay = () => (LATE_MODE ? status.closeYesterday.date : status.today);
+
     // --- Draft kept on the phone ---
 
     // Close shift: the shift's start point (the previous shift close today, or none), so a draft started
@@ -136,7 +149,7 @@
     function loadDraft() {
       try {
         const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
-        if (!draft || draft.date !== status.today || (draft.since || '') !== draftSince()) return {};
+        if (!draft || draft.date !== closeDay() || (draft.since || '') !== draftSince()) return {};
         shiftId = draft.shiftId || null;
         // Drop anything for a slot whose pack has changed since it was scanned, and old
         // "no sales" taps (that button was removed; those slots need a real scan).
@@ -152,7 +165,7 @@
 
     function saveDraft() {
       const kept = Object.fromEntries(Object.entries(entries).filter(([, e]) => e.type !== 'sold_out_earlier'));
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: status.today, since: draftSince(), shiftId, entries: kept })); } catch (e) {}
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: closeDay(), since: draftSince(), shiftId, entries: kept })); } catch (e) {}
     }
 
     // Close shift: a pack sold out at an earlier shift close today is filled in as "sold out · 0" (no scan).
@@ -283,7 +296,7 @@
       $('clearBtn').classList.toggle('hidden', !live.some((s) => entries[keyOf(s)] && entries[keyOf(s)].type !== 'sold_out_earlier'));
     }
 
-    const submitLabel = () => (SHIFT_MODE ? 'Submit Shift Close' : 'Submit Close');
+    const submitLabel = () => (SHIFT_MODE ? 'Submit Shift Close' : LATE_MODE ? "Submit Yesterday's Close" : 'Submit Close');
 
     function describe(entry) {
       if (entry.type === 'sold_out_earlier') return 'Sold Out · 0';
@@ -297,15 +310,18 @@
       $('pendingView').classList.add('hidden');
       $('closedView').classList.remove('hidden');
       const lines = [`<strong>Closed for ${summary.date}</strong>`];
-      if (summary.closedAt) lines.push(`Submitted at ${summary.closedAt}${summary.closedBy ? ` by ${summary.closedBy}` : ''}`);
-      lines.push(`${summary.ticketsSold} tickets sold today`);
+      // A Close Yesterday was submitted the morning after.
+      if (summary.closedAt) lines.push(`Submitted ${summary.closedLate ? 'the next morning ' : ''}at ${summary.closedAt}${summary.closedBy ? ` by ${navEscape(summary.closedBy)}` : ''}`);
+      const that = summary.closedLate ? 'that day' : 'today';
+      lines.push(`${summary.ticketsSold} tickets sold ${that}`);
       if ('dollarsSold' in summary) {
-        lines.push(`$${summary.dollarsSold.toLocaleString()} sold today`);
+        lines.push(`$${summary.dollarsSold.toLocaleString()} sold ${that}`);
         lines.push(`Inventory value: $${summary.inventoryValue.toLocaleString()} (live slots + back stock)`);
       }
       lines.push(`${summary.liveSlots} slots live`);
       $('summary').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
       $('reopenBtn').classList.toggle('hidden', !isOwner);
+      if (LATE_MODE) $('reopenBtn').textContent = "Reopen Yesterday's Close to Fix It";
     }
 
     // Close shift saved (or this employee's shift close today, shown again). note: an extra line under it.
@@ -328,8 +344,8 @@
       $('summary').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
     }
 
-    // Close shift isn't possible (the day is closed): just the reason and Done.
-    function renderShiftBlocked(text) {
+    // Close shift or Close Yesterday isn't possible: just the reason and Done.
+    function renderBlocked(text) {
       $('closedView').classList.remove('hidden');
       $('reopenBtn').classList.add('hidden');
       $('summary').textContent = text;
@@ -477,7 +493,7 @@
         return;
       }
       try {
-        savePendingClose({ closeId: newCloseId(), date: status.today, entries: payload });
+        savePendingClose({ closeId: newCloseId(), date: closeDay(), entries: payload, ...(LATE_MODE ? { late: true } : {}) });
       } catch (err) {
         showMessage(submitMessage, "This phone couldn't save the close. Try again.");
         return;
@@ -502,9 +518,11 @@
     }
 
     $('reopenBtn').addEventListener('click', async () => {
-      if (!confirm("Reopen today's close? Every slot goes back to its top ticket from before the close, and the day has to be closed again.")) return;
+      const which = LATE_MODE ? "yesterday's" : "today's";
+      if (!confirm(`Reopen ${which} close? Every slot goes back to its top ticket from before the close, and the day has to be closed again.`
+        + (LATE_MODE ? ` Close it again before ${status.closeYesterday.until}, or its sales count in tonight's close.` : ''))) return;
       try {
-        await whileBusy($('reopenBtn'), 'Reopening…', () => api('reopenClose'));
+        await whileBusy($('reopenBtn'), 'Reopening…', () => api('reopenClose', LATE_MODE ? { date: status.closeYesterday.date } : {}));
         location.reload();
       } catch (err) {
         showMessage($('message'), err.message);
@@ -526,7 +544,7 @@
         $('dateLine').textContent = `${status.today} · since ${status.since
           ? `the ${status.since.closedAt} shift close by ${status.since.closedBy}` : "last night's close"}`;
         if (status.dayClosed) {
-          renderShiftBlocked("Today is already closed, so there's no shift left to close. Shift closes are for before tonight's Close Day.");
+          renderBlocked("Today is already closed, so there's no shift left to close. Shift closes are for before tonight's Close Day.");
           return;
         }
         if (status.myShiftToday) {
@@ -542,11 +560,39 @@
         }
 
         status = await api('closeStatus');
-        $('dateLine').textContent = status.today;
-        if (status.closed) {
-          renderClosed(status.closed);
-          if (refused) showMessage($('message'), refused);
-          return;
+        const late = status.closeYesterday;
+        if (LATE_MODE) {
+          // Not the Close Day tab.
+          document.querySelectorAll('nav.tabbar a.active').forEach((a) => a.classList.remove('active'));
+          if (!late) {
+            $('dateLine').textContent = '';
+            renderBlocked(status.closed ? "Today is already closed, so yesterday's sales are counted in today's close."
+              : "There's no day to close late now. Close Yesterday is for the morning after a day nobody closed, until 12:00 PM.");
+            return;
+          }
+          $('dateLine').textContent = `Yesterday, ${late.date} · scan before selling any scratchers today (until ${late.until})`;
+          if (late.closed) {
+            renderClosed(late.closed);
+            if (refused) showMessage($('message'), refused);
+            return;
+          }
+          if (late.blocked) {
+            renderBlocked(late.blocked);
+            if (refused) showMessage($('message'), refused);
+            return;
+          }
+        } else {
+          $('dateLine').textContent = status.today;
+          if (status.closed) {
+            renderClosed(status.closed);
+            if (refused) showMessage($('message'), refused);
+            return;
+          }
+          // Yesterday wasn't closed and still can be: say so before tonight's scans start.
+          if (late && !late.closed && !late.blocked) {
+            $('lateBanner').textContent = `Nobody closed yesterday (${late.date}). Tap to close it first, before ${late.until} and before selling any scratchers today.`;
+            $('lateBanner').classList.remove('hidden');
+          }
         }
       }
       live = status.slots.filter((s) => s.pack).sort((a, b) => a.box - b.box || a.slot - b.slot);

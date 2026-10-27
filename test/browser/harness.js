@@ -82,7 +82,8 @@ function backendInVm(today, clock = () => '12:00:00') {
   }
   vm.runInContext(`class ApiError extends Error { constructor(c, m) { super(m); this.code = c; } }
     const sheets = {}; for (const [n, h] of Object.entries(MONTHLY_TABS)) sheets[n] = fakeSheetFn(h);
-    function monthSheet(n) { return sheets[n]; }`, ctx);
+    function monthSheet(n) { return sheets[n]; }
+    function getCurrentMonth() { return { label: todayLabel().slice(0, 7) }; }`, ctx);
   const sheets = vm.runInContext('sheets', ctx);
   const addRow = (tab, obj) => sheets[tab].rows.push(sheets[tab].rows[0].map((h) => (h in obj ? obj[h] : '')));
   // Results come back as plain JSON, as they would over the network.
