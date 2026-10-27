@@ -58,6 +58,8 @@ const SIGNED_IN_ACTIONS = {
   theftReport: { allow: ['theft_report'], run: (req, user) => theftReport(user, req) },
   getRetailerNumber: { owner: true, run: () => getRetailerNumber() },
   setRetailerNumber: { owner: true, run: (req) => setRetailerNumber(req.retailerNumber) },
+  // The move to the database (scripts/import-sheets.js): read only, no page calls it.
+  exportMonth: { owner: true, run: (req) => exportMonth(req.label) },
 };
 
 function doPost(e) {

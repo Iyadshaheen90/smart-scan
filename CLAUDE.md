@@ -514,6 +514,19 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   **Before cutover:** custom SMTP for the emails (Supabase's own mailer only sends to the project's team, a few an hour) and
   email templates in the store's words; the prod project; the owner's list of users + emails for the import. After the
   switch the owner enters the retailer number again on More (the Sheets copy is in Script Properties; the import can't read it).
+- **The import (built 2026-10-27, checked on made-up data; not yet run on the real sheets):** Sheets `exportMonth`
+  (`Export.js`, owner only, read only, no page calls it): no label → the month list; a label → every tab as plain rows,
+  dates as store-time text, no Sessions or password columns. `scripts/import-sheets.js export` signs in as the owner
+  (password typed, hidden; run it in Terminal, not with `!`), saves each month to `~/.smart-scan/export/` (outside the
+  repo); `check` maps them with `scripts/import-map.js` (pure; anything the database can't take is listed and stops it:
+  a pack ended twice, a close line for an unknown pack, a user without an email, a log row in the wrong month…) and runs
+  `scripts/import-compare.js`: a dev test store, made-up sign-ins for the same people, `service_import_store`, and every
+  read the pages use against the Sheets code over the exported months (vm) at the export's moment. Emails:
+  `~/.smart-scan/members.json` (owner gave them 2026-10-27; never in the repo). Migration 0017: `service_create_store`
+  (the real store at cutover) and `service_import_store` (service key only, one transaction, empty store only, rows in
+  the sheets' order so id order matches row order). Packs: live from the newest SlotState, ended from every month's
+  PackHistory; activation ticket = the first close line's previous ticket; ended_at = the ending close line's logged_at.
+  Prod import (real emails, invites) still to build at cutover.
 - **Next:** the import (Sep–Nov sheets → the database, members with their emails), prod project + SMTP, a full side-by-side
   run with `BACKEND = 'supabase'`. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
 - **After the cutover: App Store + Google Play launch** (plan `~/.claude/plans/smart-scan-app-store-launch.md`; Phase A, the
@@ -537,6 +550,7 @@ node test/ticket-order-scenarios.js       # ascending/descending per slot: count
 node test/theft-report-scenarios.js       # Theft Report backend: ranges (desc/asc/put in since close/after shift closes, sold out at a shift close, today closed), back stock, no $ for employees, last close
 node test/reports-scenarios.js            # Reports tab backend: shipments/returns lines (combined, tags, left out), totals = Months "Shipments in"
 node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
+node test/export-scenarios.js             # exportMonth: month list, tabs as rows, dates as text, no Sessions/passwords, owner only
 
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
 node test/browser/offline-close.js        # Close Day with no connection, lost answer, home resend, refusal
@@ -574,6 +588,7 @@ node test/browser/close-yesterday.js      # Close Yesterday: Home button (employ
 node test/parity/missed-day.js            # missed day + Close Yesterday on Sheets vs Supabase: offered/blocked/refused, totals incl. the missed day's sold outs, reopen, full pack undo
 node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
 node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
+node test/import-check.js                 # the import end to end: 2 made-up months on Sheets → export → rebuilt months answer the same → rows → dev test store → 23 reads the same
 node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
