@@ -179,6 +179,18 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     assert.equal(await text(page, '#message'), 'Password needs a capital letter, a number and one of ? ! @ # $ % &.');
     for (const id of ['#current', '#next', '#confirm']) await page.$eval(id, (e) => { e.value = ''; });
     await page.$eval('#message', (e) => { e.textContent = ''; });
+    // The current password as the new one: refused on the page.
+    await page.type('#current', 'First-pass1!');
+    await page.type('#next', 'First-pass1!');
+    await page.type('#confirm', 'First-pass1!');
+    await page.click('#form button');
+    await page.waitForFunction(() => document.querySelector('#message').textContent);
+    assert.equal(await text(page, '#message'), "The new password can't be the same as the last one.");
+    for (const id of ['#current', '#next', '#confirm']) await page.$eval(id, (e) => { e.value = ''; });
+    await page.$eval('#message', (e) => { e.textContent = ''; });
+    // And if it got past the page, Supabase Auth refuses it too.
+    assert.equal(await page.evaluate(() => api('changePassword', { currentPassword: 'First-pass1!', newPassword: 'First-pass1!' })
+      .then(() => 'saved', (e) => e.message)), "The new password can't be the same as the last one.");
     await page.type('#current', 'wrong-pass');
     await page.type('#next', 'Second-pass2!');
     await page.type('#confirm', 'Second-pass2!');
@@ -232,6 +244,11 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await (await button('Reset Password')).click();
     await page.waitForFunction(() => /one of/.test(document.querySelector('#listMessage').textContent));
     assert.equal(await text(page, '#listMessage'), 'Password needs one of ? ! @ # $ % &.');
+    // Their current password again: refused (the database compares it; the admin API wouldn't).
+    promptAnswer = 'Second-pass2!';
+    await (await button('Reset Password')).click();
+    await page.waitForFunction(() => /same as the last/.test(document.querySelector('#listMessage').textContent), { timeout: 20000 });
+    assert.equal(await text(page, '#listMessage'), "The new password can't be the same as the last one.");
     promptAnswer = 'Third-pass3!';
     await (await button('Reset Password')).click();
     await page.waitForFunction(() => /Password for newbie changed/.test(document.querySelector('#listMessage').textContent));

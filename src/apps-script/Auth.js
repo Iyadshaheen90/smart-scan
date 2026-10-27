@@ -60,6 +60,9 @@ function validateNewCredentials(username, password) {
 
 // Password rule (owner 2026-10-27): at least 8 characters with a capital letter, a lowercase letter, a number and one of
 // ? ! @ # $ % &. Same check and words as passwordProblem in api.js. Only new passwords are checked: existing ones still sign in.
+// A new password can't be the one it replaces (owner 2026-10-27). Same words in api.js and the members Edge Function.
+const SAME_PASSWORD_MESSAGE = "The new password can't be the same as the last one.";
+
 function validateNewPassword(password) {
   const p = String(password || '');
   const missing = [];

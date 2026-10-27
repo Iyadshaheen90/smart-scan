@@ -523,6 +523,13 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   missing ("Password needs a capital letter and a number."). Supabase auth: `minimum_password_length = 8`,
   `password_requirements = "lower_upper_letters_digits_symbols"` (config.toml; pushed to dev). Existing passwords
   still sign in; only new ones are checked. Test sign-ins (parity harness, import-compare, db-sign-in) end in `Aa1!`.
+  **Not the same password again (owner 2026-10-27):** a new password can't be the one it replaces —
+  `SAME_PASSWORD_MESSAGE` "The new password can't be the same as the last one." (same words in all three copies).
+  Sheets: resetPassword and changeOwnPassword compare against the stored hash. Pages: Change My Password checks new ≠
+  current before sending. Database: Change My Password and Forgot Password get Supabase Auth's `same_password`
+  (api.js turns it into the message; set-password.html no longer treats it as saved); the owner's Reset Password goes
+  through the admin API, which doesn't check, so the members function asks `public.service_is_current_password`
+  (migration 0018, postgres-owned, service key only, bcrypt compare, yes/no). Only the last password, not a history.
 - **The import (built 2026-10-27; real Sep + Oct exported and checked 2026-10-27 10:22: no problems, 1221 close lines, 67 packs, 25 reads identical; totals matched the owner's phone):** Sheets `exportMonth`
   (`Export.js`, owner only, read only, no page calls it): no label → the month list; a label → every tab as plain rows,
   dates as store-time text, no Sessions or password columns. `scripts/import-sheets.js export` signs in as the owner
@@ -560,7 +567,7 @@ node test/theft-report-scenarios.js       # Theft Report backend: ranges (desc/a
 node test/reports-scenarios.js            # Reports tab backend: shipments/returns lines (combined, tags, left out), totals = Months "Shipments in"
 node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
 node test/export-scenarios.js             # exportMonth: month list, tabs as rows, dates as text, no Sessions/passwords, owner only
-node test/password-rule.js                # the password rule: api.js, Auth.js and the members Edge Function give the same answer for every sample
+node test/password-rule.js                # the password rule: api.js, Auth.js and the members Edge Function give the same answer for every sample; Sheets refuses the same password again
 
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
 node test/browser/offline-close.js        # Close Day with no connection, lost answer, home resend, refusal

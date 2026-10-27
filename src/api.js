@@ -45,6 +45,9 @@ function passwordProblem(password) {
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
   return `Password needs ${list}.`;
 }
+// A new password can't be the one it replaces (owner 2026-10-27): Change My Password, the owner's Reset Password and
+// Forgot Password. Same words in Auth.js and the members Edge Function.
+const SAME_PASSWORD_MESSAGE = "The new password can't be the same as the last one.";
 function checkNewPassword(password) {
   const problem = passwordProblem(password);
   if (problem) throw new ApiError('bad_password', problem);
@@ -248,7 +251,8 @@ const DB_ACTIONS = {
       throw new ApiError('expired_link', 'This link has expired. Ask the owner for a new one, or use Forgot Password on the sign-in page.');
     }
     if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
-    if (r.status >= 300 && authErrorCode(r) !== 'same_password') throw serverError();
+    if (authErrorCode(r) === 'same_password') throw new ApiError('bad_password', SAME_PASSWORD_MESSAGE);
+    if (r.status >= 300) throw serverError();
     return dbSessionFor({ ...tokens, user: r.data || tokens.user });
   },
   // As changeOwnPassword: the current password must be right, then the new one is checked and saved.
@@ -263,7 +267,7 @@ const DB_ACTIONS = {
     }
     checkNewPassword(newPassword);
     const r = await dbFetch('/auth/v1/user', { method: 'PUT', body: { password: newPassword }, token: tokens.access_token });
-    if (authErrorCode(r) === 'same_password') throw new ApiError('bad_password', 'The new password is the same as the old one.');
+    if (authErrorCode(r) === 'same_password') throw new ApiError('bad_password', SAME_PASSWORD_MESSAGE);
     if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
     if (r.status >= 300) throw serverError();
     // A new password ends the person's other sign-ins, this phone's saved one too: keep the one just made.

@@ -87,11 +87,18 @@ function passwordProblem(password: string): string {
   return `Password needs ${list}.`;
 }
 
+// A new password can't be the one it replaces (owner 2026-10-27). Same words in src/api.js and Auth.js.
+const SAME_PASSWORD_MESSAGE = "The new password can't be the same as the last one.";
+
 async function setPassword(token: string, req: Record<string, string>) {
   // resetPassword's order: the password first, then the person.
   const problem = passwordProblem(req.newPassword);
   if (problem) throw new ApiError('bad_password', problem);
   const checked = await rpc('member_admin_check', { p_store: req.storeId, req: { action: 'setPassword', username: req.username } }, token);
+  // The admin API doesn't refuse their current password (signing in and Forgot Password do): the database compares it.
+  if (await rpc('service_is_current_password', { p_user: checked.userId, p_password: req.newPassword }, SERVICE)) {
+    throw new ApiError('bad_password', SAME_PASSWORD_MESSAGE);
+  }
   // Confirmed too, so someone who never opened the invite email can sign in with the password the owner gives them.
   const changed = await admin('PUT', `/admin/users/${checked.userId}`, { password: req.newPassword, email_confirm: true });
   if (!changed.ok) {

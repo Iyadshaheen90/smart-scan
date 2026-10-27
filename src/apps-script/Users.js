@@ -68,11 +68,13 @@ function resetPassword(username, newPassword) {
   username = normalizeUsername(username);
   validateNewPassword(newPassword);
   withLock(() => {
-    const salt = Utilities.getUuid();
-    const changes = { salt, password_hash: hashPassword(newPassword, salt) };
-    if (!updateRowsWhere(monthSheet('Users'), (u) => u.username === username, changes)) {
-      throw new ApiError('no_user', 'No such user.');
+    const user = findUser(username);
+    if (!user) throw new ApiError('no_user', 'No such user.');
+    if (user.password_hash && verifyPassword(String(newPassword), user.salt, user.password_hash)) {
+      throw new ApiError('bad_password', SAME_PASSWORD_MESSAGE);
     }
+    const salt = Utilities.getUuid();
+    updateRowsWhere(monthSheet('Users'), (u) => u.username === username, { salt, password_hash: hashPassword(newPassword, salt) });
     endSessionsFor(username);
   });
   return listUsers();
@@ -84,6 +86,7 @@ function changeOwnPassword(currentUser, currentPassword, newPassword) {
     throw new ApiError('bad_password', 'Your current password is wrong.');
   }
   validateNewPassword(newPassword);
+  if (verifyPassword(String(newPassword), user.salt, user.password_hash)) throw new ApiError('bad_password', SAME_PASSWORD_MESSAGE);
   withLock(() => {
     const salt = Utilities.getUuid();
     updateRowsWhere(monthSheet('Users'), (u) => u.username === user.username, { salt, password_hash: hashPassword(newPassword, salt) });

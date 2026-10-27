@@ -50,6 +50,10 @@
         showMessage(messageEl, passwordProblem(form.next.value));
         return;
       }
+      if (form.next.value === form.current.value) {
+        showMessage(messageEl, SAME_PASSWORD_MESSAGE);
+        return;
+      }
       try {
         await whileBusy(form.querySelector('button'), 'Saving…', () =>
           api('changePassword', { currentPassword: form.current.value, newPassword: form.next.value }));
