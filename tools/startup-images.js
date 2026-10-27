@@ -1,14 +1,16 @@
 // iPhone launch pictures (owner 2026-10-26: a black flash on opening the home-screen app). Until the first page draws,
 // iOS shows the page's apple-touch-startup-image, or a plain black screen when none fits the phone; black then the app's
-// near-black --bg looked like a flash. So each picture is the app's --bg, one per iPhone screen size, linked from
-// index.html and login.html (the start pages). Re-run after changing --bg in style.css or adding a screen size, then
-// paste the printed <link> lines into both pages.
+// near-black --bg looked like a flash. So each picture is pure black (--launch-bg in style.css), one per iPhone screen
+// size, linked from index.html and login.html (the start pages). Black, not --bg (owner 2026-10-27: still a flash; the
+// screen recording showed iOS zooms the app open in pure black whatever the picture says, then the gray --bg came in),
+// so the whole launch stays black until the launch screen fades into the page. Re-run after adding a screen size, then
+// paste the printed <link> lines into both pages. The file name changes with the color, since iOS keeps old pictures.
 // Run: node tools/startup-images.js
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const BG = [0x0e, 0x10, 0x10]; // --bg in style.css
+const BG = [0x00, 0x00, 0x00]; // --launch-bg in style.css
 // Screen size in points (portrait) and pixels per point, newest phones last.
 const SCREENS = [
   [375, 667, 2], // SE (2nd/3rd), 8
@@ -46,7 +48,7 @@ function solidPng(width, height, [r, g, b]) {
 const dir = path.join(__dirname, '..', 'src', 'icons', 'startup');
 fs.mkdirSync(dir, { recursive: true });
 const links = SCREENS.map(([w, h, dpr]) => {
-  const file = `launch-${w * dpr}x${h * dpr}.png`;
+  const file = `launch-black-${w * dpr}x${h * dpr}.png`;
   fs.writeFileSync(path.join(dir, file), solidPng(w * dpr, h * dpr, BG));
   return `<link rel="apple-touch-startup-image" href="icons/startup/${file}" media="(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${dpr}) and (orientation: portrait)">`;
 });

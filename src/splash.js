@@ -11,10 +11,12 @@
   const script = document.currentScript;
   const KEY = 'smartScanSplash';
   if (document.documentElement.classList.contains('leaving')) return; // Home passing you on to Sign In.
+  const root = document.documentElement;
   try {
-    if (sessionStorage.getItem(KEY)) return;
+    if (sessionStorage.getItem(KEY)) { root.classList.remove('launching'); return; }
     sessionStorage.setItem(KEY, '1');
   } catch (e) {
+    root.classList.remove('launching');
     return; // No storage (private mode): never risk showing it on every page.
   }
 
@@ -85,6 +87,7 @@
     el.classList.add('done');
     setTimeout(() => {
       el.classList.add('out');
+      root.classList.remove('launching'); // The page's own background comes back under the fade.
       setTimeout(() => el.remove(), 360);
     }, 180);
   }

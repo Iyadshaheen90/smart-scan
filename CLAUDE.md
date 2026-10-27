@@ -234,13 +234,16 @@ Frontend (`src/`, plain HTML + JS, no build):
   Tracking" and a Loading bar at the bottom. Closes once the animation has played (~2.7 s) **and** the page is ready: Home (`data-wait`)
   calls `splashReady()` when its first `loadStatus()` finishes; never past 8 s. Reduced motion: shown whole, ~0.6 s.
   Browser tests skip it (harness sets the flag) unless `openApp({ splash: true })`.
-- **iPhone launch pictures** (owner 2026-10-26: a flash on opening the app): before the first page draws, iOS shows a
-  blank screen or a saved picture of the app from an earlier open unless an `apple-touch-startup-image` fits the phone. `tools/startup-images.js` writes solid `--bg`
-  PNGs per iPhone size into `src/icons/startup/` and prints the `<link>`s that sit in index.html and login.html; re-run
-  it if `--bg` changes or a new iPhone size comes out. Manifest `background_color` is `--bg` too. iOS may only pick these
-  up when the app is added to the home screen again. **Open:** signed in, the owner still sees a quick Home flash before
-  the launch screen; the page itself draws the splash first (checked with a temporary launch log, since removed), so it's
-  iOS's saved picture. Owner to delete and re-add the app (then sign in) and say if it's gone.
+- **Black launch** (owner 2026-10-26/27: a flash on opening the app). The owner's screen recordings (2026-10-27, read
+  frame by frame) showed no Home or header before the launch screen: iOS zooms the black icon open into a **pure black**
+  window (~0.1 s), then the page's gray `--bg` came in, and that black→gray step was the flash. So the whole launch is
+  pure black (`--launch-bg`): the launch screen's background, and the page under it while `html.launching` is on (set in
+  the `<head>` of index.html and login.html when the launch screen hasn't played this session; splash.js takes it off as
+  it fades, so the gray comes back under the fade). `tools/startup-images.js` writes solid black
+  `apple-touch-startup-image` PNGs per iPhone size into `src/icons/startup/` (`launch-black-*`; a new color needs new
+  file names, iOS keeps the old pictures) and prints the `<link>`s for index.html and login.html; re-run it when a new
+  iPhone size comes out. Manifest `background_color` is black too. iOS may only pick up the pictures when the app is
+  added to the home screen again.
 - **Home signed out, or after the 12-hour sign-in** (owner 2026-10-26: Home's empty page flashed before Sign In's launch
   screen): Home's `<head>` script sends it on to Sign In before anything draws. Safari keeps building and drawing a page
   after `location.replace` until the next one arrives (Chrome stops at once), so it also sets `html.leaving` (style.css
@@ -570,7 +573,7 @@ node test/browser/close-yesterday.js      # Close Yesterday: Home button (employ
 node test/parity/missed-day.js            # missed day + Close Yesterday on Sheets vs Supabase: offered/blocked/refused, totals incl. the missed day's sold outs, reopen, full pack undo
 node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
 node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
-node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
+node test/browser/splash.js               # launch screen: black while up then gray, letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
