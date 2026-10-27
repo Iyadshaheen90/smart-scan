@@ -535,3 +535,26 @@ function setPackSize(req) {
     return { gameNumber, ticketsPerPack: size };
   });
 }
+
+// The day the lottery activated the pack in a slot (owner 2026-10-26). Usually the day it went in, but a slow pack left
+// in the back long enough is activated by the lottery on its own, so its settling clock started earlier. Only the days
+// counter reads it (Slots, the day-50 mark, Settling); sales always count from the tickets scanned, never from this date.
+// Any day from a year ago to today, so a wrong one can be set again.
+function setActivationDate(req) {
+  const date = String(req.date || '');
+  const real = /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(`${date}T00:00:00Z`))
+    && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date;
+  if (!real) throw new ApiError('bad_date', 'Pick the day the lottery activated the pack.');
+  const days = daysBetween(date, todayLabel());
+  if (days < 0) throw new ApiError('bad_date', "The activation date can't be after today.");
+  if (days > 365) throw new ApiError('bad_date', 'That date is more than a year ago. Check the year.');
+  return withLock(() => {
+    if (!readTable(slotConfigSheet()).some(isSlot(req.box, req.slot))) {
+      throw new ApiError('no_slot', `There's no slot ${req.slot} in box ${req.box}.`);
+    }
+    const state = readTable(slotStateSheet()).find(isSlot(req.box, req.slot));
+    if (!state || !state.pack_key) throw new ApiError('slot_empty', 'This slot has no pack.');
+    updateRowsWhere(slotStateSheet(), isSlot(req.box, req.slot), { activation_date: date });
+    return { box: Number(req.box), slot: Number(req.slot), packKey: state.pack_key, activationDate: date, daysActive: days };
+  });
+}

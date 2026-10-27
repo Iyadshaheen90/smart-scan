@@ -116,6 +116,17 @@
     <div id="sizeMessage" class="message"></div>
   </form>
 
+  <!-- Owner only (2026-10-26): the day the lottery activated this pack. A slow pack left in the back can be activated by
+       the lottery on its own, months before it goes in a slot; settling counts from that day. Only the days counter uses it. -->
+  <form id="activatedForm" class="hidden">
+    <h2>Activation Date</h2>
+    <p class="sub" id="activatedInfo"></p>
+    <label for="activatedOn">Activated by the Lottery On</label>
+    <input id="activatedOn" type="date" required>
+    <button type="submit">Save Activation Date</button>
+    <div id="activatedMessage" class="message"></div>
+  </form>
+
   <!-- Owner only: move this slot's pack, or swap it with another slot's. -->
   <form id="swapForm" class="hidden">
     <h2>Move or Swap</h2>
@@ -209,6 +220,14 @@
             + (standard ? `$${pack.price} packs usually have ${standard}.` : '')
             + (pack.ticketsPerPack && standard && pack.ticketsPerPack !== standard ? ' This one is different — check it.' : '');
           if (document.activeElement !== $('packSize')) $('packSize').value = pack.ticketsPerPack || standard || '';
+        }
+        show('activatedForm', Boolean(pack));
+        if (pack) {
+          $('activatedInfo').textContent = `${pack.activationDate ? `${longDate(pack.activationDate)}: ${activeDaysText(pack.daysActive)}.` : 'Not set.'}`
+            + ' If the lottery activated this pack before it went in the slot (a slow pack left in the back can activate on its own),'
+            + ' set that day so its days and Settling are right. Sales still count from the tickets scanned.';
+          if (document.activeElement !== $('activatedOn')) $('activatedOn').value = pack.activationDate || '';
+          $('activatedOn').max = phoneToday();
         }
         show('swapForm', true);
         renderSwapPreview();
@@ -455,6 +474,30 @@
         showMessage($('sizeMessage'), `Game ${result.gameNumber} packs now have ${result.ticketsPerPack} tickets.`, 'ok');
       } catch (err) {
         showMessage($('sizeMessage'), err.message);
+      }
+    });
+
+    // "Sep 12, 2026" for a yyyy-MM-dd label; today's date on this phone as a label (the date picker's latest day).
+    function longDate(label) {
+      const [y, m, d] = label.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    function phoneToday() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function activeDaysText(n) { return n === 0 ? 'activated today' : `${n} ${n === 1 ? 'day' : 'days'} ago`; }
+
+    $('activatedForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('activatedMessage').className = 'message';
+      try {
+        const result = await whileBusy($('activatedForm').querySelector('button'), 'Saving…', () =>
+          api('setActivationDate', { box, slot: slotNumber, date: $('activatedOn').value }));
+        await loadSlots();
+        showMessage($('activatedMessage'), `Pack ${result.packKey} activated ${longDate(result.activationDate)}: ${activeDaysText(result.daysActive)}.`, 'ok');
+      } catch (err) {
+        showMessage($('activatedMessage'), err.message);
       }
     });
 

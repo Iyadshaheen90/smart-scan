@@ -69,6 +69,12 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
   `SlotState.activation_date` to `todayLabel()`; day 0 = activation day). From day 50 (`OLD_PACK_DAYS`, api.js) a yellow `!`
   badge sits on the slot card's top-left corner (not before the name, so the name isn't indented; owner 2026-09-30): CA Lottery settles (charges the store for) a pack 50–60 days after activation, so old
   slow packs get pushed. It keeps counting until the pack sells out or is returned; a swap/move and a new month keep it.
+  **Activation Date** (owner only, slot page under Pack Size; owner 2026-10-26): a slow pack left in the back long enough
+  is activated by the lottery on its own, months before it goes in a slot, so its settling clock started earlier. The owner
+  sets that day (`setActivationDate { box, slot, date }`: a real day from 365 days ago to today, a slot with a pack) and it
+  replaces `SlotState.activation_date` (database: `packs.activated_on`). Only the days counter reads that date (Slots, the
+  day-50 mark, Settling, PackHistory's copy); sales and the Theft Report count from tickets. Close Day's
+  `late_activation` log flag then reads false for that pack (nothing reads the flag). A wrong date: set it again.
   The same packs (50+ days) are listed on the owner's **Settling** page, red from day 60 (owner approved 2026-09-29).
 - Back stock changes and where they're logged: Shipment received (source "delivery") and **Manage packs** (+) (source
   "add pack", owner approved 2026-09-27) → `Shipments` (both count in the month's "Shipments in"); Manage Stock (count) and Manage packs (−)
@@ -127,6 +133,7 @@ static pages on GitHub Pages, backend in Google Apps Script, data in Google Shee
 - Pack wrongly marked sold out/returned → `undoEndPack`, while the slot is still empty and that sales day
   isn't closed. If a replacement went in, undo that activation first.
 - Swap/move is its own undo (swap the same two slots again).
+- Wrong activation date → set it again on the slot page (`setActivationDate`).
 - Wrong pack size → `setPackSize` (refused if a live pack's top ticket wouldn't fit). Wrong slot price → `setSlotPrice`.
 - Wrong close → `reopenClose` restores every top ticket (found by pack, so moves after the close are fine).
 - Close submitted by mistake while still unsent → "Stop sending and change scans" on Close Day.
@@ -350,7 +357,7 @@ Backend (`src/apps-script/`, pushed with clasp; all files share one global scope
 - `Permissions.js` `PERMISSIONS`, `permissionsOf`, `can`, `requirePermission` (employee permissions; loaded by the tests)
 - `Tickets.js` ticket order math (see "Ticket order per slot" above)
 - `Slots.js` `listSlots` (`slotOrder`, `pack.order`), `setSlotOrder`, `setAllSlotsOrder`, `activatePack`, `endPack`/`endPackInSlot`, `undoActivation`, `undoEndPack`,
-  `swapSlots`, `setSlotPrice`, `setPackSize`, `addGameToReserve`, `dateLabel`
+  `swapSlots`, `setSlotPrice`, `setPackSize`, `setActivationDate`, `addGameToReserve`, `dateLabel`
 - `Close.js` `closeStatus`, `submitClose(user, entries, closeId, date)` (validates everything before writing),
   `buildSummary`, `reopenClose`, `salesDate`
 - `Backstock.js` `listBackStock` (every game, ended ones flagged `endedDate`), `saveBackStock(mode 'shipment'|'count')`,
@@ -420,7 +427,8 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   monthSummary, listMonths, monthsPage (no spreadsheets: `url`/`currentUrl` null, no month to start: `next` null, `canStart`
   false), plus the database-only `monthWorkbook` (a month's data for the Excel download); listUsers, setUserActive,
   setUserPermissions (`test/parity/users.js`; listUsers adds `email` and `signedIn`); getRetailerNumber, setRetailerNumber
-  and theftReport's `retailerNumber` (`test/parity/retailer.js`). The retailer number is **encrypted in Supabase Vault**
+  and theftReport's `retailerNumber` (`test/parity/retailer.js`); setActivationDate (migration 0015,
+  `test/parity/activation-date.js`). The retailer number is **encrypted in Supabase Vault**
   (one secret per store, `retailer_number:<store id>`, migration 0014), never in a table. Vault is readable only by postgres,
   so `app.store_retailer_number()` / `app.save_retailer_number()` / `app.forget_retailer_number()` are the one exception
   owned by postgres: they touch only the entered store's secret and only smart_scan_api may call them. `public.theft_report`
@@ -519,6 +527,8 @@ node test/browser/reports.js              # Reports tab: list with numbers, Ship
 node test/browser/theft-report.js         # Theft Report page: choice, tables, Share/copy, PDF (bytes, xref, multi-page), print fallback, Try again, employee without $, no permission → home
 node test/browser/month-download.js       # Months on the database backend: Download Month makes the Excel file (tabs, rows, $ format), share or download; no Start
 node test/browser/theft-fab.js            # Home's red Theft Report button: owner + employees with the permission, above the tab bar, never hides the last row, opens the report
+node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
+node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
 node test/browser/splash.js               # launch screen: typing, stretch, beam, waits for Home's numbers, 8 s limit, once per open, Sign In, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
