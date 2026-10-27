@@ -5,22 +5,18 @@
 // with the app's own colors, sizes, words and Loading bar.)
 // Shown once each time the app is opened (sessionStorage), on Home and Sign In only. Load it as the first thing in
 // <body> so the page never shows under it. data-wait: stay up until the page calls splashReady() (Home, until its
-// numbers arrive). data-needs-session: skip it with no sign-in (Home sends you on to Sign In, which shows it).
+// numbers arrive). Home with no sign-in sends you on to Sign In first (html.leaving), which shows it.
 (function () {
   window.splashReady = () => {};
   const script = document.currentScript;
   const KEY = 'smartScanSplash';
-  // window.splashNote: what it did, for the launch log (api.js).
-  if (document.documentElement.classList.contains('leaving')) { window.splashNote = 'skipped (leaving)'; return; } // Sign In ↔ Home passing you on.
+  if (document.documentElement.classList.contains('leaving')) return; // Home passing you on to Sign In.
   try {
-    if (sessionStorage.getItem(KEY)) { window.splashNote = 'skipped (already shown this open)'; return; }
-    if (script.hasAttribute('data-needs-session') && !localStorage.getItem('smartScanSession')) { window.splashNote = 'skipped (not signed in)'; return; }
+    if (sessionStorage.getItem(KEY)) return;
     sessionStorage.setItem(KEY, '1');
   } catch (e) {
-    window.splashNote = 'skipped (no storage)';
     return; // No storage (private mode): never risk showing it on every page.
   }
-  window.splashNote = `shown at ${Math.round(performance.now())} ms`;
 
   const STEP = 140;         // ms between letters (one beat)
   const OPEN_AT = 10;       // beat the barcode opens on (the N comes on beat 8)

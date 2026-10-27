@@ -226,7 +226,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   Shipments Received or Returned Packs can't load, the reason shows at the top of the page (`#loadMessage`, under the header, seen without scrolling) with a Try
   again button that runs the page's loader again (it returns true once loaded, which clears the message). Back stock starts its camera only after it loads, so its Try again starts the camera too.
 - **Launch screen** (`splash.js` + `.splash` styles; owner 2026-10-26): once per app open (sessionStorage `smartScanSplash`),
-  on Home (signed in only, `data-needs-session`) and Sign In, loaded first in `<body>`. SMART across in white and SCAN
+  on Home and Sign In, loaded first in `<body>`. SMART across in white and SCAN
   down in green sharing the S (white→green). Motion from the owner's own `smart-scan-splash.html` (2026-10-26), with the
   app's colors, sizes, words and Loading bar: a letter every 140 ms, S M A R T then C A N, each a 0.12 s fade, a blinking
   green underline cursor in the next letter's place; on beat 10 the corner barcode (made-up bars) slides open from the
@@ -234,23 +234,16 @@ Frontend (`src/`, plain HTML + JS, no build):
   Tracking" and a Loading bar at the bottom. Closes once the animation has played (~2.7 s) **and** the page is ready: Home (`data-wait`)
   calls `splashReady()` when its first `loadStatus()` finishes; never past 8 s. Reduced motion: shown whole, ~0.6 s.
   Browser tests skip it (harness sets the flag) unless `openApp({ splash: true })`.
-- **iPhone launch pictures** (owner 2026-10-26: black flash on opening the app): before the first page draws, iOS shows a
-  plain black screen unless an `apple-touch-startup-image` fits the phone. `tools/startup-images.js` writes solid `--bg`
+- **iPhone launch pictures** (owner 2026-10-26: a flash on opening the app): before the first page draws, iOS shows a
+  blank screen or a saved picture of the app from an earlier open unless an `apple-touch-startup-image` fits the phone. `tools/startup-images.js` writes solid `--bg`
   PNGs per iPhone size into `src/icons/startup/` and prints the `<link>`s that sit in index.html and login.html; re-run
   it if `--bg` changes or a new iPhone size comes out. Manifest `background_color` is `--bg` too. iOS may only pick these
   up when the app is added to the home screen again.
-  The owner's home-screen app opens on **Sign In** (added from it): signed in, Sign In's `<head>` script sends it on to
-  Home before anything draws (otherwise Sign In used up the splash flag, flashed, and Home had no launch screen). Safari
-  keeps building and drawing a page after `location.replace` until the next one arrives (Chrome stops at once), so that
-  script also sets `html.leaving` (style.css hides the body; splash.js skips its turn). The test holds the switch back with
-  the Navigation API to play out Safari's way.
-  **The real flash (found with the launch log + the owner's screen recording):** opening the app signed out or after the
-  12-hour sign-in, Home drew its empty page (header + "Today" card) before `requireLogin` sent it to Sign In, which then
-  played the launch screen. Home's `<head>` script now sends it on to Sign In first (same `html.leaving`).
-  **Launch log (temporary, owner 2026-10-26: a header still flashes before the launch screen):** api.js `logLaunch` adds a
-  line per page opened (page, navigation type, first paint ms, `window.splashNote` from splash.js, app/browser, referrer)
-  to localStorage `smartScanLaunchLog`; Sign In's pass-on writes its own line; shown with the app version (cache name) at
-  the top of Scanner Test (Copy / Clear). Remove all of it once the flash is found.
+  **Home signed out, or after the 12-hour sign-in** (owner 2026-10-26: Home's empty page flashed before Sign In's launch
+  screen): Home's `<head>` script sends it on to Sign In before anything draws. Safari keeps building and drawing a page
+  after `location.replace` until the next one arrives (Chrome stops at once), so it also sets `html.leaving` (style.css
+  hides the body; splash.js skips its turn, so Sign In gets it). The test holds the switch back with the Navigation API
+  to play out Safari's way. Signed in, the home-screen app opens straight on Home.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not Closed / Closed chip, big number = last
