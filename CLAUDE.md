@@ -238,8 +238,10 @@ Frontend (`src/`, plain HTML + JS, no build):
   blank screen or a saved picture of the app from an earlier open unless an `apple-touch-startup-image` fits the phone. `tools/startup-images.js` writes solid `--bg`
   PNGs per iPhone size into `src/icons/startup/` and prints the `<link>`s that sit in index.html and login.html; re-run
   it if `--bg` changes or a new iPhone size comes out. Manifest `background_color` is `--bg` too. iOS may only pick these
-  up when the app is added to the home screen again.
-  **Home signed out, or after the 12-hour sign-in** (owner 2026-10-26: Home's empty page flashed before Sign In's launch
+  up when the app is added to the home screen again. **Open:** signed in, the owner still sees a quick Home flash before
+  the launch screen; the page itself draws the splash first (checked with a temporary launch log, since removed), so it's
+  iOS's saved picture. Owner to delete and re-add the app (then sign in) and say if it's gone.
+- **Home signed out, or after the 12-hour sign-in** (owner 2026-10-26: Home's empty page flashed before Sign In's launch
   screen): Home's `<head>` script sends it on to Sign In before anything draws. Safari keeps building and drawing a page
   after `location.replace` until the next one arrives (Chrome stops at once), so it also sets `html.leaving` (style.css
   hides the body; splash.js skips its turn, so Sign In gets it). The test holds the switch back with the Navigation API
@@ -568,7 +570,7 @@ node test/browser/close-yesterday.js      # Close Yesterday: Home button (employ
 node test/parity/missed-day.js            # missed day + Close Yesterday on Sheets vs Supabase: offered/blocked/refused, totals incl. the missed day's sold outs, reopen, full pack undo
 node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
 node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
-node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, small phone, reduced motion
+node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
