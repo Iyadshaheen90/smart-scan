@@ -135,6 +135,36 @@ const freshOpen = async (page, url) => {
   await page.waitForFunction(() => !document.querySelector('.splash'), { timeout: 7000 });
   assert.ok(Date.now() - t2 > 2000 && Date.now() - t2 < 6000, `Sign In: closes after the animation, no waiting (${Date.now() - t2} ms)`);
 
+  // Opening Home signed out, or after the 12 hours (owner 2026-10-26: Home's empty page flashed before Sign In's launch
+  // screen). Holding the switch back plays out Safari's way: nothing of Home shows, and Sign In gets the launch screen.
+  for (const saved of [null, { token: 't', username: 'o', role: 'owner', expiresAt: '2020-01-01' }]) {
+    const held = await page.browser().newPage();
+    await held.setViewport({ width: 390, height: 900 });
+    await held.evaluateOnNewDocument(() => {
+      if (location.pathname.endsWith('index.html')) {
+        navigation.addEventListener('navigate', (e) => { window.heldBack = e.destination.url; e.preventDefault(); });
+      }
+    });
+    await held.goto(base + 'more.html');
+    await held.evaluate((s) => {
+      sessionStorage.clear();
+      if (s) localStorage.setItem('smartScanSession', JSON.stringify(s)); else localStorage.removeItem('smartScanSession');
+    }, saved);
+    await held.goto(base + 'index.html');
+    await sleep(300);
+    assert.deepEqual(await held.evaluate(() => ({ heldBack: (window.heldBack || '').replace(location.origin, ''),
+      homeShows: getComputedStyle(document.body).display !== 'none', turnUsed: sessionStorage.getItem('smartScanSplash') })),
+    { heldBack: '/login.html', homeShows: false, turnUsed: null }, saved ? 'after the 12 hours' : 'signed out');
+    await held.close();
+  }
+  // And for real: Sign In plays it.
+  await page.evaluate(() => localStorage.setItem('smartScanSession', JSON.stringify({ token: 't', username: 'o', role: 'owner', expiresAt: '2020-01-01' })));
+  await freshOpen(page, base + 'index.html');
+  await page.waitForFunction(() => location.pathname.endsWith('login.html'));
+  assert.equal(await up(page), true, 'after the 12 hours: Sign In shows it');
+  await page.waitForFunction(() => !document.querySelector('.splash'), { timeout: 7000 });
+  await page.evaluate(() => localStorage.clear());
+
   // Reduced motion: all at once, short.
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
   const t3 = Date.now();

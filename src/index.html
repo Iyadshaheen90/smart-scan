@@ -25,6 +25,18 @@
 <meta name="apple-mobile-web-app-title" content="Smart Scan">
 <title>Smart Scan</title>
 <link rel="stylesheet" href="style.css">
+<script>
+  // Not signed in, or the 12 hours are up (the home-screen app opens here): on to Sign In before Home draws anything.
+  // Its empty page flashed up before Sign In's launch screen (owner 2026-10-26; found with the launch log). Same check as
+  // getSession() in api.js; html.leaving hides this page while Safari keeps drawing it (style.css) and skips splash.js.
+  try {
+    const saved = JSON.parse(localStorage.getItem('smartScanSession') || 'null');
+    if (!saved || !(new Date(saved.expiresAt) > new Date())) {
+      document.documentElement.classList.add('leaving');
+      location.replace('login.html');
+    }
+  } catch (e) {}
+</script>
 </head>
 <body>
   <script src="splash.js" data-wait data-needs-session></script>

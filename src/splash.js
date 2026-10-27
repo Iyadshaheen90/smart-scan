@@ -11,7 +11,7 @@
   const script = document.currentScript;
   const KEY = 'smartScanSplash';
   // window.splashNote: what it did, for the launch log (api.js).
-  if (document.documentElement.classList.contains('leaving')) { window.splashNote = 'skipped (leaving)'; return; } // Sign In passing a signed-in user on to Home.
+  if (document.documentElement.classList.contains('leaving')) { window.splashNote = 'skipped (leaving)'; return; } // Sign In ↔ Home passing you on.
   try {
     if (sessionStorage.getItem(KEY)) { window.splashNote = 'skipped (already shown this open)'; return; }
     if (script.hasAttribute('data-needs-session') && !localStorage.getItem('smartScanSession')) { window.splashNote = 'skipped (not signed in)'; return; }

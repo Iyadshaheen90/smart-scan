@@ -244,6 +244,9 @@ Frontend (`src/`, plain HTML + JS, no build):
   keeps building and drawing a page after `location.replace` until the next one arrives (Chrome stops at once), so that
   script also sets `html.leaving` (style.css hides the body; splash.js skips its turn). The test holds the switch back with
   the Navigation API to play out Safari's way.
+  **The real flash (found with the launch log + the owner's screen recording):** opening the app signed out or after the
+  12-hour sign-in, Home drew its empty page (header + "Today" card) before `requireLogin` sent it to Sign In, which then
+  played the launch screen. Home's `<head>` script now sends it on to Sign In first (same `html.leaving`).
   **Launch log (temporary, owner 2026-10-26: a header still flashes before the launch screen):** api.js `logLaunch` adds a
   line per page opened (page, navigation type, first paint ms, `window.splashNote` from splash.js, app/browser, referrer)
   to localStorage `smartScanLaunchLog`; Sign In's pass-on writes its own line; shown with the app version (cache name) at
