@@ -1,4 +1,4 @@
-// Launch screen (owner 2026-10-26): once per app open, on Home (signed in) and Sign In. SMART types across and SCAN
+// Launch screen (owner 2026-10-26): once per app open, on Home (signed in) and Sign In. SMART fades in across and SCAN
 // down sharing the S, the corner barcode stretches out, then the beam sweeps; Home keeps it up until its numbers arrive
 // (never past 8 s); Sign In closes it once the animation has played. Not shown again in the same session, nor on Home
 // with no sign-in. Reduced motion: everything at once, short.
@@ -44,10 +44,10 @@ const freshOpen = async (page, url) => {
   const t0 = Date.now();
   await freshOpen(page, base + 'index.html');
   assert.equal(await up(page), true, 'shown on opening Home');
-  await sleep(Math.max(0, 380 - (Date.now() - t0))); await shot(page, 'splash-1-typing');
+  await sleep(Math.max(0, 380 - (Date.now() - t0))); await shot(page, 'splash-1-letters');
   // Each stage is waited for (a busy test machine runs late), then checked in order.
   await page.waitForFunction(() => document.querySelector('.splash-code.stretched'), { timeout: 3000 });
-  assert.equal(await typed(page), 'SMARTCAN', 'all letters typed before it stretches (the S once)');
+  assert.equal(await typed(page), 'SMARTCAN', 'all letters in before it stretches (the S once)');
   await shot(page, 'splash-2-stretch');
   await page.waitForFunction(() => document.querySelector('.splash-code.scanning'), { timeout: 3000 });
   assert.deepEqual(await state(page), { stretched: true, scanning: true }, 'beam sweeping');

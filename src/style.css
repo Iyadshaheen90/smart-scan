@@ -460,9 +460,11 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   font-size: calc(var(--cell) * 1.08); font-weight: 800; line-height: 1;
   display: flex; align-items: center; justify-content: center; position: relative;
-  visibility: hidden;
+  /* Each letter fades in and rises a little (splash.js starts the next before this one is done). */
+  opacity: 0; transform: translateY(0.08em);
+  transition: opacity 0.48s ease-out, transform 0.48s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
-.splash-letter.on { visibility: visible; }
+.splash-letter.on { opacity: 1; transform: none; }
 .splash-letter.across { color: var(--text); }
 .splash-letter.down { color: var(--accent-bright); }
 /* The shared S: white toward SMART (top right), green toward SCAN (bottom left). */
@@ -470,13 +472,6 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
   background: linear-gradient(225deg, var(--text) 38%, var(--accent-bright) 62%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
-/* Typing carets: a bar after the newest letter across, a line under the newest letter down. */
-.splash-letter.caret-across::after, .splash-letter.caret-down::before {
-  content: ''; position: absolute; background: var(--accent-bright); animation: splash-blink 0.34s steps(1) infinite;
-}
-.splash-letter.caret-across::after { right: -2px; top: 14%; bottom: 14%; width: 3px; }
-.splash-letter.caret-down::before { left: 18%; right: 18%; bottom: -3px; height: 3px; }
-@keyframes splash-blink { 50% { opacity: 0; } }
 .splash-code { position: relative; margin: 14% 4% 6% 10%; }
 .splash-bars {
   position: absolute; inset: 0; display: flex; transform-origin: left center;
@@ -502,4 +497,5 @@ html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset
 @keyframes splash-fill { to { width: 90%; } }
 @media (prefers-reduced-motion: reduce) {
   .splash-code.scanning .splash-beam { animation: none; left: 50%; }
+  .splash-letter { transition: none; transform: none; }
 }

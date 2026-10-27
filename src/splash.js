@@ -1,5 +1,6 @@
-// Launch screen (owner 2026-10-26): SMART types across in white and SCAN types down in green, sharing the first S;
-// a barcode fills the corner between them and grows with each letter. After the last letter it stretches out to full
+// Launch screen (owner 2026-10-26): SMART fades in across in white and SCAN fades in down in green, sharing the first S
+// (each letter fades in while the one before is still finishing, owner 2026-10-26: smoother than typing); a barcode
+// fills the corner between them and grows with each letter. After the last letter it stretches out to full
 // width and a green scanner beam sweeps back and forth across it. The tagline and the Loading bar sit at the bottom.
 // Shown once each time the app is opened (sessionStorage), on Home and Sign In only. Load it as the first thing in
 // <body> so the page never shows under it. data-wait: stay up until the page calls splashReady() (Home, until its
@@ -16,7 +17,8 @@
     return; // No storage (private mode): never risk showing it on every page.
   }
 
-  const STEP = 170;         // ms between letters
+  const STEP = 170;         // ms between letters starting to fade in
+  const FADE = 480;         // ms each letter takes to fade in (matches style.css)
   const FIRST = 150;        // ms before the S
   const STRETCH = 520;      // ms the barcode takes to stretch out
   const MIN_SWEEPS = 1;     // full passes of the beam before it may close (one pass = SWEEP ms)
@@ -62,21 +64,16 @@
     grow(0.15);
     for (let step = 0; step <= 4; step += 1) {
       setTimeout(() => {
-        el.querySelectorAll('.caret-across, .caret-down').forEach((l) => l.classList.remove('caret-across', 'caret-down'));
-        letters(step).forEach((l) => {
-          l.classList.add('on');
-          // A caret after the newest letter of each word: beside it across, under it down (the S has both).
-          if (step < 4) l.classList.add(l.classList.contains('across') ? 'caret-across' : l.classList.contains('down') ? 'caret-down' : 'caret-across');
-          if (l.classList.contains('shared')) l.classList.add('caret-down');
-        });
+        letters(step).forEach((l) => l.classList.add('on'));
         if (step < 4) grow(0.15 + step * 0.12);
       }, FIRST + step * STEP);
     }
-    typedAt = FIRST + 4 * STEP;
-    setTimeout(() => { code.classList.add('stretched'); grow(1); }, typedAt + 120);
-    setTimeout(() => code.classList.add('scanning'), typedAt + 120 + STRETCH);
+    // The barcode stretches once the T is mostly in.
+    typedAt = FIRST + 4 * STEP + FADE * 0.6;
+    setTimeout(() => { code.classList.add('stretched'); grow(1); }, typedAt);
+    setTimeout(() => code.classList.add('scanning'), typedAt + STRETCH);
   }
-  const earliest = still ? 600 : typedAt + 120 + STRETCH + MIN_SWEEPS * SWEEP;
+  const earliest = still ? 600 : typedAt + STRETCH + MIN_SWEEPS * SWEEP;
   el.querySelector('.splash-fill').style.animationDuration = `${earliest}ms`;
 
   let ready = !script.hasAttribute('data-wait');

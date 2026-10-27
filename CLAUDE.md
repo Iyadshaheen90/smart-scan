@@ -226,10 +226,11 @@ Frontend (`src/`, plain HTML + JS, no build):
   Shipments Received or Returned Packs can't load, the reason shows at the top of the page (`#loadMessage`, under the header, seen without scrolling) with a Try
   again button that runs the page's loader again (it returns true once loaded, which clears the message). Back stock starts its camera only after it loads, so its Try again starts the camera too.
 - **Launch screen** (`splash.js` + `.splash` styles; owner 2026-10-26): once per app open (sessionStorage `smartScanSplash`),
-  on Home (signed in only, `data-needs-session`) and Sign In, loaded first in `<body>`. SMART types across in white and SCAN
-  down in green sharing the S (white→green), with carets; the corner barcode (made-up bars) grows with each letter, stretches
+  on Home (signed in only, `data-needs-session`) and Sign In, loaded first in `<body>`. SMART fades in across in white and SCAN
+  down in green sharing the S (white→green), each letter fading in (0.48 s, slight rise) while the last is still finishing
+  (owner 2026-10-26: replaced typing + carets); the corner barcode (made-up bars) grows with each letter, stretches
   to full width after the T, then a green beam sweeps back and forth. Tagline "Scratcher Inventory and Sales Tracking" and a
-  Loading bar at the bottom. Closes once the animation has played (~2.4 s) **and** the page is ready: Home (`data-wait`)
+  Loading bar at the bottom. Closes once the animation has played (~2.5 s) **and** the page is ready: Home (`data-wait`)
   calls `splashReady()` when its first `loadStatus()` finishes; never past 8 s. Reduced motion: shown whole, ~0.6 s.
   Browser tests skip it (harness sets the flag) unless `openApp({ splash: true })`.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
@@ -556,7 +557,7 @@ node test/browser/close-yesterday.js      # Close Yesterday: Home button (employ
 node test/parity/missed-day.js            # missed day + Close Yesterday on Sheets vs Supabase: offered/blocked/refused, totals incl. the missed day's sold outs, reopen, full pack undo
 node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
 node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
-node test/browser/splash.js               # launch screen: typing, stretch, beam, waits for Home's numbers, 8 s limit, once per open, Sign In, small phone, reduced motion
+node test/browser/splash.js               # launch screen: letter fade-in order, stretch, beam, waits for Home's numbers, 8 s limit, once per open, Sign In, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
