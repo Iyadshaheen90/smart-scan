@@ -233,6 +233,11 @@ Frontend (`src/`, plain HTML + JS, no build):
   Loading bar at the bottom. Closes once the animation has played (~2.5 s) **and** the page is ready: Home (`data-wait`)
   calls `splashReady()` when its first `loadStatus()` finishes; never past 8 s. Reduced motion: shown whole, ~0.6 s.
   Browser tests skip it (harness sets the flag) unless `openApp({ splash: true })`.
+- **iPhone launch pictures** (owner 2026-10-26: black flash on opening the app): before the first page draws, iOS shows a
+  plain black screen unless an `apple-touch-startup-image` fits the phone. `tools/startup-images.js` writes solid `--bg`
+  PNGs per iPhone size into `src/icons/startup/` and prints the `<link>`s that sit in index.html and login.html; re-run
+  it if `--bg` changes or a new iPhone size comes out. Manifest `background_color` is `--bg` too. iOS may only pick these
+  up when the app is added to the home screen again.
 - `index.html` home (also sends an unsent close, with a banner). Owner home = one `ownerHome` request; the last answer is saved
   per login in localStorage and shown at once, dimmed (`.stale`), until the fresh one arrives (a copy from an earlier day shows
   that day's close as the last close; only a fresh answer shows the Start month button). Owner: status card (Not Closed / Closed chip, big number = last
