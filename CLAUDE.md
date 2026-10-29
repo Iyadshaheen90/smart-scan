@@ -519,7 +519,9 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   the literal "env(SMTP_PASS)" and stop every email. Templates in the store's words: `supabase/templates/invite.html`
   ("Your Smart Scan Account", button Choose My Password) and `recovery.html` ("Reset Your Smart Scan Password"); no lottery
   names/logos, the independent-tool line at the bottom. Links work 24 h (`otp_expiry = 86400`, Supabase's max) and once;
-  `email_sent = 30` an hour (the cutover invites everyone at once).
+  `email_sent = 30` an hour (the cutover invites everyone at once). On dev since 2026-10-29: the owner's real test emails
+  **landed in Spam** (new sender through a server, supabase.co link, password subject). Until the domain: Not spam +
+  contacts + check Spam, Reset Password as the fallback; the domain with SPF/DKIM/DMARC is the real fix.
   **New passwords at cutover (owner 2026-10-29: both):** Sheets passwords can't move (different hash), so everyone gets
   an invite email at the prod import, and the owner uses Reset Password for anyone who has trouble. **Resend Invite**
   (Manage Employees, database only: shown on an active "Invited" card) → members function `resendInvite` → a new invite;
