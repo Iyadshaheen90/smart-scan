@@ -184,6 +184,9 @@
               if (user.active && !confirm(`Deactivate ${user.username}? They'll be signed out and can't sign in until reactivated.`)) return null;
               return api('setUserActive', { username: user.username, active: !user.active });
             }),
+            // Database: someone who hasn't used their invite yet can get a new one (the link works 24 hours).
+            ...(user.active && user.signedIn === false ? [actionButton('Resend Invite', () => api('resendInvite', { username: user.username })
+              .then((users) => { showMessage(listMessage, `A new invite is on its way to ${user.email}. The old link no longer works.`, 'ok'); return users; }))] : []),
             actionButton('Reset Password', () => {
               const newPassword = prompt(`New password for ${user.username}.\n${PASSWORD_RULE}.`);
               if (!newPassword) return null;

@@ -201,7 +201,8 @@ password_requirements = "lower_upper_letters_digits_symbols"
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+# 30: the cutover sends every member an invite at once, and Gmail itself allows ~500 a day.
+email_sent = 30
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -236,22 +237,31 @@ max_frequency = "1m0s"
 # Number of characters used in the email OTP.
 otp_length = 8
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# Invite and password links work 24 hours (the most Supabase allows), so an invite sent at night still works the next day.
+otp_expiry = 86400
 
 # Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Emails go out through the store's Gmail (owner 2026-10-29; a domain of our own later). The address and its Gmail app
+# password are never in the repo: they're in ~/.smart-scan/smtp.env, loaded only for `config push` (see CLAUDE.md).
+# Gmail always sends from the signed-in address, so admin_email is the same one.
+[auth.email.smtp]
+enabled = true
+host = "smtp.gmail.com"
+port = 587
+user = "env(SMTP_USER)"
+pass = "env(SMTP_PASS)"
+admin_email = "env(SMTP_USER)"
+sender_name = "Smart Scan"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# The two emails Smart Scan sends, in the store's words (owner 2026-10-29). Public sign-up is off, so no other
+# email (confirm sign-up, magic link) is ever sent.
+[auth.email.template.invite]
+subject = "Your Smart Scan Account"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Reset Your Smart Scan Password"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

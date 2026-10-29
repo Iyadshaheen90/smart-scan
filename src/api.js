@@ -211,7 +211,7 @@ async function dbRpc(fn, body) {
   throw serverError();
 }
 
-// The members Edge Function (invite, setPassword); it answers { ok, data, code, error } like Apps Script.
+// The members Edge Function (invite, setPassword, resendInvite); it answers { ok, data, code, error } like Apps Script.
 async function dbMembers(action, params) {
   const session = getSession();
   const r = await dbFetch('/functions/v1/members', { body: { action, storeId: session && session.storeId, ...params }, token: await freshToken() });
@@ -278,6 +278,8 @@ const DB_ACTIONS = {
   // Manage Employees: an employee is added by email (they get an invite), not with a starting password.
   createUser: ({ username, email }) => dbMembers('invite', { username, email, redirectTo: setPasswordUrl() }),
   resetPassword: ({ username, newPassword }) => dbMembers('setPassword', { username, newPassword }),
+  // A new invite email for someone who hasn't signed in yet (database only; the sheets have no emails).
+  resendInvite: ({ username }) => dbMembers('resendInvite', { username, redirectTo: setPasswordUrl() }),
   me: () => dbRpc('me', { p_store: getSession().storeId }),
   claimOwner: async () => { throw new ApiError('bad_request', 'With the database, a store and its owner are set up by Smart Scan.'); },
 };

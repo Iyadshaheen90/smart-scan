@@ -1,7 +1,8 @@
 // Sign-in on the database backend, against a throwaway test store on the dev project (smart-scan-dev): the pages run with
 // BACKEND 'supabase' and talk to the real database, Supabase Auth and the members Edge Function.
 // Sign in by email (wrong password, Forgot Password), the owner invites an employee by email (a test store hands the invite
-// link back instead of emailing it), the employee opens the link and chooses a password, changes it, signs out and in;
+// link back instead of emailing it) and sends it again (the old link stops working), the employee opens the link and
+// chooses a password, changes it, signs out and in; Resend Invite is refused once the owner set someone's password;
 // the owner sees them signed in, sets their password, turns them off (signed out on their next page, can't sign in);
 // an access token that ran out is renewed by itself, and a session the server no longer takes goes to Sign In.
 // Run: node test/browser/db-sign-in.js   (needs the Supabase CLI signed in, like test/parity)
@@ -14,6 +15,7 @@ const DOMAIN = 'signin.smartscan.test';
 const tag = crypto.randomBytes(3).toString('hex');
 const ownerEmail = `owner-${tag}@${DOMAIN}`;
 const newbieEmail = `newbie-${tag}@${DOMAIN}`;
+const laterEmail = `later-${tag}@${DOMAIN}`;
 const ownerPassword = `${crypto.randomBytes(12).toString('base64url')}Aa1!`; // the password rule: capital, lowercase, number, sign
 
 async function deleteTestUsers() {
@@ -140,6 +142,41 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.type('#email', newbieEmail.toUpperCase());
     await page.click('#addForm button');
     await page.waitForFunction(() => /already on the list \(newbie\)/.test(document.querySelector('#addMessage').textContent));
+    await page.$eval('#addForm', (f) => f.reset());
+
+    // ---- Resend Invite: a new link; the old one stops working ----
+    const cardOf = async (name) => {
+      for (const c of await page.$$('#list .card')) if ((await c.$eval('strong', (e) => e.textContent)) === name) return c;
+      throw new Error(`no card for ${name}`);
+    };
+    const buttonOn = async (name, label) => (await cardOf(name)).$(`xpath/.//button[text()="${label}"]`);
+    assert.ok(await buttonOn('newbie', 'Resend Invite'), 'an invited employee has Resend Invite');
+    const resent = page.waitForResponse((r) => r.url().includes('/functions/v1/members') && r.request().method() === 'POST');
+    await (await buttonOn('newbie', 'Resend Invite')).click();
+    const resentAnswer = await (await resent).json();
+    assert.equal(resentAnswer.ok, true, JSON.stringify(resentAnswer));
+    assert.ok(resentAnswer.testLink && resentAnswer.testLink !== answer.testLink, 'a new link');
+    await page.waitForFunction(() => /new invite is on its way/.test(document.querySelector('#listMessage').textContent));
+    assert.equal(await text(page, '#listMessage'), `A new invite is on its way to ${newbieEmail}. The old link no longer works.`);
+    assert.match(await (await cardOf('newbie')).evaluate((c) => c.textContent), /Employee · Invited/);
+
+    // The owner set a password for someone invited: no new invite (they sign in with that password).
+    await page.type('#username', 'later');
+    await page.type('#email', laterEmail);
+    await page.click('#addForm button');
+    await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 3);
+    promptAnswer = 'Later-pass1!';
+    await (await buttonOn('later', 'Reset Password')).click();
+    await page.waitForFunction(() => /Password for later changed/.test(document.querySelector('#listMessage').textContent));
+    await (await buttonOn('later', 'Resend Invite')).click();
+    await page.waitForFunction(() => /already has a password/.test(document.querySelector('#listMessage').textContent), { timeout: 20000 });
+    assert.equal(await text(page, '#listMessage'), 'later already has a password (you set one). They can sign in with it, or use Forgot Password.');
+
+    // The first link no longer works.
+    await page.goto(answer.testLink);
+    await page.waitForFunction(() => location.pathname.endsWith('set-password.html') && document.querySelector('#message').textContent, { timeout: 20000 });
+    assert.match(await text(page, '#message'), /expired or was already used/);
+    answer.testLink = resentAnswer.testLink;
 
     // ---- The employee opens the invite link (on this phone: it replaces the owner's sign-in) ----
     await page.goto(answer.testLink);
@@ -231,10 +268,11 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await signIn(ownerEmail, ownerPassword);
     await page.waitForFunction(() => location.pathname.endsWith('index.html'));
     await page.goto(base + 'users.html');
-    await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 2);
+    await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 3);
     const newbieCard = async () => (await page.$$('#list .card'))[1];
     assert.match(await (await newbieCard()).evaluate((c) => c.textContent), /Employee(?! · Invited)/);
     assert.doesNotMatch(await (await newbieCard()).evaluate((c) => c.textContent), /Invited/);
+    assert.equal(await (await newbieCard()).$('xpath/.//button[text()="Resend Invite"]'), null, 'no Resend Invite once signed in');
     const button = async (label) => (await newbieCard()).$(`xpath/.//button[text()="${label}"]`);
     promptAnswer = '123';
     await (await button('Reset Password')).click();

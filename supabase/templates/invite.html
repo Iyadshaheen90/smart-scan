@@ -1,0 +1,13 @@
+<!-- Invite email (members Edge Function → Supabase Auth). Owner's words 2026-10-29. {{ .ConfirmationURL }} opens
+     set-password.html; it works once, for 24 hours (otp_expiry). No lottery names, logos or pictures (owner's rule). -->
+<div style="font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #111; max-width: 480px;">
+  <h2 style="margin: 0 0 12px;">Welcome to Smart Scan</h2>
+  <p>Your store added you to Smart Scan, the app it uses to count scratcher tickets at closing.</p>
+  <p>Tap the button to choose your password. You'll sign in with this email ({{ .Email }}) and that password.</p>
+  <p style="margin: 24px 0;">
+    <a href="{{ .ConfirmationURL }}" style="background: #2f9e67; color: #fff; text-decoration: none; font-weight: bold; padding: 12px 20px; border-radius: 10px; display: inline-block;">Choose My Password</a>
+  </p>
+  <p>The button works once, for 24 hours. If it stopped working, ask the store owner to tap Resend Invite.</p>
+  <p style="color: #666; font-size: 13px;">If you weren't expecting this, you can ignore this email.</p>
+  <p style="color: #666; font-size: 12px;">Smart Scan is an independent bookkeeping tool for retailers. It is not affiliated with, endorsed by or approved by any lottery.</p>
+</div>

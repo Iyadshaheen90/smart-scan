@@ -1,10 +1,12 @@
-// Manage Employees on the database: adding an employee (invite by email) and the owner setting someone's password. Only
-// the service key can make an account or change another person's password, so the page calls this function instead of
-// the database. Every request is checked first with the caller's own sign-in by public.member_admin_check (owner of
-// that store, the username and email rules), so this function only does what the owner may do.
+// Manage Employees on the database: adding an employee (invite by email), sending the invite again, and the owner
+// setting someone's password. Only the service key can make an account or change another person's password, so the
+// page calls this function instead of the database. Every request is checked first with the caller's own sign-in by
+// public.member_admin_check (owner of that store, the username and email rules), so this function only does what the
+// owner may do.
 //
 //   POST { action: 'invite', storeId, username, email, redirectTo }  -> { ok, data: users } (+ testLink on a test store)
 //   POST { action: 'setPassword', storeId, username, newPassword }   -> { ok, data: users }
+//   POST { action: 'resendInvite', storeId, username, redirectTo }   -> { ok, data: users } (+ testLink on a test store)
 //   errors: { ok: false, code, error }, like the Apps Script backend.
 //
 // The invite email's link opens redirectTo (set-password.html), where the employee chooses a password. A test store
@@ -72,6 +74,27 @@ async function invite(token: string, req: Record<string, string>) {
   }
 }
 
+// Resend Invite (owner 2026-10-29): a new invite email for someone who hasn't signed in yet (the old link expired or
+// got lost). Supabase Auth sends a fresh one to an account that isn't confirmed; once the owner set them a password it's
+// confirmed, so Auth refuses and they sign in with that password.
+async function resendInvite(token: string, req: Record<string, string>) {
+  const checked = await rpc('member_admin_check', { p_store: req.storeId, req: { action: 'resendInvite', username: req.username } }, token);
+  const redirectTo = String(req.redirectTo || '');
+  const sent = checked.isTest
+    ? await admin('POST', '/admin/generate_link', { type: 'invite', email: checked.email, redirect_to: redirectTo })
+    : await admin('POST', `/invite?redirect_to=${encodeURIComponent(redirectTo)}`, { email: checked.email });
+  if (!sent.ok) {
+    const code = sent.data && (sent.data.error_code || sent.data.code);
+    if (code === 'email_exists' || /already been registered/i.test(JSON.stringify(sent.data))) {
+      throw new ApiError('has_password', `${checked.username} already has a password (you set one). They can sign in with it, or use Forgot Password.`);
+    }
+    if (sent.status === 429) throw new ApiError('too_many_emails', 'Too many invite emails just now. Try again in an hour.');
+    throw new Error(`resendInvite: ${sent.status} ${JSON.stringify(sent.data)}`);
+  }
+  const users = await rpc('list_users', { p_store: req.storeId, req: {} }, token);
+  return checked.isTest ? { data: users, testLink: sent.data.action_link || sent.data.properties?.action_link } : { data: users };
+}
+
 // Password rule (owner 2026-10-27): at least 8 characters with a capital letter, a lowercase letter, a number and one of
 // ? ! @ # $ % &. Same check and words as passwordProblem in src/api.js and validateNewPassword in Auth.js.
 function passwordProblem(password: string): string {
@@ -114,7 +137,8 @@ Deno.serve(async (request) => {
   try {
     const token = (request.headers.get('Authorization') || '').replace(/^Bearer /, '');
     const req = await request.json();
-    const run = req.action === 'invite' ? invite : req.action === 'setPassword' ? setPassword : null;
+    const run = req.action === 'invite' ? invite : req.action === 'setPassword' ? setPassword
+      : req.action === 'resendInvite' ? resendInvite : null;
     if (!run) throw new ApiError('bad_request', 'Unknown request.');
     return answer({ ok: true, ...(await run(token, req)) });
   } catch (e) {

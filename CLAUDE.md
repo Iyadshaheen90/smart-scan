@@ -511,8 +511,22 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   the auth prompt; it shows the diff first): site_url = the GitHub Pages `src/`, redirect list (Pages + `http://localhost:*`
   for tests), **public sign-up off**. Known difference: the owner setting a password doesn't sign that person out (Sheets
   ended their sessions); turning them off does, on their next request.
-  **Before cutover:** custom SMTP for the emails (Supabase's own mailer only sends to the project's team, a few an hour) and
-  email templates in the store's words; the prod project. (Users + emails: given 2026-10-27, in `~/.smart-scan/members.json`.) After the
+  **Emails (owner 2026-10-29): the store's Gmail for now, our own domain later** (needed for the App Store anyway; switching
+  is a config change, no code). config.toml `[auth.email.smtp]` = smtp.gmail.com:587, `user`/`admin_email` =
+  `env(SMTP_USER)`, `pass` = `env(SMTP_PASS)` (a Gmail **app password**; needs 2-Step Verification on that Gmail), sender
+  name "Smart Scan". Both live only in `~/.smart-scan/smtp.env` (mode 600, never in the repo). **Push auth settings only
+  with `sh scripts/push-auth-config.sh`**: it loads that file and refuses if it's empty — a plain `config push` would save
+  the literal "env(SMTP_PASS)" and stop every email. Templates in the store's words: `supabase/templates/invite.html`
+  ("Your Smart Scan Account", button Choose My Password) and `recovery.html` ("Reset Your Smart Scan Password"); no lottery
+  names/logos, the independent-tool line at the bottom. Links work 24 h (`otp_expiry = 86400`, Supabase's max) and once;
+  `email_sent = 30` an hour (the cutover invites everyone at once).
+  **New passwords at cutover (owner 2026-10-29: both):** Sheets passwords can't move (different hash), so everyone gets
+  an invite email at the prod import, and the owner uses Reset Password for anyone who has trouble. **Resend Invite**
+  (Manage Employees, database only: shown on an active "Invited" card) → members function `resendInvite` → a new invite;
+  the old link stops working. Refused for someone who has signed in, is turned off, or whose password the owner set
+  (that confirms the account: "… already has a password (you set one)…"). Migration 0019 (`member_admin_check`
+  'resendInvite'); tested in db-sign-in.js. Sheets has no emails, so nothing there.
+  Still before cutover: the prod project. (Users + emails: given 2026-10-27, in `~/.smart-scan/members.json`.) After the
   switch the owner enters the retailer number again on More (the Sheets copy is in Script Properties; the import can't read it).
 - **Password rule (owner 2026-10-27), on both backends (live on Sheets: backend @40, sw v44; database: dev only so far):** a new password needs at least 8 characters, a capital letter,
   a lowercase letter, a number and one of `? ! @ # $ % &` (other signs allowed but don't count). Written three times with
@@ -544,8 +558,8 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   PackHistory; activation ticket = the first close line's previous ticket; ended_at = the ending close line's logged_at.
   Prod import (real emails, invites) still to build at cutover.
 - **Next (owner's decisions pending):** prod project (Supabase Pro $25/month — owner's OK before creating it; its auth
-  settings from config.toml, incl. the password rule), custom SMTP (owner picks the service and sender address), the prod
-  import (real emails from `~/.smart-scan/members.json`; invite emails vs owner-set first passwords is the owner's call),
+  settings from config.toml, incl. the password rule), Gmail SMTP on it (owner's app password in smtp.env), the prod
+  import (real emails from `~/.smart-scan/members.json`; sends everyone an invite, owner's choice 2026-10-29),
   a full side-by-side run with `BACKEND = 'supabase'`, then the final Nov export + import after the Nov 30 close. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
 - **After the cutover: App Store + Google Play launch** (plan `~/.claude/plans/smart-scan-app-store-launch.md`; Phase A, the
   third-party wording, is done). Owner's choices: billing both (in-app via RevenueCat + Stripe web checkout), an LLC as the
@@ -592,7 +606,7 @@ node test/browser/sw-cache-first.js       # real service worker: opens with no a
 node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
 node test/browser/retailer-number.js     # More → Retailer Number (owner only, pop-up, refusals) and the number on the Theft Report (screen, text, PDF; owner + employee)
-node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against a dev test store: email sign-in, Forgot Password, invite → set password, change password, token renewal, owner sets password / turns off
+node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against a dev test store: email sign-in, Forgot Password, invite → Resend Invite → set password, change password, token renewal, owner sets password / turns off
 node test/sw-version.js                   # CACHE bumped after any change to a saved file (--update records it); every page/script is in SHELL
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
