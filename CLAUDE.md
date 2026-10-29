@@ -271,7 +271,21 @@ Frontend (`src/`, plain HTML + JS, no build):
   `setup-owner.html` · `account.html` · `users.html` (owner; on the database an employee is added by username + email; each employee card has a switch per permission,
   `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn All On/Off; folded under a
   "Permissions · N of 7 on" row, `details.perm-details`, closed at first and kept open across saves — owner 2026-10-08)
-- `settling.html` (owner, 2026-09-29) live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
+- **Help & FAQ** (owner 2026-10-29; wording approved in the shared doc https://claude.ai/artifact/ARsEt2WzZjMjpJPYHzMSTD):
+  `help.html` (More → Help & FAQ, everyone) shows `faq.js`: 10 sections, each item `{ id, who, backend?, go?, q, a }` in
+  **English, Spanish and Arabic** (`HELP_LANGS`; the picker at the top, remembered per phone in `smartScanHelpLang`;
+  Arabic `dir="rtl"`). Translations shipped as written (owner's choice); **button names stay in English** in every
+  language so they match the screens. `faqVisible`: the owner sees all; an employee sees `everyone` / `employee` items and
+  those for a permission they have; `backend: 'sheets' | 'supabase'` items show only on that backend (sign-in,
+  passwords, months) so the right answer shows by itself after the cutover. Search (every typed word, accents and Arabic
+  vowel marks ignored, also matches the English). Answers: a line per paragraph, `1. ` lines = numbered list, `- ` = bullets;
+  `go` = a Go There button. **Never a `$` in anything an employee can see** (the password rule's signs aside).
+  Pages with `data-help="<section>"` on the header get a small round **?** beside the title (`.title-row`, nav.js), which
+  opens `help.html?from=<this page>&section=<id>`: back pill to that page (only the ? pages are allowed as `from`),
+  that section marked. ? pages: Close Day (`close`; Close Shift → `shift`), slot page (`packs`), Back Stock (`backstock`),
+  Employees (`employees`), Theft Report (`reports`).
+  **When a feature, button name or rule changes, update its answer in faq.js (all three languages) in the same change.**
+ live packs at `OLD_PACK_DAYS` (50) or more, longest first (`settlingPacks` in api.js,
   from `listSlots`, so a sold-out/returned pack drops off by itself): Box · Slot, game · pack, days (amber 50–59, red from
   `SETTLED_PACK_DAYS` 60 = most likely settled), ticket price, tickets left and value as of the last close; tap → slot page (`&from=settling`, so its back pill and
   "Back to settling" return to Settling; opened from Slots they return to Slots, owner 2026-09-30).
@@ -626,6 +640,7 @@ node test/parity/activation-date.js       # setActivationDate on Sheets vs Supab
 node test/import-check.js                 # the import end to end: 2 made-up months on Sheets → export → rebuilt months answer the same → rows → dev test store → 23 reads the same
 node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
+node test/browser/help.js                # Help & FAQ: faq.js data (3 languages, who, permissions covered, go pages, no $ for employees, data-help sections), owner/employee views, search, languages + RTL, ? buttons + back pill
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 
 npx @google/clasp push -f                 # push backend (clasp isn't installed globally; already logged in)

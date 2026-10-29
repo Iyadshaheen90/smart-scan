@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Help &amp; FAQ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" id="header" data-title="Help &amp; FAQ"></header>
+  <script>
+    // Opened from a page's ? button (help.html?from=close.html&section=close): a back pill to that page. Only the pages
+    // with a ? are allowed, so the address can't send the pill anywhere else.
+    (function backToFrom() {
+      const HELP_BACK_LABELS = { 'close.html': 'Close Day', 'activate.html': 'Slot', 'backstock.html': 'Back Stock',
+        'users.html': 'Employees', 'theft-report.html': 'Theft Report' };
+      const from = new URLSearchParams(location.search).get('from') || '';
+      const match = from.match(/^([a-z-]+\.html)(\?[A-Za-z0-9=&]*)?$/);
+      if (!match || !HELP_BACK_LABELS[match[1]]) return;
+      const label = match[1] === 'close.html' && /shift=1/.test(match[2] || '') ? 'Close Shift' : HELP_BACK_LABELS[match[1]];
+      Object.assign(document.getElementById('header').dataset, { back: from, backLabel: label });
+    })();
+  </script>
+
+  <div class="lang-switch" id="langSwitch" role="group" aria-label="Language"></div>
+  <div id="helpBody">
+    <p class="sub" id="helpIntro"></p>
+    <input id="helpSearch" type="search" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div id="faq"></div>
+    <p class="sub hidden" id="noMatch"></p>
+  </div>
+
+  <nav class="tabbar" data-active="more"></nav>
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script src="faq.js"></script>
+  <script>
+    // Help & FAQ (owner 2026-10-29): the questions in faq.js this person may see (role, permissions, backend), in the
+    // language they pick (remembered on this phone), with a search box. ?section=<id> opens at that section.
+    const session = requireLogin();
+    const $ = (id) => document.getElementById(id);
+    const LANG_KEY = 'smartScanHelpLang';
+    let lang = 'en';
+    try { lang = HELP_LANGS.some((l) => l.id === localStorage.getItem(LANG_KEY)) ? localStorage.getItem(LANG_KEY) : 'en'; } catch (e) { /* no storage */ }
+
+    // Lowercase, without accents and Arabic vowel marks, so "codigo" finds "código".
+    const plain = (text) => String(text).normalize('NFD').replace(/[̀-ًͯ-ٟ]/g, '').toLowerCase();
+
+    // An answer's lines: "1. " lines make a numbered list, "- " lines a bullet list, anything else a paragraph.
+    function answerBlocks(text) {
+      const out = [];
+      for (const line of text.split('\n')) {
+        const kind = /^1\. /.test(line) ? 'ol' : /^- /.test(line) ? 'ul' : 'p';
+        const words = kind === 'p' ? line : line.replace(/^(1\. |- )/, '');
+        if (kind === 'p') {
+          const p = document.createElement('p');
+          p.textContent = words;
+          out.push(p);
+          continue;
+        }
+        let list = out[out.length - 1];
+        if (!list || list.tagName.toLowerCase() !== kind) { list = document.createElement(kind); out.push(list); }
+        const li = document.createElement('li');
+        li.textContent = words;
+        list.append(li);
+      }
+      return out;
+    }
+
+    function render() {
+      const language = HELP_LANGS.find((l) => l.id === lang);
+      $('helpBody').dir = language.dir;
+      $('helpBody').lang = lang;
+      $('langSwitch').innerHTML = '';
+      for (const l of HELP_LANGS) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.lang = l.id;
+        button.textContent = l.name;
+        button.classList.toggle('active', l.id === lang);
+        button.addEventListener('click', () => {
+          lang = l.id;
+          try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* no storage */ }
+          render();
+        });
+        $('langSwitch').append(button);
+      }
+      $('helpIntro').textContent = HELP_WORDS.intro[lang];
+      $('helpSearch').placeholder = HELP_WORDS.search[lang];
+      $('noMatch').textContent = HELP_WORDS.noMatch[lang];
+
+      const faq = $('faq');
+      faq.innerHTML = '';
+      for (const section of FAQ) {
+        const items = section.items.filter((item) => faqVisible(item, session, BACKEND));
+        if (!items.length) continue;
+        const box = document.createElement('section');
+        box.className = 'faq-section';
+        box.id = `s-${section.id}`;
+        const title = document.createElement('h2');
+        title.textContent = section.title[lang];
+        box.append(title);
+        for (const item of items) {
+          const details = document.createElement('details');
+          details.className = 'faq-item';
+          details.dataset.id = item.id;
+          const summary = document.createElement('summary');
+          const question = document.createElement('span');
+          question.className = 'grow';
+          question.textContent = item.q[lang];
+          const chev = document.createElement('span');
+          chev.className = 'faq-chev';
+          chev.innerHTML = icon('chevronRight');
+          summary.append(question, chev);
+          const answer = document.createElement('div');
+          answer.className = 'faq-answer';
+          answer.append(...answerBlocks(item.a[lang]));
+          if (item.go) {
+            const go = document.createElement('a');
+            go.className = 'button small faq-go';
+            go.href = item.go;
+            go.textContent = HELP_WORDS.goThere[lang];
+            answer.append(go);
+          }
+          details.append(summary, answer);
+          details.dataset.search = plain(`${item.q[lang]} ${item.a[lang]} ${item.q.en} ${item.a.en}`);
+          box.append(details);
+        }
+        faq.append(box);
+      }
+      filter();
+    }
+
+    // Shows only the questions with every typed word (in the chosen language or English); empty sections hide.
+    function filter() {
+      const words = plain($('helpSearch').value).split(/\s+/).filter(Boolean);
+      let shown = 0;
+      for (const box of document.querySelectorAll('.faq-section')) {
+        let inBox = 0;
+        for (const details of box.querySelectorAll('.faq-item')) {
+          const match = words.every((w) => details.dataset.search.includes(w));
+          details.classList.toggle('hidden', !match);
+          if (match) inBox += 1;
+        }
+        box.classList.toggle('hidden', !inBox);
+        shown += inBox;
+      }
+      $('noMatch').classList.toggle('hidden', shown > 0);
+    }
+
+    if (session) {
+      render();
+      $('helpSearch').addEventListener('input', filter);
+      // From a page's ? button: start at that page's section.
+      const target = document.getElementById(`s-${new URLSearchParams(location.search).get('section')}`);
+      if (target) {
+        target.classList.add('faq-target');
+        target.scrollIntoView({ block: 'start' });
+      }
+    }
+  </script>
+</body>
+</html>

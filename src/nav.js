@@ -2,6 +2,7 @@
 // Needs api.js (getSession) and icons.js loaded first.
 //   <header class="app-header" data-title="Slots" data-back="slots.html"></header>  (data-back: a back pill instead of the store name;
 //   its text is in .back-label; data-back-role="owner": the back pill only for that role)
+//   data-help="close": a small ? beside the title that opens Help & FAQ at that section and comes back here
 //   <nav class="tabbar" data-active="scan"></nav>
 // Tabs are only links: what each role may do is still checked by the server.
 
@@ -41,7 +42,13 @@ function renderHeader(el, session) {
   const pill = session
     ? `<a class="user-pill" href="more.html"><span class="name">${navEscape(session.username)}</span><span class="avatar">${navEscape(initials(session.username))}</span></a>`
     : '';
-  const title = `<h1${id(el.dataset.titleId)}>${navEscape(el.dataset.title || 'Smart Scan')}</h1>`;
+  const h1 = `<h1${id(el.dataset.titleId)}>${navEscape(el.dataset.title || 'Smart Scan')}</h1>`;
+  // The ? sits in the title's row, so the back pill and the name pill never move (owner's rule 2026-10-13).
+  const from = location.pathname.split('/').pop() + location.search;
+  const help = el.dataset.help
+    ? `<a class="help-link" href="help.html?from=${encodeURIComponent(from)}&amp;section=${encodeURIComponent(el.dataset.help)}" aria-label="Help">?</a>`
+    : '';
+  const title = help ? `<div class="title-row">${h1}${help}</div>` : h1;
   // With a back pill, it and the name pill share the top row (level with each other) and the title goes under them.
   el.classList.toggle('with-back', Boolean(back));
   el.innerHTML = back ? `${top}${pill}${title}` : `<div>${top}${title}</div>${pill}`;

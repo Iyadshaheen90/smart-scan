@@ -239,6 +239,36 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 .app-header.with-back .back-label { display: block; white-space: nowrap; overflow: hidden; min-width: 0; }
 .app-header.with-back .user-pill { max-width: 55vw; }
 .app-header.with-back h1 { grid-column: 1 / -1; margin: 0; }
+/* A page's ? (data-help): beside the title, opens Help & FAQ at that page's section. */
+.app-header .title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.app-header.with-back .title-row { grid-column: 1 / -1; }
+.app-header .title-row h1 { min-width: 0; }
+.help-link { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin-top: 2px;
+  border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--accent-bright);
+  font-size: 17px; font-weight: 800; text-decoration: none; }
+.help-link:active { background: var(--card-2); }
+/* Help & FAQ (help.html). */
+.lang-switch { display: flex; gap: 8px; margin-bottom: 4px; }
+.lang-switch button { flex: 1; margin: 0; padding: 10px 6px; font-size: 15px; }
+.lang-switch button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
+#helpSearch { margin-top: 4px; }
+.faq-section h2 { margin-top: 22px; }
+.faq-section.faq-target h2 { color: var(--accent-bright); }
+.faq-item { margin-top: 8px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); }
+.faq-item summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 12px 14px; list-style: none;
+  font-size: 16px; font-weight: 600; cursor: pointer; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary .grow { flex: 1; min-width: 0; }
+.faq-chev { display: inline-flex; color: var(--muted); transition: transform 0.15s; }
+.faq-chev svg { width: 18px; height: 18px; }
+.faq-item[open] .faq-chev { transform: rotate(90deg); }
+[dir="rtl"] .faq-chev { transform: scaleX(-1); }
+[dir="rtl"] .faq-item[open] .faq-chev { transform: rotate(90deg); }
+.faq-answer { padding: 0 14px 14px; font-size: 15px; line-height: 1.5; }
+.faq-answer p { margin: 0 0 8px; }
+.faq-answer ol, .faq-answer ul { margin: 0 0 8px; padding-inline-start: 22px; }
+.faq-answer li { margin-bottom: 4px; }
+.faq-go { margin-top: 4px; }
 .user-pill {
   display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0;
   padding: 5px 5px 5px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border);

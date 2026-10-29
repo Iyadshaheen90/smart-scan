@@ -14,13 +14,13 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header" data-title="Close Day"></header>
+  <header class="app-header" data-title="Close Day" data-help="close"></header>
   <script>
     // close.html?shift=1 is Close shift (owner's request 2026-09-30): the same scanning screen, for an optional
     // shift close. It saves only that shift's numbers and never changes anything Close Day uses.
     const SHIFT_MODE = new URLSearchParams(location.search).get('shift') === '1';
     if (SHIFT_MODE) {
-      document.currentScript.previousElementSibling.dataset.title = 'Close Shift';
+      Object.assign(document.currentScript.previousElementSibling.dataset, { title: 'Close Shift', help: 'shift' });
       document.title = 'Smart Scan — Close Shift';
     }
     // close.html?yesterday=1 is Close Yesterday (owner 2026-10-26): the morning after a day nobody closed (a broken or
