@@ -35,7 +35,7 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
     app = await openApp({ role, handle: (b) => (b.action === 'closeStatus' ? { slots: [], permissions: [] } : {}) });
     ({ page, base } = app);
     await page.goto(base + 'more.html');
-    assert.equal(await text(page, '#aboutRow'), 'About Smart Scan', role);
+    assert.equal(await text(page, '#aboutRow .row-title'), 'About Smart Scan', role);
     assert.equal(await open(page), false);
     await page.click('#aboutRow'); await sleep(50);
     assert.equal(await open(page), true, `${role}: About opens`);

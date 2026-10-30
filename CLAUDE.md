@@ -206,6 +206,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   one per phone in `smartScanPendingClose`)
 - `barcode.js` `parseTicketBarcode`, `parsePrintedTicket`, `STANDARD_PACK_SIZES` · `scanner.js` shared camera
   (zxing-wasm, `startScanner({... mode})` → `{ setMode }`) · `style.css` shared styles
+- **Design rule (owner 2026-10-29):** every UI change is designed like a senior UI designer with 20+ years would: clean,
+  clutter free, modern, professional, user friendly. Decide hierarchy and grouping first; check a phone-size screenshot.
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.
   `nav.js` fills `<header class="app-header" data-title=…>` (store name or a `data-back` link, title, name pill → More) and
   `<nav class="tabbar" data-active=…>`: owner Home · Scan (Close Day) · Stock · Reports (→ `reports.html`) · More; employee Home · Slots · More.
@@ -265,7 +267,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   Scan Tickets button → Close Day, and under it Close My Shift (hidden once the day is closed; a greyed "Shift Closed at
   2:00 PM" once they've closed one today, from `closeStatus.myShiftToday`), then an "Also allowed" section with a link per
   permission the owner turned on (Load / Return Packs → Slots; Ticket Order → More; Receive a Shipment, Manage Stock, Sell a Full Pack →
-  `backstock.html?mode=…`; Theft Report → `theft-report.html`); no dollars. · `more.html` Manage employees (owner), **Retailer Number** (owner only: a pop-up that asks for the number only when
+  `backstock.html?mode=…`; Theft Report → `theft-report.html`); no dollars. · `more.html` (**redesigned 2026-10-29**, owner: "looked generic"): a profile card (`.profile-card`: big initials, name, Owner/Employee chip, the sign-in email on the database), then grouped inset lists (`.group-block` > `.group-label` + `.group` of `.group-row`s: icon tile — green `accent` for Store —, title, one-line `.row-sub` hint, chevron, hairline dividers between visible rows only): **Store** (owner; an employee sees it only with Ticket Order), **Support** (Help & FAQ, Scanner Test, About), **Account** (Change My Password), then a quiet centered red **Sign Out** row and `Smart Scan · Version N` (newest `smart-scan-vN` in `caches.keys()`); test/browser/more.js. Rows: **Retailer Number** (owner only: a pop-up that asks for the number only when
   opened, Cancel / Save; `getRetailerNumber` / `setRetailerNumber`; icon `store`), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
   `login.html` (Email + Forgot Password? on the database) · `set-password.html` (database: invite / password email links) ·
   `setup-owner.html` · `account.html` · `users.html` (owner; on the database an employee is added by username + email; each employee card has a switch per permission,
@@ -640,6 +642,7 @@ node test/parity/activation-date.js       # setActivationDate on Sheets vs Supab
 node test/import-check.js                 # the import end to end: 2 made-up months on Sheets → export → rebuilt months answer the same → rows → dev test store → 23 reads the same
 node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
+node test/browser/more.js                # More tab: profile card, Store/Support/Account groups per role, dividers, version, long names fit
 node test/browser/help.js                # Help & FAQ: faq.js data (3 languages, who, permissions covered, go pages, no $ for employees, data-help sections), owner/employee views, search, languages + RTL, ? buttons + back pill
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $
 

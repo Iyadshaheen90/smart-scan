@@ -57,7 +57,7 @@ const makeReport = async (page, base) => {
   ({ page, base } = app);
   await page.goto(base + 'more.html');
   assert.equal(await shown(page, '#retailerRow'), true);
-  assert.equal(await text(page, '#retailerRow'), 'Retailer Number');
+  assert.equal(await text(page, '#retailerRow .row-title'), 'Retailer Number');
   assert.equal(calls.includes('getRetailerNumber'), false, 'not asked for until the pop-up opens');
   await page.click('#retailerRow');
   await page.waitForFunction(() => !document.getElementById('retailerInput').disabled);

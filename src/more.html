@@ -15,22 +15,73 @@
 </head>
 <body>
   <header class="app-header" data-title="More"></header>
-  <p class="sub" id="who"></p>
+  <!-- Redesign (owner 2026-10-29): a profile card, then grouped lists (Store / Support / Account), then Sign Out and the
+       app's version. -->
+  <section class="profile-card" id="profile">
+    <span class="avatar avatar-lg" id="profileAvatar"></span>
+    <div class="profile-text">
+      <div class="profile-name" id="profileName"></div>
+      <div class="profile-meta"><span class="chip" id="profileRole"></span></div>
+      <div class="profile-email hidden" id="profileEmail"></div>
+    </div>
+  </section>
 
-  <a class="list-card owner-only hidden" href="users.html"><span class="icon-box" data-icon="users"></span><span class="grow">Manage Employees</span><span class="chev" data-icon="chevronRight"></span></a>
-  <!-- Owner only: the store's lottery retailer number, printed on the Theft Report. -->
-  <button type="button" class="list-card owner-only hidden" id="retailerRow"><span class="icon-box" data-icon="store"></span><span class="grow">Retailer Number</span><span class="chev" data-icon="chevronRight"></span></button>
-  <div id="retailerResult" class="message"></div>
-  <!-- Owner, or an employee with Ticket order: set every slot to descending or ascending at once. -->
-  <button type="button" class="list-card hidden" id="orderRow"><span class="icon-box" data-icon="order"></span><span class="grow">Ticket Order</span><span class="chev" data-icon="chevronRight"></span></button>
-  <div id="orderResult" class="message"></div>
-  <a class="list-card" href="raw-scanner.html"><span class="icon-box" data-icon="scan"></span><span class="grow">Scanner Test</span><span class="chev" data-icon="chevronRight"></span></a>
-  <!-- About (everyone): the app is a third-party tool, not a lottery app (owner 2026-10-26). -->
-  <button type="button" class="list-card" id="aboutRow"><span class="icon-box" data-icon="info"></span><span class="grow">About Smart Scan</span><span class="chev" data-icon="chevronRight"></span></button>
-  <!-- Help & FAQ (everyone, owner 2026-10-29): the questions in faq.js, in English, Spanish or Arabic. -->
-  <a class="list-card" href="help.html"><span class="icon-box" data-icon="help"></span><span class="grow">Help &amp; FAQ</span><span class="chev" data-icon="chevronRight"></span></a>
-  <a class="list-card" href="account.html"><span class="icon-box" data-icon="key"></span><span class="grow">Change My Password</span><span class="chev" data-icon="chevronRight"></span></a>
-  <button type="button" class="list-card danger" id="signOut"><span class="icon-box" data-icon="logout"></span><span class="grow">Sign Out</span></button>
+  <div class="group-block" id="storeGroup">
+    <h2 class="group-label">Store</h2>
+    <div class="group">
+      <a class="group-row owner-only hidden" href="users.html">
+        <span class="row-icon accent" data-icon="users"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Manage Employees</span><span class="row-sub">People, invites and permissions</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <!-- Owner only: the store's lottery retailer number, printed on the Theft Report. -->
+      <button type="button" class="group-row owner-only hidden" id="retailerRow">
+        <span class="row-icon accent" data-icon="store"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Retailer Number</span><span class="row-sub">Printed on the Theft Report</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+      <!-- Owner, or an employee with Ticket order: set every slot to descending or ascending at once. -->
+      <button type="button" class="group-row hidden" id="orderRow">
+        <span class="row-icon accent" data-icon="order"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Ticket Order</span><span class="row-sub">Set every slot to ↓ or ↑</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+    </div>
+    <div id="retailerResult" class="message"></div>
+    <div id="orderResult" class="message"></div>
+  </div>
+
+  <div class="group-block">
+    <h2 class="group-label">Support</h2>
+    <div class="group">
+      <!-- Help & FAQ (everyone, owner 2026-10-29): the questions in faq.js, in English, Spanish or Arabic. -->
+      <a class="group-row" href="help.html">
+        <span class="row-icon" data-icon="help"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Help &amp; FAQ</span><span class="row-sub">How-tos in English, Español, العربية</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <a class="group-row" href="raw-scanner.html">
+        <span class="row-icon" data-icon="scan"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Scanner Test</span><span class="row-sub">Check the camera, buzz and beeps</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <!-- About (everyone): the app is a third-party tool, not a lottery app (owner 2026-10-26). -->
+      <button type="button" class="group-row" id="aboutRow">
+        <span class="row-icon" data-icon="info"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">About Smart Scan</span><span class="row-sub">An independent bookkeeping tool</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="group-block">
+    <h2 class="group-label">Account</h2>
+    <div class="group">
+      <a class="group-row" href="account.html">
+        <span class="row-icon" data-icon="key"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Change My Password</span><span class="row-sub">Choose a new sign-in password</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="group signout-group">
+    <button type="button" class="group-row signout-row" id="signOut"><span class="row-title">Sign Out</span></button>
+  </div>
+  <p class="app-version hidden" id="appVersion"></p>
 
   <div id="orderDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
     <div class="dialog">
@@ -81,8 +132,26 @@
   <script>
     const session = requireLogin();
     if (session) {
-      document.getElementById('who').textContent = `Signed in as ${session.username} (${session.role}).`;
+      // The profile card: initials, name, role, and on the database the sign-in email (the store is in the header).
+      document.getElementById('profileAvatar').textContent = initials(session.username);
+      document.getElementById('profileName').textContent = session.username;
+      const role = document.getElementById('profileRole');
+      role.textContent = session.role === 'owner' ? 'Owner' : 'Employee';
+      role.classList.toggle('green', session.role === 'owner');
+      if (session.email) {
+        document.getElementById('profileEmail').textContent = session.email;
+        document.getElementById('profileEmail').classList.remove('hidden');
+      }
       if (session.role === 'owner') document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
+    }
+    // The app's version = the saved set of files the phone runs (sw.js CACHE "smart-scan-v47" → "Version 47").
+    if (window.caches) {
+      caches.keys().then((keys) => {
+        const versions = keys.map((k) => Number((k.match(/^smart-scan-v(\d+)$/) || [])[1])).filter(Boolean);
+        if (!versions.length) return;
+        document.getElementById('appVersion').textContent = `Smart Scan · Version ${Math.max(...versions)}`;
+        document.getElementById('appVersion').classList.remove('hidden');
+      }).catch(() => {});
     }
     document.getElementById('signOut').addEventListener('click', () => signOut());
 
@@ -127,6 +196,8 @@
     // Ticket order for every slot (setAllSlotsOrder): pick one, then Save; Cancel changes nothing.
     let chosenOrder = null;
     if (session && can(session, 'ticket_order')) $('orderRow').classList.remove('hidden');
+    // The Store group shows only when one of its rows does (an employee sees it only with Ticket Order).
+    $('storeGroup').classList.toggle('hidden', !$('storeGroup').querySelector('.group-row:not(.hidden)'));
     function pickOrder(order) {
       chosenOrder = order;
       document.querySelectorAll('#orderChoices button').forEach((b) => b.classList.toggle('active', b.dataset.order === order));
