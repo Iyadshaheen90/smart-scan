@@ -80,10 +80,34 @@ function fitBackLabels() {
 }
 window.addEventListener('resize', () => { fitNumbers(); fitBackLabels(); });
 
+// Every password field gets an eye button to show or hide what's typed (redesign 2026-10-29).
+function addPasswordEyes() {
+  document.querySelectorAll('input[type="password"]').forEach((input) => {
+    if (input.parentElement.classList.contains('password-field')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'password-field';
+    input.replaceWith(wrap);
+    const eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'eye';
+    eye.setAttribute('aria-label', 'Show password');
+    eye.innerHTML = icon('eye');
+    eye.addEventListener('click', () => {
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      eye.innerHTML = icon(showing ? 'eye' : 'eyeOff');
+      eye.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+      input.focus();
+    });
+    wrap.append(input, eye);
+  });
+}
+
 (function renderNav() {
   const session = getSession();
   document.querySelectorAll('header.app-header').forEach((el) => renderHeader(el, session));
   fitBackLabels();
   if (session) document.querySelectorAll('nav.tabbar').forEach((el) => renderTabBar(el, session));
+  addPasswordEyes();
   fillIcons();
 })();

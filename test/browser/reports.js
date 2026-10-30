@@ -33,9 +33,9 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
 
   // Empty month.
   await page.goto(base + 'reports.html'); await loaded(page);
-  assert.match(await text(page, 'a[href="month.html"]'), /Months & Totals \$1,234 Sold This Month/);
-  assert.match(await text(page, 'a[href="shipments.html"]'), /Shipments Received 0 Packs · \$0 This Month/);
-  assert.match(await text(page, 'a[href="returns.html"]'), /Returned Packs 0 Packs · \$0 This Month/);
+  assert.match(await text(page, 'a[href="month.html"]'), /Months & Totals \$1,234 Sold$/);
+  assert.match(await text(page, 'a[href="shipments.html"]'), /Shipments Received 0 Packs · \$0$/);
+  assert.match(await text(page, 'a[href="returns.html"]'), /Returned Packs 0 Packs · \$0$/);
   await page.goto(base + 'shipments.html'); await loaded(page);
   assert.match(await text(page, '#list'), /No shipments received this month yet\./);
   await page.goto(base + 'returns.html'); await loaded(page);
@@ -58,8 +58,8 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   await page.goto(base + 'reports.html'); await loaded(page);
   assert.equal(await page.$eval('nav.tabbar a.active', (a) => a.dataset.tab), 'reports');
   assert.equal(await page.$('.app-header .back'), null); // a tab: no back pill
-  assert.match(await text(page, 'a[href="shipments.html"]'), /6 Packs · \$3,500 This Month/);
-  assert.match(await text(page, 'a[href="returns.html"]'), /3 Packs · \$1,420 This Month/);
+  assert.match(await text(page, 'a[href="shipments.html"]'), /6 Packs · \$3,500$/);
+  assert.match(await text(page, 'a[href="returns.html"]'), /3 Packs · \$1,420$/);
   await shot(page, 'reports');
 
   // Shipments Received: one card per day; a day opens its games numbered 1 to N in a table.

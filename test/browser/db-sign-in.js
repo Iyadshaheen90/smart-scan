@@ -65,7 +65,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
       await page.goto(base + 'login.html');
       await page.type('#username', email);
       await page.type('#password', password);
-      await page.click('#form button');
+      await page.click('#form button[type="submit"]');
     };
 
     // ---- Sign In page ----
@@ -185,11 +185,11 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     assert.match(await text(page, '#intro'), /Welcome to Smart Scan/);
     await page.type('#password', 'First-pass1!');
     await page.type('#confirm', 'first-pasz');
-    await page.click('#form button');
+    await page.click('#form button[type="submit"]');
     assert.equal(await text(page, '#message'), "The two passwords don't match.");
     await page.$eval('#confirm', (e) => { e.value = ''; });
     await page.type('#confirm', 'First-pass1!');
-    await page.click('#form button');
+    await page.click('#form button[type="submit"]');
     await page.waitForFunction(() => /Password saved/.test(document.querySelector('#message').textContent));
     assert.equal(await text(page, '#message'), "Password saved. You're signed in as newbie.");
     assert.equal(await visible(page, '#appNote'), true);
@@ -206,12 +206,14 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
 
     // ---- Change My Password ----
     await page.goto(base + 'account.html');
-    assert.equal(await text(page, '.password-rule'), 'At least 8 characters, with a capital letter, a lowercase letter, a number and one of ? ! @ # $ % &');
+    assert.equal(await page.$eval('.password-rule', (e) => e.getAttribute('aria-label')), 'At least 8 characters, with a capital letter, a lowercase letter, a number and one of ? ! @ # $ % &');
+    assert.deepEqual(await page.$$eval('.password-rule li', (lis) => lis.map((li) => li.textContent)),
+      ['At least 8 characters', 'A capital letter', 'A lowercase letter', 'A number', 'One of ? ! @ # $ % &']);
     // A new password that breaks the rule is refused on the page, before anything is sent.
     await page.type('#current', 'First-pass1!');
     await page.type('#next', 'secondpass');
     await page.type('#confirm', 'secondpass');
-    await page.click('#form button');
+    await page.click('#form button[type="submit"]');
     await page.waitForFunction(() => document.querySelector('#message').textContent);
     assert.equal(await text(page, '#message'), 'Password needs a capital letter, a number and one of ? ! @ # $ % &.');
     for (const id of ['#current', '#next', '#confirm']) await page.$eval(id, (e) => { e.value = ''; });
@@ -220,7 +222,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.type('#current', 'First-pass1!');
     await page.type('#next', 'First-pass1!');
     await page.type('#confirm', 'First-pass1!');
-    await page.click('#form button');
+    await page.click('#form button[type="submit"]');
     await page.waitForFunction(() => document.querySelector('#message').textContent);
     assert.equal(await text(page, '#message'), "The new password can't be the same as the last one.");
     for (const id of ['#current', '#next', '#confirm']) await page.$eval(id, (e) => { e.value = ''; });
@@ -231,12 +233,12 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.type('#current', 'wrong-pass');
     await page.type('#next', 'Second-pass2!');
     await page.type('#confirm', 'Second-pass2!');
-    await page.click('#form button');
+    await page.click('#form button[type="submit"]');
     await page.waitForFunction(() => document.querySelector('#message').textContent);
     assert.equal(await text(page, '#message'), 'Your current password is wrong.');
     await page.$eval('#current', (e) => { e.value = ''; });
     await page.type('#current', 'First-pass1!');
-    await page.click('#form button');
+    await page.click('#form button[type="submit"]');
     await page.waitForFunction(() => document.querySelector('#message').textContent === 'Password changed.');
 
     // ---- An access token that ran out is renewed by itself ----

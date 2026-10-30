@@ -14,14 +14,14 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header" data-title="Change My Password"></header>
+  <header class="app-header" data-title="Change My Password" data-back="more.html" data-back-label="More"></header>
 
-  <form id="form">
+  <form id="form" class="auth-card">
     <label for="current">Current Password</label>
     <input id="current" type="password" autocomplete="current-password" required>
     <label for="next">New Password</label>
     <input id="next" type="password" autocomplete="new-password" minlength="8" required>
-    <p class="sub password-rule"></p>
+    <ul class="password-rule"></ul>
     <label for="confirm">Type the New Password Again</label>
     <input id="confirm" type="password" autocomplete="new-password" minlength="8" required>
     <button class="primary" type="submit">Change Password</button>
@@ -38,7 +38,7 @@
     const session = requireLogin();
     const form = document.getElementById('form');
     const messageEl = document.getElementById('message');
-    document.querySelectorAll('.password-rule').forEach((el) => { el.textContent = PASSWORD_RULE; });
+    document.querySelectorAll('.password-rule').forEach((el) => showPasswordRule(el));
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -55,7 +55,7 @@
         return;
       }
       try {
-        await whileBusy(form.querySelector('button'), 'Saving…', () =>
+        await whileBusy(form.querySelector('button[type="submit"]'), 'Saving…', () =>
           api('changePassword', { currentPassword: form.current.value, newPassword: form.next.value }));
         form.reset();
         showMessage(messageEl, 'Password changed.', 'ok');

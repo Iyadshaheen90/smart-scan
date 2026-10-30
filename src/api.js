@@ -32,15 +32,18 @@ class ApiError extends Error {
 // ? ! @ # $ % &. The same check is in the Sheets backend (Auth.js passwordProblem) and the members Edge Function; pages
 // check before sending and show PASSWORD_RULE under each new password field. Existing passwords keep working.
 const PASSWORD_RULE = 'At least 8 characters, with a capital letter, a lowercase letter, a number and one of ? ! @ # $ % &';
+// Each part of the rule, in order: the message's words and the check.
+const PASSWORD_CHECKS = [
+  { words: 'at least 8 characters', ok: (p) => p.length >= 8 },
+  { words: 'a capital letter', ok: (p) => /[A-Z]/.test(p) },
+  { words: 'a lowercase letter', ok: (p) => /[a-z]/.test(p) },
+  { words: 'a number', ok: (p) => /[0-9]/.test(p) },
+  { words: 'one of ? ! @ # $ % &', ok: (p) => /[?!@#$%&]/.test(p) },
+];
 // What a new password is missing ("Password needs a capital letter and a number."), or '' when it's fine.
 function passwordProblem(password) {
   const p = String(password || '');
-  const missing = [];
-  if (p.length < 8) missing.push('at least 8 characters');
-  if (!/[A-Z]/.test(p)) missing.push('a capital letter');
-  if (!/[a-z]/.test(p)) missing.push('a lowercase letter');
-  if (!/[0-9]/.test(p)) missing.push('a number');
-  if (!/[?!@#$%&]/.test(p)) missing.push('one of ? ! @ # $ % &');
+  const missing = PASSWORD_CHECKS.filter((c) => !c.ok(p)).map((c) => c.words);
   if (!missing.length) return '';
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
   return `Password needs ${list}.`;
@@ -48,6 +51,23 @@ function passwordProblem(password) {
 // A new password can't be the one it replaces (owner 2026-10-27): Change My Password, the owner's Reset Password and
 // Forgot Password. Same words in Auth.js and the members Edge Function.
 const SAME_PASSWORD_MESSAGE = "The new password can't be the same as the last one.";
+// Under a new password field (<ul class="password-rule"> right after it): the rule as a checklist that ticks off while they type
+// (redesign 2026-10-29). Read aloud as the whole rule.
+function showPasswordRule(list) {
+  const before = list.previousElementSibling;
+  const input = before.matches('input') ? before : before.querySelector('input');
+  list.setAttribute('aria-label', PASSWORD_RULE);
+  list.innerHTML = '';
+  const items = PASSWORD_CHECKS.map((c) => {
+    const li = document.createElement('li');
+    li.textContent = c.words.charAt(0).toUpperCase() + c.words.slice(1);
+    list.append(li);
+    return li;
+  });
+  const update = () => PASSWORD_CHECKS.forEach((c, i) => items[i].classList.toggle('met', c.ok(String(input.value || ''))));
+  input.addEventListener('input', update);
+  update();
+}
 function checkNewPassword(password) {
   const problem = passwordProblem(password);
   if (problem) throw new ApiError('bad_password', problem);

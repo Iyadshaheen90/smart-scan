@@ -18,17 +18,36 @@
   <!-- Why the numbers could not load, with Try again. The rows still open their reports. -->
   <div id="loadMessage" class="message"></div>
 
-  <!-- Every report the owner has, with this month's numbers (owner's choice 2026-10-13). -->
+  <!-- Every report the owner has, with this month's numbers (owner's choice 2026-10-13), as grouped lists like More
+       (redesign 2026-10-29). -->
   <div class="saved-dim">
-    <a class="list-card" href="month.html"><span class="icon-box" data-icon="chart"></span>
-      <span class="grow">Months &amp; Totals<span class="report-nums fit" id="monthNums">…</span></span><span class="chev" data-icon="chevronRight"></span></a>
-    <a class="list-card" href="shipments.html"><span class="icon-box" data-icon="truck"></span>
-      <span class="grow">Shipments Received<span class="report-nums fit" id="shipmentNums">…</span></span><span class="chev" data-icon="chevronRight"></span></a>
-    <a class="list-card" href="returns.html"><span class="icon-box" data-icon="returned"></span>
-      <span class="grow">Returned Packs<span class="report-nums fit" id="returnNums">…</span></span><span class="chev" data-icon="chevronRight"></span></a>
+    <div class="group-block group-first">
+      <h2 class="group-label">This Month</h2>
+      <div class="group">
+      <a class="group-row" href="month.html">
+        <span class="row-icon" data-icon="chart"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Months &amp; Totals</span><span class="row-sub report-nums fit" id="monthNums">…</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <a class="group-row" href="shipments.html">
+        <span class="row-icon" data-icon="truck"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Shipments Received</span><span class="row-sub report-nums fit" id="shipmentNums">…</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <a class="group-row" href="returns.html">
+        <span class="row-icon" data-icon="returned"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Returned Packs</span><span class="row-sub report-nums fit" id="returnNums">…</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      </div>
+    </div>
     <!-- After a break-in: packs and unsold ticket ranges to send to the lottery (owner 2026-10-23). No number here: it's made fresh. -->
-    <a class="list-card" href="theft-report.html"><span class="icon-box" data-icon="theft"></span>
-      <span class="grow">Theft Report<span class="report-nums note">Packs and Tickets to Stop</span></span><span class="chev" data-icon="chevronRight"></span></a>
+    <div class="group-block">
+      <h2 class="group-label">After a Theft</h2>
+      <div class="group">
+      <a class="group-row" href="theft-report.html">
+        <span class="row-icon danger" data-icon="theft"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Theft Report</span><span class="row-sub">Packs and Tickets to Stop</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      </div>
+    </div>
   </div>
 
   <nav class="tabbar" data-active="reports"></nav>
@@ -43,10 +62,11 @@
     const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
     const packs = (n) => `${n} ${n === 1 ? 'Pack' : 'Packs'}`;
 
+    // "This Month" is the group's label, so the numbers don't repeat it.
     function show(data) {
-      $('monthNums').textContent = `${money(data.monthDollars)} Sold This Month`;
-      $('shipmentNums').textContent = `${packs(data.shipments.packs)} · ${money(data.shipments.dollars)} This Month`;
-      $('returnNums').textContent = `${packs(data.returns.packs)} · ${money(data.returns.dollars)} This Month`;
+      $('monthNums').textContent = `${money(data.monthDollars)} Sold`;
+      $('shipmentNums').textContent = `${packs(data.shipments.packs)} · ${money(data.shipments.dollars)}`;
+      $('returnNums').textContent = `${packs(data.returns.packs)} · ${money(data.returns.dollars)}`;
       fitNumbers();
     }
 

@@ -206,6 +206,13 @@ Frontend (`src/`, plain HTML + JS, no build):
   one per phone in `smartScanPendingClose`)
 - `barcode.js` `parseTicketBarcode`, `parsePrintedTicket`, `STANDARD_PACK_SIZES` · `scanner.js` shared camera
   (zxing-wasm, `startScanner({... mode})` → `{ setMode }`) · `style.css` shared styles
+- **UI touch-ups (2026-10-29, owner's design rule):** Reports tab = grouped lists like More ("This Month": Months & Totals,
+  Shipments, Returns with their numbers shrunk to fit, not repeating "This Month"; "After a Theft": Theft Report with a red
+  icon tile). Sign In = app icon + name, fields in `.auth-card`, Forgot Password? under the password (database), small
+  print centered. **Every password field gets an eye** (`addPasswordEyes` in nav.js wraps it in `.password-field`; the eye
+  is `type="button"`, so pages and tests pick the submit with `button[type="submit"]`). New-password fields show the rule
+  as a checklist (`<ul class="password-rule">` right after the field → `showPasswordRule(el)` in api.js, built from
+  `PASSWORD_CHECKS`, the same list `passwordProblem` uses; aria-label = PASSWORD_RULE). Change My Password has a More back pill.
 - **Design rule (owner 2026-10-29):** every UI change is designed like a senior UI designer with 20+ years would: clean,
   clutter free, modern, professional, user friendly. Decide hierarchy and grouping first; check a phone-size screenshot.
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.
@@ -642,6 +649,7 @@ node test/parity/activation-date.js       # setActivationDate on Sheets vs Supab
 node test/import-check.js                 # the import end to end: 2 made-up months on Sheets → export → rebuilt months answer the same → rows → dev test store → 23 reads the same
 node test/browser/splash.js               # launch screen: letter order + cursor, barcode opens with the beam, waits for Home's numbers, 8 s limit, once per open, Sign In, Home signed out / expired passes on without drawing, small phone, reduced motion
 node test/browser/disclaimer.js           # third-party disclaimer: Sign In small print, More → About (owner + employee), no "CA Lottery" in src pages
+node test/browser/auth-look.js           # Sign In look, eye on password fields (not a submit), password checklist ticks, Change My Password back to More and saves
 node test/browser/more.js                # More tab: profile card, Store/Support/Account groups per role, dividers, version, long names fit
 node test/browser/help.js                # Help & FAQ: faq.js data (3 languages, who, permissions covered, go pages, no $ for employees, data-help sections), owner/employee views, search, languages + RTL, ? buttons + back pill
 node test/browser/permissions.js          # employee permissions: Manage employees switches, employee home links, slots/slot page/back stock per permission, no $

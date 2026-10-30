@@ -28,21 +28,25 @@
 </head>
 <body>
   <script src="splash.js"></script>
-  <header class="app-header" data-title="Smart Scan"></header>
-  <p class="sub">Sign in to continue.</p>
+  <!-- Redesign (owner 2026-10-29): the app's icon and name, the fields in one card, then the small print. -->
+  <div class="auth-brand">
+    <img src="icons/icon-192.png" alt="" width="72" height="72">
+    <h1>Smart Scan</h1>
+    <p class="sub">Sign in to continue.</p>
+  </div>
 
-  <form id="form">
+  <form id="form" class="auth-card">
     <label for="username">Username</label>
     <input id="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
     <label for="password">Password</label>
     <input id="password" type="password" autocomplete="current-password" required>
+    <p id="forgotLine" class="forgot-line hidden"><a href="#" id="forgot">Forgot Password?</a></p>
     <button class="primary" type="submit">Sign In</button>
   </form>
   <div id="message" class="message"></div>
 
-  <p id="forgotLine" class="sub hidden" style="margin-top: 20px;"><a href="#" id="forgot">Forgot Password?</a></p>
-  <p id="setupLine" class="sub" style="margin-top: 32px;">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
-  <p class="fine-print" id="disclaimer"></p>
+  <p id="setupLine" class="auth-note">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
+  <p class="fine-print auth-fine" id="disclaimer"></p>
 
   <script src="config.js"></script>
   <script src="api.js"></script>
@@ -85,7 +89,7 @@
       messageEl.className = 'message';
       messageEl.textContent = '';
       try {
-        const session = await whileBusy(form.querySelector('button'), 'Signing in…', () => api('login', USE_DATABASE
+        const session = await whileBusy(form.querySelector('button[type="submit"]'), 'Signing in…', () => api('login', USE_DATABASE
           ? { email: form.username.value, password: form.password.value }
           : { username: form.username.value, password: form.password.value }));
         saveSession(session);

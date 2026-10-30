@@ -27,7 +27,7 @@
     <div id="passwordField">
       <label for="password">Starting Password</label>
       <input id="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" minlength="8" required>
-      <p class="sub password-rule"></p>
+      <ul class="password-rule"></ul>
     </div>
     <div id="emailField" class="hidden">
       <label for="email">Email</label>
@@ -51,7 +51,7 @@
     const listMessage = document.getElementById('listMessage');
     const addForm = document.getElementById('addForm');
     const addMessage = document.getElementById('addMessage');
-    document.querySelectorAll('.password-rule').forEach((el) => { el.textContent = PASSWORD_RULE; });
+    document.querySelectorAll('.password-rule').forEach((el) => showPasswordRule(el));
 
     // The database adds an employee by email (an invite), not with a starting password.
     if (USE_DATABASE) {

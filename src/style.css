@@ -300,6 +300,11 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
   border-radius: 10px; background: var(--card-2); color: var(--text); }
 .row-icon svg { width: 18px; height: 18px; }
 .row-icon.accent { background: var(--accent-soft); color: var(--accent-bright); }
+.row-icon.danger { background: var(--error-bg); color: var(--danger); }
+/* This month's numbers under a report's title (Reports tab): green, shrunk to fit rather than cut off. */
+.group-row .row-sub.report-nums { color: var(--accent-bright); font-weight: 700; font-variant-numeric: tabular-nums; text-overflow: clip; }
+/* The first group right under the header doesn't need the gap above it. */
+.group-block.group-first { margin-top: 0; }
 .row-text { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 0; }
 .group > .group-row:not(.hidden) ~ .group-row:not(.hidden) .row-text { border-top: 1px solid var(--border); }
 .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -311,6 +316,34 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 .group-row.signout-row { justify-content: center; min-height: 54px; padding: 0; color: var(--danger); }
 .signout-row .row-title { font-weight: 700; }
 .app-version { margin: 14px 0 0; text-align: center; font-size: 12px; color: var(--muted); }
+
+/* Sign In and the password pages (redesign 2026-10-29): the app's mark, fields in one card, an eye on each password,
+   and the password rule as a checklist that ticks off while typing. */
+.auth-brand { text-align: center; margin: 7vh 0 22px; }
+.auth-brand img { width: 72px; height: 72px; border-radius: 18px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); }
+.auth-brand h1 { margin: 14px 0 4px; font-size: 26px; }
+.auth-brand .sub { margin: 0; }
+.auth-card { padding: 4px 16px 16px; border-radius: 20px; background: var(--card); border: 1px solid var(--border); }
+.auth-card input { background: var(--bg); }
+.auth-card button[type="submit"] { margin-top: 18px; }
+.forgot-line { margin: 10px 0 0; text-align: right; font-size: 14px; font-weight: 600; }
+.forgot-line a, .auth-note a { color: var(--accent-bright); text-decoration: none; }
+.auth-note { margin: 22px 0 0; text-align: center; font-size: 14px; color: var(--muted); }
+.auth-fine { margin-top: 28px; text-align: center; }
+.password-field { position: relative; }
+.password-field input { padding-right: 48px; }
+.password-field .eye { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); width: 40px; height: 40px; margin: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: var(--muted); }
+.password-field .eye svg { width: 20px; height: 20px; }
+.password-field .eye:active { background: var(--card-2); }
+ul.password-rule { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+ul.password-rule li { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+ul.password-rule li::before { content: ''; flex: none; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border);
+  box-sizing: border-box; }
+ul.password-rule li.met { color: var(--text); }
+ul.password-rule li.met::before { border: 0; background: var(--accent) center / 10px no-repeat
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b1a12' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
+ul.password-rule li:last-child { grid-column: 1 / -1; }
 
 /* Status chips. */
 .chip {
