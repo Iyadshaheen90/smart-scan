@@ -37,6 +37,20 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
     ['sizeForm', 'activatedForm', 'swapForm']);
   assert.match(await text('activatedInfo'), /^Oct 26, 2026: activated today\. If the lottery activated this pack before it went in the slot/);
   assert.equal(await page.$eval('#activatedOn', (el) => el.value), '2026-10-26');
+  // The pop-up never scrolls sideways, and the date field fits inside it (iPhone draws date fields too wide otherwise).
+  await page.click('#activatedRow');
+  for (const width of [390, 320]) {
+    await page.setViewport({ width, height: 800 });
+    const fit = await page.$eval('#activatedForm', (f) => {
+      const date = f.querySelector('#activatedOn').getBoundingClientRect();
+      const box = f.getBoundingClientRect();
+      return { x: getComputedStyle(f).overflowX, fits: date.left >= box.left && date.right <= box.right, wide: f.scrollWidth > f.clientWidth,
+        look: getComputedStyle(f.querySelector('#activatedOn')).appearance };
+    });
+    assert.deepEqual(fit, { x: 'hidden', fits: true, wide: false, look: 'none' }, `width ${width}`);
+  }
+  await page.setViewport({ width: 390, height: 844 });
+  await page.click('#activatedDialog [data-close]');
 
   // The lottery activated it on its own on Sep 12.
   await setDate('2026-09-12');
