@@ -226,6 +226,9 @@ Frontend (`src/`, plain HTML + JS, no build):
   only then** (`renderSettings`; the group hides with no rows, e.g. Load Packs only). Saving closes the pop-up and floats
   the message (`#settingsToast`; the form's own message keeps the words); a refusal keeps it open. Tests tap the row
   (`#activatedRow`, `#orderRow`) first and submit with `button[type="submit"]`.
+  **iPhone date fields:** Safari draws `input[type="date"]` wider than its box, so it has `appearance: none` (style.css; same
+  height, date on the left, the picker still opens) and form pop-ups have `overflow-x: hidden` — the Activation Date pop-up
+  scrolled sideways before. Owner checked all of these touch-ups on the phone 2026-10-29: good.
 - **Design rule (owner 2026-10-29):** every UI change is designed like a senior UI designer with 20+ years would: clean,
   clutter free, modern, professional, user friendly. Decide hierarchy and grouping first; check a phone-size screenshot.
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.
@@ -596,8 +599,9 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   PackHistory; activation ticket = the first close line's previous ticket; ended_at = the ending close line's logged_at.
   Prod import (real emails, invites) still to build at cutover.
 - **Next (owner's decisions pending):** prod project (Supabase Pro $25/month — owner's OK before creating it; its auth
-  settings from config.toml, incl. the password rule), Gmail SMTP on it (owner's app password in smtp.env), the prod
-  import (real emails from `~/.smart-scan/members.json`; sends everyone an invite, owner's choice 2026-10-29),
+  settings from config.toml, incl. the password rule, pushed with `sh scripts/push-auth-config.sh` linked to prod), the prod
+  import (real emails from `~/.smart-scan/members.json`; sends everyone an invite, owner's choice 2026-10-29; before it,
+  employees add route66liquor@gmail.com to contacts and check Spam, since the test emails landed there),
   a full side-by-side run with `BACKEND = 'supabase'`, then the final Nov export + import after the Nov 30 close. Later: per-pack shipment scan-in (numbered back stock) and the Theft Report listing those packs.
 - **After the cutover: App Store + Google Play launch** (plan `~/.claude/plans/smart-scan-app-store-launch.md`; Phase A, the
   third-party wording, is done). Owner's choices: billing both (in-app via RevenueCat + Stripe web checkout), an LLC as the
