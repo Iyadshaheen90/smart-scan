@@ -50,7 +50,8 @@ const log = [];
     // Even when the server never answers.
     hang = true;
     await page.goto(base + 'more.html?x=1', { timeout: 5000 });
-    assert.ok(await page.evaluate(() => Boolean(document.querySelector('header.app-header'))));
+    // (signed out it goes on to Sign In, whose top is the app's mark rather than a header)
+    assert.ok(await page.evaluate(() => Boolean(document.querySelector('header.app-header, .auth-brand'))));
     hang = false;
 
     // A deploy: login.html and api.js change, and sw.js gets a new CACHE.

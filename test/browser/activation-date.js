@@ -25,8 +25,9 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   const visible = (id) => page.$eval('#' + id, (el) => !el.classList.contains('hidden'));
   const text = (id) => page.$eval('#' + id, (el) => el.textContent);
   const setDate = async (value) => {
+    await page.click('#activatedRow'); // Slot Settings → Activation Date opens its pop-up (redesign 2026-10-29)
     await page.$eval('#activatedOn', (el, v) => { el.value = v; }, value);
-    await page.click('#activatedForm button'); await sleep(200);
+    await page.click('#activatedForm button[type="submit"]'); await sleep(200);
   };
 
   await page.goto(base + 'activate.html?box=1&slot=1');
@@ -40,6 +41,10 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   // The lottery activated it on its own on Sep 12.
   await setDate('2026-09-12');
   assert.equal(await text('activatedMessage'), 'Pack 1747-0012345 activated Sep 12, 2026: 44 days ago.');
+  // Saved: the pop-up closes, the row shows the new day, and the message floats above the tab bar.
+  assert.equal(await visible('activatedDialog'), false);
+  assert.equal(await text('activatedRowSub'), 'Sep 12, 2026 · 44 days ago');
+  assert.equal(await text('settingsToast'), 'Pack 1747-0012345 activated Sep 12, 2026: 44 days ago.');
   assert.match(await text('activatedInfo'), /^Sep 12, 2026: 44 days ago\./);
   assert.match(await text('oldDetail'), /activated 2026-09-12$/);
   assert.equal(call(() => ctx.listSlots())[0].pack.daysActive, 44);
@@ -48,6 +53,7 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   // A typo in the year is refused; nothing changes.
   await setDate('2024-09-12');
   assert.equal(await text('activatedMessage'), 'That date is more than a year ago. Check the year.');
+  assert.equal(await visible('activatedDialog'), true, 'a refusal keeps the pop-up open');
   assert.equal(call(() => ctx.listSlots())[0].pack.daysActive, 44);
 
   // An empty slot has no Activation Date.
@@ -62,6 +68,7 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: `${pro
   await page.goto(base + 'activate.html?box=1&slot=1');
   await page.waitForFunction(() => !document.getElementById('oldStep').classList.contains('hidden'));
   assert.equal(await page.$eval('#activatedForm', (el) => !el.classList.contains('hidden')), false, 'employee');
+  assert.equal(await page.$eval('#settingsGroup', (el) => el.classList.contains('hidden')), true, 'no Slot Settings for Load Packs only');
   await app.close();
 
   console.log('activation date: all passed');

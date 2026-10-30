@@ -72,6 +72,7 @@ const arrows = (page) => page.$$eval('#list .card', (cards) => cards.slice(0, 4)
   await page.goto(app.base + 'activate.html?box=1&slot=4');
   await page.waitForFunction(() => !document.getElementById('orderForm').classList.contains('hidden'));
   assert.equal(await page.$eval('#orderInfo', (el) => el.textContent), 'The next pack in this slot is sold ↓ descending (down to 000).');
+  await page.click('#orderRow'); // Slot Settings → Ticket Order opens its pop-up (redesign 2026-10-29)
   await page.click('#orderSwitch button[data-order="ascending"]');
   await page.waitForFunction(() => /Saved/.test(document.getElementById('orderMessage').textContent));
   assert.equal(ctx.listSlots()[3].slotOrder, 'ascending');
@@ -134,6 +135,9 @@ const arrows = (page) => page.$$eval('#list .card', (cards) => cards.slice(0, 4)
     assert.ok(await page.$eval('#' + id, (el) => el.classList.contains('hidden')), id);
   }
   assert.equal(await page.$eval('#message', (el) => el.textContent), '', 'no "loading packs" notice');
+  assert.deepEqual(await page.$$eval('#settingsGroup .group-row:not(.hidden) .row-title', (els) => els.map((e) => e.textContent)), ['Ticket Order'],
+    'Ticket Order only: the one row');
+  await page.click('#orderRow');
   await page.click('#orderSwitch button[data-order="descending"]');
   await page.waitForFunction(() => /Saved/.test(document.getElementById('orderMessage').textContent));
   assert.equal(ctx.listSlots()[4].slotOrder, 'descending');

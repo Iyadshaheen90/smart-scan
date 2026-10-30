@@ -218,6 +218,14 @@ Frontend (`src/`, plain HTML + JS, no build):
   page says so), a `.member-card` per person (initials, name, email, status chip: Owner green `live`, Invited amber
   `days`, Inactive red `warn`), actions in `.member-actions`, one-line permission descriptions. `#listMessage` floats
   above the tab bar (`.toast-wrap`, fades after 5 s / errors 9 s, tap to dismiss) so flipping a switch never moves the list.
+  Slot page (`activate.html`): a summary card on top (`#slotInfo.slot-hero`: tickets left in green or Out of Stock in
+  red, then `$20 Slot · Game 1747 · ↓ Descending`), the main job under it (end a pack / scan one in, unchanged), and the
+  settings in a **Slot Settings** grouped list (`#settingsGroup`: Slot Price, Ticket Order, Pack Size, Activation Date,
+  Move or Swap, each row with its current value). Each row opens its own pop-up (`#priceDialog` … `#swapDialog`) holding
+  the old form with the same ids; **a form's `hidden` class still says whether this person may use it, and its row shows
+  only then** (`renderSettings`; the group hides with no rows, e.g. Load Packs only). Saving closes the pop-up and floats
+  the message (`#settingsToast`; the form's own message keeps the words); a refusal keeps it open. Tests tap the row
+  (`#activatedRow`, `#orderRow`) first and submit with `button[type="submit"]`.
 - **Design rule (owner 2026-10-29):** every UI change is designed like a senior UI designer with 20+ years would: clean,
   clutter free, modern, professional, user friendly. Decide hierarchy and grouping first; check a phone-size screenshot.
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.

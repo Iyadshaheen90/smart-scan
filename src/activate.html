@@ -15,7 +15,9 @@
 </head>
 <body>
   <header class="app-header" data-title="Slot" data-title-id="title" data-back="slots.html" data-back-label="Slots" data-back-id="back" data-help="packs"></header>
-  <p class="sub" id="slotInfo">Loading…</p>
+  <!-- Redesign (owner 2026-10-29): what's in the slot at a glance; the main job (end a pack / scan one in) under it;
+       the rarely used settings in a Slot Settings list at the bottom, each in its own pop-up. -->
+  <section class="card slot-hero" id="slotInfo"><div class="slot-hero-main" id="heroMain">Loading…</div><div class="slot-detail" id="heroSub"></div></section>
 
   <!-- Step 1: the slot still has a pack — what happened to it? -->
   <div id="oldStep" class="hidden">
@@ -84,61 +86,101 @@
   <div id="message" class="message"></div>
   <a class="button hidden" id="doneBtn" href="slots.html">Back to Slots</a>
 
+  <!-- The settings: a row each (with its current value) that opens its pop-up. A row shows only when its form is
+       available (the forms' own hidden class still says what this person may change). -->
+  <div class="group-block hidden" id="settingsGroup">
+    <h2 class="group-label">Slot Settings</h2>
+    <div class="group">
+      <button type="button" class="group-row hidden" id="priceRow">
+        <span class="row-icon" data-icon="dollar"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Slot Price</span><span class="row-sub" id="priceRowSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+      <button type="button" class="group-row hidden" id="orderRow">
+        <span class="row-icon" data-icon="order"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Ticket Order</span><span class="row-sub" id="orderRowSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+      <button type="button" class="group-row hidden" id="sizeRow">
+        <span class="row-icon" data-icon="ticket"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Pack Size</span><span class="row-sub" id="sizeRowSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+      <button type="button" class="group-row hidden" id="activatedRow">
+        <span class="row-icon" data-icon="calendar"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Activation Date</span><span class="row-sub" id="activatedRowSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+      <button type="button" class="group-row hidden" id="swapRow">
+        <span class="row-icon" data-icon="swap"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Move or Swap</span><span class="row-sub" id="swapRowSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+    </div>
+  </div>
+  <div class="toast-wrap" aria-live="polite"><div id="settingsToast" class="message"></div></div>
+
   <!-- Owner only: the slot's price tier. -->
-  <form id="priceForm" class="hidden">
-    <h2>Slot Price</h2>
+  <div class="overlay hidden" id="priceDialog" role="dialog" aria-modal="true">
+  <form id="priceForm" class="dialog form-dialog hidden">
+    <div class="dialog-title">Slot Price</div>
     <p class="sub">The price this slot expects from the next pack. A pack already in it keeps its own price.</p>
     <label for="slotPrice">Price per Ticket ($)</label>
     <input id="slotPrice" type="number" inputmode="decimal" min="1" step="1" required>
-    <button type="submit">Save Slot Price</button>
     <div id="priceMessage" class="message"></div>
+    <div class="dialog-buttons"><button type="button" class="cancel" data-close>Cancel</button><button type="submit" class="save">Save</button></div>
   </form>
+  </div>
 
   <!-- Owner, or an employee with Ticket order: which way this slot's packs are sold. Only while the slot is empty
-       (a pack keeps the order it started with). -->
-  <form id="orderForm" class="hidden">
-    <h2>Ticket Order</h2>
+       (a pack keeps the order it started with). Tapping a side saves it. -->
+  <div class="overlay hidden" id="orderDialog" role="dialog" aria-modal="true">
+  <form id="orderForm" class="dialog form-dialog hidden">
+    <div class="dialog-title">Ticket Order</div>
     <p class="sub" id="orderInfo"></p>
     <div class="segmented" id="orderSwitch">
       <button type="button" data-order="descending"><span data-icon="arrowDown" class="order-icon"></span> Descending</button>
       <button type="button" data-order="ascending"><span data-icon="arrowUp" class="order-icon"></span> Ascending</button>
     </div>
     <div id="orderMessage" class="message"></div>
+    <div class="dialog-buttons"><button type="button" data-close>Close</button></div>
   </form>
+  </div>
 
   <!-- Owner only: the pack size of the game in this slot, to fix a mistake made at setup. -->
-  <form id="sizeForm" class="hidden">
-    <h2>Pack Size</h2>
+  <div class="overlay hidden" id="sizeDialog" role="dialog" aria-modal="true">
+  <form id="sizeForm" class="dialog form-dialog hidden">
+    <div class="dialog-title">Pack Size</div>
     <p class="sub" id="sizeInfo"></p>
     <label for="packSize" id="sizeLabel">Tickets per Pack</label>
     <input id="packSize" type="number" inputmode="numeric" min="1" step="1" required>
-    <button type="submit">Save Pack Size</button>
     <div id="sizeMessage" class="message"></div>
+    <div class="dialog-buttons"><button type="button" class="cancel" data-close>Cancel</button><button type="submit" class="save">Save</button></div>
   </form>
+  </div>
 
   <!-- Owner only (2026-10-26): the day the lottery activated this pack. A slow pack left in the back can be activated by
        the lottery on its own, months before it goes in a slot; settling counts from that day. Only the days counter uses it. -->
-  <form id="activatedForm" class="hidden">
-    <h2>Activation Date</h2>
+  <div class="overlay hidden" id="activatedDialog" role="dialog" aria-modal="true">
+  <form id="activatedForm" class="dialog form-dialog hidden">
+    <div class="dialog-title">Activation Date</div>
     <p class="sub" id="activatedInfo"></p>
     <label for="activatedOn">Activated by the Lottery On</label>
     <input id="activatedOn" type="date" required>
-    <button type="submit">Save Activation Date</button>
     <div id="activatedMessage" class="message"></div>
+    <div class="dialog-buttons"><button type="button" class="cancel" data-close>Cancel</button><button type="submit" class="save">Save</button></div>
   </form>
+  </div>
 
   <!-- Owner only: move this slot's pack, or swap it with another slot's. -->
-  <form id="swapForm" class="hidden">
-    <h2>Move or Swap</h2>
-    <p class="sub">For rearranging the boxes. The pack, its top ticket, and this slot's price all go to the other slot, and whatever is there comes here. Swap the same two slots again to undo.</p>
+  <div class="overlay hidden" id="swapDialog" role="dialog" aria-modal="true">
+  <form id="swapForm" class="dialog form-dialog hidden">
+    <div class="dialog-title">Move or Swap</div>
+    <p class="sub">The pack, its top ticket and this slot's price go to the other slot, and whatever is there comes here. Swap the same two slots again to undo.</p>
     <div class="choices">
       <select id="swapBox" aria-label="Box"><option value="1">Box 1</option><option value="2">Box 2</option></select>
       <select id="swapSlot" aria-label="Slot"></select>
     </div>
     <p class="slot-detail" id="swapPreview"></p>
-    <button type="submit">Swap</button>
     <div id="swapMessage" class="message"></div>
+    <div class="dialog-buttons"><button type="button" class="cancel" data-close>Cancel</button><button type="submit" class="save">Swap</button></div>
   </form>
+  </div>
 
   <script src="config.js"></script>
   <script src="api.js"></script>
@@ -208,7 +250,10 @@
 
     function render() {
       const pack = slot.pack;
-      $('slotInfo').textContent = `$${slot.slotPrice} Slot · ` + (pack ? `${pack.remaining} Tickets Left` : 'Out of Stock')
+      // The summary card: tickets left (green) or Out of Stock (red), then price, game and ticket order.
+      $('heroMain').textContent = pack ? `${pack.remaining} Tickets Left` : 'Out of Stock';
+      $('slotInfo').classList.toggle('empty', !pack);
+      $('heroSub').textContent = `$${slot.slotPrice} Slot · ` + (pack ? `Game ${pack.gameNumber} · ${orderLabel(pack.order)}` : orderLabel(slot.slotOrder))
         + (!pack && slot.lastGame ? ` · ${backStockText(slot.lastGame.gameNumber, slot.lastGame.packsInBack)} (Last Game Here)` : '');
       renderOrder();
       if (isOwner) {
@@ -234,6 +279,7 @@
         show('priceForm', true);
         if (document.activeElement !== $('slotPrice')) $('slotPrice').value = slot.slotPrice;
       }
+      renderSettings();
       if (finished) {
         ['oldStep', 'nextStep', 'undoEndBtn', 'scanStep', 'confirmStep', 'cancelEndBtn'].forEach((id) => show(id, false));
         show('doneBtn', true);
@@ -294,6 +340,46 @@
           + (slot.slotOrder === 'ascending' ? 'sold ↑ ascending' : `${newTicket.ticketNumber + 1} tickets`);
       }
     }
+
+    // Slot Settings: a row per form this person may use, with its current value; the group hides with none.
+    const SETTINGS = { priceRow: 'priceForm', orderRow: 'orderForm', sizeRow: 'sizeForm', activatedRow: 'activatedForm', swapRow: 'swapForm' };
+    const orderLabel = (order) => `${order === 'ascending' ? '↑' : '↓'} ${orderName(order)}`;
+    function renderSettings() {
+      const pack = slot.pack;
+      for (const [row, form] of Object.entries(SETTINGS)) show(row, !$(form).classList.contains('hidden'));
+      show('settingsGroup', Object.keys(SETTINGS).some((row) => !$(row).classList.contains('hidden')));
+      $('priceRowSub').textContent = `$${slot.slotPrice} a ticket`;
+      $('orderRowSub').textContent = pack
+        ? `${orderLabel(pack.order)} (this pack)${pack.order !== slot.slotOrder ? ` · next ${orderLabel(slot.slotOrder)}` : ''}`
+        : orderLabel(slot.slotOrder);
+      $('sizeRowSub').textContent = pack && pack.ticketsPerPack ? `${pack.ticketsPerPack} tickets per pack` : 'Not set';
+      $('activatedRowSub').textContent = pack && pack.activationDate
+        ? `${longDate(pack.activationDate)} · ${activeDaysText(pack.daysActive)}` : 'Not set';
+      $('swapRowSub').textContent = 'Trade places with another slot';
+    }
+
+    // A row opens its pop-up (its old message cleared); Cancel / Close or a tap outside closes it. A save closes it and
+    // says so in a message that floats above the tab bar (the form's own message keeps the words too).
+    const DIALOGS = { priceRow: 'priceDialog', orderRow: 'orderDialog', sizeRow: 'sizeDialog', activatedRow: 'activatedDialog', swapRow: 'swapDialog' };
+    for (const [row, dialog] of Object.entries(DIALOGS)) {
+      $(row).addEventListener('click', () => {
+        const message = $(dialog).querySelector('.message');
+        message.className = 'message';
+        message.textContent = '';
+        render();
+        $(dialog).classList.remove('hidden');
+      });
+      $(dialog).addEventListener('click', (e) => { if (e.target === $(dialog)) $(dialog).classList.add('hidden'); });
+      $(dialog).querySelector('[data-close]').addEventListener('click', () => $(dialog).classList.add('hidden'));
+    }
+    let toastTimer = null;
+    function settingSaved(dialog, text) {
+      $(dialog).classList.add('hidden');
+      showMessage($('settingsToast'), text, 'ok');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { $('settingsToast').className = 'message'; $('settingsToast').textContent = ''; }, 5000);
+    }
+    $('settingsToast').addEventListener('click', () => { $('settingsToast').className = 'message'; $('settingsToast').textContent = ''; });
 
     function startScannerOnce() {
       if (scannerStarted) return;
@@ -455,10 +541,12 @@
       if (!confirm(`${verb} box ${box} slot ${slotNumber} with box ${target.box} slot ${target.slot}? Packs and slot prices trade places.`)) return;
       $('swapMessage').className = 'message';
       try {
-        await whileBusy($('swapForm').querySelector('button'), 'Swapping…', () =>
+        await whileBusy($('swapForm').querySelector('button[type="submit"]'), 'Swapping…', () =>
           api('swapSlots', { box, slot: slotNumber, toBox: target.box, toSlot: target.slot }));
         await loadSlots();
-        showMessage($('swapMessage'), `Done. Here now: ${describeSlot(slot)}. Box ${target.box}, slot ${target.slot} now: ${describeSlot(swapTarget())}.`, 'ok');
+        const done = `Done. Here now: ${describeSlot(slot)}. Box ${target.box}, slot ${target.slot} now: ${describeSlot(swapTarget())}.`;
+        showMessage($('swapMessage'), done, 'ok');
+        settingSaved('swapDialog', done);
       } catch (err) {
         showMessage($('swapMessage'), err.message);
       }
@@ -468,10 +556,11 @@
       e.preventDefault();
       $('sizeMessage').className = 'message';
       try {
-        const result = await whileBusy($('sizeForm').querySelector('button'), 'Saving…', () =>
+        const result = await whileBusy($('sizeForm').querySelector('button[type="submit"]'), 'Saving…', () =>
           api('setPackSize', { gameNumber: slot.pack.gameNumber, ticketsPerPack: $('packSize').value }));
         await loadSlots();
         showMessage($('sizeMessage'), `Game ${result.gameNumber} packs now have ${result.ticketsPerPack} tickets.`, 'ok');
+        settingSaved('sizeDialog', $('sizeMessage').textContent);
       } catch (err) {
         showMessage($('sizeMessage'), err.message);
       }
@@ -492,10 +581,11 @@
       e.preventDefault();
       $('activatedMessage').className = 'message';
       try {
-        const result = await whileBusy($('activatedForm').querySelector('button'), 'Saving…', () =>
+        const result = await whileBusy($('activatedForm').querySelector('button[type="submit"]'), 'Saving…', () =>
           api('setActivationDate', { box, slot: slotNumber, date: $('activatedOn').value }));
         await loadSlots();
         showMessage($('activatedMessage'), `Pack ${result.packKey} activated ${longDate(result.activationDate)}: ${activeDaysText(result.daysActive)}.`, 'ok');
+        settingSaved('activatedDialog', $('activatedMessage').textContent);
       } catch (err) {
         showMessage($('activatedMessage'), err.message);
       }
@@ -519,6 +609,7 @@
         slot.slotOrder = result.slotOrder;
         render();
         showMessage($('orderMessage'), `Saved. The next pack in this slot is sold ${orderWords(result.slotOrder)}.`, 'ok');
+        settingSaved('orderDialog', $('orderMessage').textContent);
       } catch (err) {
         render();
         showMessage($('orderMessage'), err.message);
@@ -531,11 +622,12 @@
       priceMessage.className = 'message';
       priceMessage.textContent = '';
       try {
-        const result = await whileBusy($('priceForm').querySelector('button'), 'Saving…', () =>
+        const result = await whileBusy($('priceForm').querySelector('button[type="submit"]'), 'Saving…', () =>
           api('setSlotPrice', { box, slot: slotNumber, price: $('slotPrice').value }));
         slot.slotPrice = result.slotPrice;
         render();
         showMessage(priceMessage, `Slot price is now $${result.slotPrice}.`, 'ok');
+        settingSaved('priceDialog', priceMessage.textContent);
       } catch (err) {
         showMessage(priceMessage, err.message);
       }
@@ -605,7 +697,7 @@
 
     if (session) {
       $('swapBox').value = String(box);
-      loadSlots().catch((err) => { $('slotInfo').textContent = ''; showMessage(messageEl, err.message); });
+      loadSlots().catch((err) => { $('heroMain').textContent = ''; showMessage(messageEl, err.message); });
     }
   </script>
 </body>
