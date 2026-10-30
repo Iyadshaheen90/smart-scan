@@ -61,6 +61,7 @@ async function manageEmployees() {
   // Turn on Load packs, then Full pack sale: each saves the whole list at once.
   const toggle = async (i) => {
     const sw = await page.$$('#list .card:nth-child(2) input.toggle');
+    await sw[i].evaluate((e) => e.scrollIntoView({ block: 'center' })); // not under the tab bar
     await sw[i].click(); await sleep(150);
   };
   await toggle(0);

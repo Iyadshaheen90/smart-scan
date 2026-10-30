@@ -103,18 +103,24 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.waitForSelector('#list .card');
     assert.match(await text(page, '#list .card'), new RegExp(ownerEmail.replace(/[.]/g, '\\.')));
     assert.equal(await page.$eval('#passwordField', (e) => e.classList.contains('hidden')), true);
+    // Add Employee opens the pop-up (redesign 2026-10-29); Cancel closes it.
+    assert.equal(await visible(page, '#email'), false);
+    await page.click('#addOpen');
     assert.equal(await visible(page, '#email'), true);
+    await page.click('#addCancel');
+    assert.equal(await visible(page, '#email'), false);
+    await page.click('#addOpen');
     // Refused before any account is made: a bad username, then a bad email.
     await page.type('#username', 'x');
     await page.type('#email', newbieEmail);
-    await page.click('#addForm button');
+    await page.click('#addForm button[type="submit"]');
     await page.waitForFunction(() => document.querySelector('#addMessage').textContent);
     assert.equal(await text(page, '#addMessage'), 'Username must be 3-30 characters: letters, numbers, dot, dash or underscore.');
     await page.$eval('#addForm', (f) => f.reset());
     await page.type('#username', 'Newbie');
     await page.type('#email', 'not-an-email@');
     await page.$eval('#email', (e) => { e.type = 'text'; });
-    await page.click('#addForm button');
+    await page.click('#addForm button[type="submit"]');
     await page.waitForFunction(() => /email address/.test(document.querySelector('#addMessage').textContent));
     await page.$eval('#email', (e) => { e.type = 'email'; });
     await page.$eval('#addForm', (f) => f.reset());
@@ -122,27 +128,29 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.type('#username', 'Newbie');
     await page.type('#email', newbieEmail);
     const invited = page.waitForResponse((r) => r.url().includes('/functions/v1/members') && r.request().method() === 'POST');
-    await page.click('#addForm button');
+    await page.click('#addForm button[type="submit"]');
     const answer = await (await invited).json();
     assert.equal(answer.ok, true, JSON.stringify(answer));
     assert.ok(answer.testLink, 'a test store gets the invite link back');
-    await page.waitForFunction(() => /invite is on its way/.test(document.querySelector('#addMessage').textContent));
+    await page.waitForFunction(() => /invite is on its way/.test(document.querySelector('#listMessage').textContent));
+    assert.equal(await visible(page, '#email'), false, 'the pop-up closes once added');
     const cards = await page.$$eval('#list .card', (cs) => cs.map((c) => c.textContent));
     assert.equal(cards.length, 2);
     assert.match(cards[1], /newbie/);
     assert.match(cards[1], /Employee · Invited/);
     assert.match(cards[1], new RegExp(newbieEmail.replace(/[.]/g, '\\.')));
     // The same username or email again is refused.
+    await page.click('#addOpen');
     await page.type('#username', 'newbie');
     await page.type('#email', `other-${tag}@${DOMAIN}`);
-    await page.click('#addForm button');
+    await page.click('#addForm button[type="submit"]');
     await page.waitForFunction(() => /already taken/.test(document.querySelector('#addMessage').textContent));
     await page.$eval('#addForm', (f) => f.reset());
     await page.type('#username', 'newbie2');
     await page.type('#email', newbieEmail.toUpperCase());
-    await page.click('#addForm button');
+    await page.click('#addForm button[type="submit"]');
     await page.waitForFunction(() => /already on the list \(newbie\)/.test(document.querySelector('#addMessage').textContent));
-    await page.$eval('#addForm', (f) => f.reset());
+    await page.click('#addCancel');
 
     // ---- Resend Invite: a new link; the old one stops working ----
     const cardOf = async (name) => {
@@ -161,9 +169,10 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     assert.match(await (await cardOf('newbie')).evaluate((c) => c.textContent), /Employee · Invited/);
 
     // The owner set a password for someone invited: no new invite (they sign in with that password).
+    await page.click('#addOpen');
     await page.type('#username', 'later');
     await page.type('#email', laterEmail);
-    await page.click('#addForm button');
+    await page.click('#addForm button[type="submit"]');
     await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 3);
     promptAnswer = 'Later-pass1!';
     await (await buttonOn('later', 'Reset Password')).click();

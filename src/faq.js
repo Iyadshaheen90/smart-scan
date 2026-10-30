@@ -610,18 +610,18 @@ const FAQ = [
         id: 'add', who: 'owner', backend: 'supabase', go: 'users.html',
         q: { en: 'How do I add an employee?', es: '¿Cómo agrego un empleado?', ar: 'كيف أضيف موظفاً؟' },
         a: {
-          en: 'More → Manage Employees. Type a username and their email, then tap Add Employee. They get an email to choose their own password, and show as Invited until they sign in.',
-          es: 'More → Manage Employees. Escribe un nombre de usuario y su correo, y toca Add Employee. Recibe un correo para elegir su propia contraseña, y aparece como Invited hasta que inicie sesión.',
-          ar: 'More ← Manage Employees. اكتب اسم مستخدم وبريده الإلكتروني، ثم اضغط Add Employee. تصله رسالة لاختيار كلمة المرور بنفسه، ويظهر كـ Invited حتى يسجّل الدخول.',
+          en: 'More → Manage Employees, then tap Add Employee. Type a username and their email, and tap Add Employee. They get an email to choose their own password, and show as Invited until they sign in.',
+          es: 'More → Manage Employees y toca Add Employee. Escribe un nombre de usuario y su correo, y toca Add Employee. Recibe un correo para elegir su propia contraseña, y aparece como Invited hasta que inicie sesión.',
+          ar: 'More ← Manage Employees، ثم اضغط Add Employee. اكتب اسم مستخدم وبريده الإلكتروني، واضغط Add Employee. تصله رسالة لاختيار كلمة المرور بنفسه، ويظهر كـ Invited حتى يسجّل الدخول.',
         },
       },
       {
         id: 'add', who: 'owner', backend: 'sheets', go: 'users.html',
         q: { en: 'How do I add an employee?', es: '¿Cómo agrego un empleado?', ar: 'كيف أضيف موظفاً؟' },
         a: {
-          en: 'More → Manage Employees. Type a username and a starting password, tap Add Employee, and tell them the password. They can change it under Change My Password.',
-          es: 'More → Manage Employees. Escribe un nombre de usuario y una contraseña inicial, toca Add Employee y dile la contraseña. Puede cambiarla en Change My Password.',
-          ar: 'More ← Manage Employees. اكتب اسم مستخدم وكلمة مرور أولى، واضغط Add Employee، وأخبره بكلمة المرور. يمكنه تغييرها من Change My Password.',
+          en: 'More → Manage Employees, then tap Add Employee. Type a username and a starting password, tap Add Employee, and tell them the password. They can change it under Change My Password.',
+          es: 'More → Manage Employees y toca Add Employee. Escribe un nombre de usuario y una contraseña inicial, toca Add Employee y dile la contraseña. Puede cambiarla en Change My Password.',
+          ar: 'More ← Manage Employees، ثم اضغط Add Employee. اكتب اسم مستخدم وكلمة مرور أولى، واضغط Add Employee، وأخبره بكلمة المرور. يمكنه تغييرها من Change My Password.',
         },
       },
       {

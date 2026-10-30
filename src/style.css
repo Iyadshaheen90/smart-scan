@@ -345,6 +345,28 @@ ul.password-rule li.met::before { border: 0; background: var(--accent) center / 
   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b1a12' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
 ul.password-rule li:last-child { grid-column: 1 / -1; }
 
+/* Manage Employees (redesign 2026-10-29): Add Employee opens a pop-up; a card per person with initials, name, email,
+   a status chip, a row of actions and the folded permissions. */
+button.add-member { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }
+button.add-member svg { width: 20px; height: 20px; }
+.member-card { padding: 14px; }
+.member-top { display: flex; align-items: center; gap: 12px; }
+.member-top .avatar { width: 40px; height: 40px; font-size: 14px; }
+.member-card.inactive .member-top .avatar { background: var(--card-2); color: var(--muted); }
+.member-who { flex: 1; min-width: 0; }
+.member-who strong { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-who .slot-detail { margin-top: 1px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.member-actions button.small { background: var(--card-2); border-color: transparent; }
+.dialog.form-dialog { text-align: left; max-height: calc(100vh - 32px); overflow-y: auto; }
+.dialog.form-dialog .dialog-title { text-align: center; margin-bottom: 4px; }
+.dialog.form-dialog input { background: var(--bg); }
+/* A message that floats above the tab bar and fades, so nothing on the page moves (Manage Employees). */
+.toast-wrap { position: fixed; left: 16px; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 25; pointer-events: none; }
+.toast-wrap .message { margin: 0; pointer-events: auto; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); animation: toast-in 0.18s ease-out; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast-wrap .message { animation: none; } }
+
 /* Status chips. */
 .chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;

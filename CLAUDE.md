@@ -213,6 +213,11 @@ Frontend (`src/`, plain HTML + JS, no build):
   is `type="button"`, so pages and tests pick the submit with `button[type="submit"]`). New-password fields show the rule
   as a checklist (`<ul class="password-rule">` right after the field → `showPasswordRule(el)` in api.js, built from
   `PASSWORD_CHECKS`, the same list `passwordProblem` uses; aria-label = PASSWORD_RULE). Change My Password has a More back pill.
+  Manage Employees: a short intro, a green **Add Employee** button (`#addOpen`) opening the add form as a pop-up
+  (`#addDialog`, `.form-dialog`; Cancel clears it; errors stay in it as `#addMessage`; once added it closes and the
+  page says so), a `.member-card` per person (initials, name, email, status chip: Owner green `live`, Invited amber
+  `days`, Inactive red `warn`), actions in `.member-actions`, one-line permission descriptions. `#listMessage` floats
+  above the tab bar (`.toast-wrap`, fades after 5 s / errors 9 s, tap to dismiss) so flipping a switch never moves the list.
 - **Design rule (owner 2026-10-29):** every UI change is designed like a senior UI designer with 20+ years would: clean,
   clutter free, modern, professional, user friendly. Decide hierarchy and grouping first; check a phone-size screenshot.
 - **Look (owner's redesign 2026-09-28):** always dark; `style.css` tokens on `:root`; cards, chips, `.tile-card`, `.list-card`.

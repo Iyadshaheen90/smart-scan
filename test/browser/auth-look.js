@@ -1,6 +1,8 @@
 // Sign In and Change My Password redesign (owner 2026-10-29): Sign In shows the app's mark and its fields in one card;
 // every password field has an eye that shows / hides it; new passwords show the rule as a checklist that ticks off while
 // typing; Change My Password has a back pill to More and still saves. Signing in still works with the eye in the form.
+// Manage Employees: Add Employee opens a pop-up (Cancel keeps nothing, a bad password keeps it open, adding closes it);
+// each person's card has initials and a status chip (Owner green, Inactive red).
 // Run: node test/browser/auth-look.js   (SHOTS=dir saves screenshots)
 const assert = require('assert/strict');
 const { openApp, sleep } = require('./harness');
@@ -66,6 +68,64 @@ const met = (page) => page.$$eval('.password-rule li', (lis) => lis.map((li) => 
   await page.click('.app-header .back');
   await page.waitForFunction(() => location.pathname.endsWith('more.html'));
   await sleep(50);
+  await app.close();
+
+  // ---- Manage Employees (Sheets): Add Employee pop-up with a starting password; cards with initials and status chips ----
+  let users = [
+    { username: 'o', role: 'owner', active: true, permissions: [] },
+    { username: 'sara', role: 'employee', active: true, permissions: ['load_packs'] },
+    { username: 'old', role: 'employee', active: false, permissions: [] },
+  ];
+  const created = [];
+  app = await openApp({ role: 'owner', handle: (b) => {
+    if (b.action === 'createUser') { created.push(b); users = [...users, { username: b.username, role: 'employee', active: true, permissions: [] }]; }
+    return users;
+  } });
+  ({ page, base } = app);
+  await page.goto(base + 'users.html');
+  await page.waitForSelector('#list .member-card');
+  const cards = () => page.$$eval('#list .member-card', (cs) => cs.map((c) => [c.querySelector('.avatar').textContent,
+    c.querySelector('strong').textContent, c.querySelector('.tag').textContent, c.querySelector('.tag').className]));
+  assert.deepEqual(await cards(), [['O', 'o', 'Owner', 'tag live'], ['SA', 'sara', 'Employee', 'tag'], ['OL', 'old', 'Employee · Inactive', 'tag warn']]);
+  assert.equal(await page.$eval('#addDialog', (e) => e.classList.contains('hidden')), true);
+  await page.click('#addOpen');
+  assert.equal(await page.$eval('#addDialog', (e) => e.classList.contains('hidden')), false);
+  await page.type('#username', 'Sam');
+  await page.type('#password', 'Start-pass1!');
+  assert.deepEqual(await met(page), [true, true, true, true, true]);
+  await shot(page, 'auth-users-add');
+  await page.click('#addCancel');
+  assert.equal(await page.$eval('#addDialog', (e) => e.classList.contains('hidden')), true);
+  assert.equal(created.length, 0, 'Cancel adds nobody');
+  await page.click('#addOpen');
+  assert.equal(await page.$eval('#username', (e) => e.value), '', 'Cancel cleared the form');
+  assert.deepEqual(await met(page), [false, false, false, false, false]);
+  // A password that breaks the rule is refused in the pop-up, which stays open.
+  await page.type('#username', 'sam');
+  await page.type('#password', 'longbutplain');
+  await page.click('#addForm button[type="submit"]');
+  await page.waitForFunction(() => document.querySelector('#addMessage').textContent);
+  assert.match(await page.$eval('#addMessage', (e) => e.textContent), /^Password needs/);
+  await page.$eval('#password', (e) => { e.value = ''; });
+  await page.type('#password', 'Start-pass1!');
+  await page.click('#addForm button[type="submit"]');
+  await page.waitForFunction(() => /Added sam/.test(document.querySelector('#listMessage').textContent));
+  assert.equal(await page.$eval('#addDialog', (e) => e.classList.contains('hidden')), true);
+  assert.deepEqual([created[0].username, created[0].password], ['sam', 'Start-pass1!']);
+  assert.equal((await cards()).length, 4);
+  assert.ok(await noSideScroll(page));
+  await page.click('#list .member-card:nth-child(2) details.perm-details summary');
+  // Flipping a switch shows a floating message: nothing on the page moves, and a tap puts it away.
+  const toggleTop = () => page.$eval('#list .member-card:nth-child(2) input.toggle', (e) => e.getBoundingClientRect().top);
+  await page.$eval('#list .member-card:nth-child(2) input.toggle', (e) => e.scrollIntoView({ block: 'center' }));
+  const before = await toggleTop();
+  await page.click('#list .member-card:nth-child(2) input.toggle');
+  await page.waitForFunction(() => /sara: Load Packs turned/.test(document.querySelector('#listMessage').textContent));
+  assert.equal(await toggleTop(), before, 'the switch stays under the finger');
+  assert.equal(await page.$eval('#listMessage', (e) => getComputedStyle(e.parentElement).position), 'fixed');
+  await shot(page, 'auth-users');
+  await page.click('#listMessage');
+  assert.equal(await page.$eval('#listMessage', (e) => e.textContent), '');
   await app.close();
 
   console.log('auth look: all passed');

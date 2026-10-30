@@ -15,13 +15,19 @@
 </head>
 <body>
   <header class="app-header" data-title="Employees" data-help="employees"></header>
-  <p class="sub">Employees can close the day (marking packs sold out as they go) and view the slots. Anything more is off until you turn it on for that employee below (for example while you're away), and they never see dollar amounts.</p>
+  <!-- Redesign (owner 2026-10-29): a short intro, Add Employee as one button that opens a pop-up, a clean card per
+       person (initials, name, email, status chip, actions, folded permissions). -->
+  <p class="sub">Everyone can close the day and view Slots. Turn on more for each person below; employees never see dollar amounts.</p>
+  <button type="button" class="primary add-member" id="addOpen"><span data-icon="plus"></span>Add Employee</button>
 
+  <!-- Saves and errors float above the tab bar and fade (a message above the list would move the switches under the
+       finger). -->
+  <div class="toast-wrap" aria-live="polite"><div id="listMessage" class="message"></div></div>
   <div id="list">Loading…</div>
-  <div id="listMessage" class="message"></div>
 
-  <h2>Add an Employee</h2>
-  <form id="addForm">
+  <div id="addDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+  <form id="addForm" class="dialog form-dialog">
+    <div class="dialog-title" id="addTitle">Add an Employee</div>
     <label for="username">Username</label>
     <input id="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
     <div id="passwordField">
@@ -34,9 +40,13 @@
       <input id="email" type="email" inputmode="email" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
       <p class="sub">They get an email with a link to choose their own password and sign in with this email.</p>
     </div>
-    <button class="primary" type="submit">Add Employee</button>
+    <div id="addMessage" class="message"></div>
+    <div class="dialog-buttons">
+      <button type="button" class="cancel" id="addCancel">Cancel</button>
+      <button type="submit" class="save">Add Employee</button>
+    </div>
   </form>
-  <div id="addMessage" class="message"></div>
+  </div>
 
   <nav class="tabbar" data-active="more"></nav>
 
@@ -61,15 +71,16 @@
       addForm.email.required = true;
     }
 
-    // The permissions the owner can turn on per employee (same names as PERMISSIONS on the server).
+    // The permissions the owner can turn on per employee (same names as PERMISSIONS on the server). One short line
+    // each (redesign 2026-10-29); Help & FAQ → Employees has the longer answer.
     const PERMISSIONS = [
-      { key: 'load_packs', name: 'Load Packs', what: 'Mark a pack sold out and put a new pack in a slot, including a new game or a slot price change to fit it. Can undo a wrong slot and put back a pack marked sold out by mistake.' },
-      { key: 'return_packs', name: 'Return Packs', what: 'Mark a pack returned (scan its top ticket).' },
-      { key: 'receive_shipments', name: 'Receive Shipments', what: 'Scan in a delivery on Back stock. Only the shipment scanner, not the back stock list.' },
+      { key: 'load_packs', name: 'Load Packs', what: 'Sold out and new packs in slots; undo a wrong slot.' },
+      { key: 'return_packs', name: 'Return Packs', what: 'Mark a pack returned, or put it back.' },
+      { key: 'receive_shipments', name: 'Receive Shipments', what: 'Scan in deliveries (no back stock list).' },
       { key: 'count_stock', name: 'Manage Stock', what: 'Count the back and set how many packs are there.' },
       { key: 'full_pack_sale', name: 'Full Pack Sale', what: 'Sell a sealed pack from the back.' },
-      { key: 'ticket_order', name: 'Ticket Order', what: 'Set a slot to descending or ascending while it\'s empty (slot page), or all slots at once (More).' },
-      { key: 'theft_report', name: 'Theft Report', what: 'Make the Theft Report after a break-in: every pack\'s game, pack number and unsold tickets, to send to the lottery. No dollar amounts.' },
+      { key: 'ticket_order', name: 'Ticket Order', what: 'Set ↓ or ↑ on empty slots, or all slots at once.' },
+      { key: 'theft_report', name: 'Theft Report', what: 'Make the Theft Report, without dollar amounts.' },
     ];
 
     // Employees whose Permissions list is open, so it stays open when the list is redrawn after a save.
@@ -152,33 +163,43 @@
       listEl.innerHTML = '';
       for (const user of users) {
         const card = document.createElement('div');
-        card.className = 'card' + (user.active ? '' : ' inactive');
+        card.className = 'card member-card' + (user.active ? '' : ' inactive');
 
+        // Initials, name (and email), and a status chip: Owner green, Invited amber, Inactive red.
         const top = document.createElement('div');
-        top.className = 'row';
+        top.className = 'member-top';
+        const avatar = document.createElement('span');
+        avatar.className = 'avatar';
+        avatar.textContent = initials(user.username);
+        const who = document.createElement('div');
+        who.className = 'member-who';
         const name = document.createElement('strong');
         name.textContent = user.username;
+        who.append(name);
+        if (user.email) {
+          const email = document.createElement('div');
+          email.className = 'slot-detail';
+          email.textContent = user.email;
+          who.append(email);
+        }
         const tag = document.createElement('span');
         tag.className = 'tag';
         // "Employee", "Owner · Inactive"
         const role = user.role.charAt(0).toUpperCase() + user.role.slice(1);
         tag.textContent = user.active ? role : `${role} · Inactive`;
+        if (!user.active) tag.classList.add('warn');
+        else if (user.role === 'owner') tag.classList.add('live');
         // Database: invited but hasn't chosen a password and signed in yet.
-        if (user.active && user.signedIn === false) tag.textContent = `${role} · Invited`;
-        top.append(name, tag);
-        card.append(top);
-        if (user.email) {
-          const email = document.createElement('div');
-          email.className = 'slot-detail';
-          email.textContent = user.email;
-          card.append(email);
+        if (user.active && user.signedIn === false) {
+          tag.textContent = `${role} · Invited`;
+          tag.classList.add('days');
         }
+        top.append(avatar, who, tag);
+        card.append(top);
 
         if (user.username !== session.username) {
           const actions = document.createElement('div');
-          actions.className = 'row';
-          actions.style.marginTop = '10px';
-          actions.style.justifyContent = 'flex-start';
+          actions.className = 'member-actions';
           actions.append(
             actionButton(user.active ? 'Deactivate' : 'Reactivate', () => {
               if (user.active && !confirm(`Deactivate ${user.username}? They'll be signed out and can't sign in until reactivated.`)) return null;
@@ -220,18 +241,42 @@
       return button;
     }
 
+    // The floating message goes away by itself (5 s, an error 9 s) or when tapped.
+    let toastTimer = null;
+    const hideToast = () => { listMessage.className = 'message'; listMessage.textContent = ''; };
+    new MutationObserver(() => {
+      clearTimeout(toastTimer);
+      if (listMessage.textContent) toastTimer = setTimeout(hideToast, listMessage.classList.contains('error') ? 9000 : 5000);
+    }).observe(listMessage, { childList: true, characterData: true, subtree: true, attributes: true });
+    listMessage.addEventListener('click', hideToast);
+
+    // Add Employee opens the pop-up; Cancel closes it and keeps nothing.
+    const addDialog = document.getElementById('addDialog');
+    function closeAdd() {
+      addDialog.classList.add('hidden');
+      addForm.reset();
+      addMessage.className = 'message';
+      addMessage.textContent = '';
+      addForm.password.dispatchEvent(new Event('input'));
+    }
+    document.getElementById('addOpen').addEventListener('click', () => {
+      addDialog.classList.remove('hidden');
+      addForm.username.focus();
+    });
+    document.getElementById('addCancel').addEventListener('click', closeAdd);
+
     addForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
         const username = addForm.username.value;
         const email = addForm.email.value.trim();
         if (!USE_DATABASE) checkNewPassword(addForm.password.value);
-        const users = await whileBusy(addForm.querySelector('button'), 'Adding…', () => api('createUser', USE_DATABASE
+        const users = await whileBusy(addForm.querySelector('button[type="submit"]'), 'Adding…', () => api('createUser', USE_DATABASE
           ? { username, email }
           : { username, password: addForm.password.value, role: 'employee' }));
         render(users);
-        addForm.reset();
-        showMessage(addMessage, USE_DATABASE
+        closeAdd();
+        showMessage(listMessage, USE_DATABASE
           ? `Added ${username.trim().toLowerCase()}. An invite is on its way to ${email}. If it doesn't arrive, tap Reset Password on their card to give them a password.`
           : `Added ${username.trim().toLowerCase()}.`, 'ok');
       } catch (err) {
