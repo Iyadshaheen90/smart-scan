@@ -124,7 +124,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
   (every slot's start → end ticket) and Delete (confirm). Icon `shift` (two block arrows, from the owner's picture).
 - `slots.html` both boxes (everyone sees the ↓/↑ ticket order arrow, `.order-arrow`; owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What Happened to It?" unsaved), activate, undo; then (owner's order) slot price, Ticket Order (`#orderForm`: Descending / Ascending, the chosen one in the app's green, `#orderSwitch button.active`; greyed while a pack is in), pack size, move or swap
-- `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; Sold out /
+- `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; the typed field is only the 3-digit
+  top ticket for the slot on the card (`typedProblem`, `#typedNote`; tests type through `typeTop` in harness.js); Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in
   localStorage until submitted; anyone can **Clear all scans** (this phone's draft only, e.g. after a practice
   close). Views: scanning, closed (summary, with "Submitted at 10:52 PM by <username>" from

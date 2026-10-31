@@ -160,9 +160,9 @@ const FAQ = [
         id: 'scan', who: 'everyone',
         q: { en: 'How do I scan a ticket?', es: '¿Cómo escaneo un boleto?', ar: 'كيف أمسح تذكرة؟' },
         a: {
-          en: 'Point the camera at the barcode on the back of the ticket, then press and hold the Press and Hold button until it reads. If the barcode won\'t read, type the number printed on the ticket instead.',
-          es: 'Apunta la cámara al código de barras en la parte de atrás del boleto y mantén presionado el botón Press and Hold hasta que lo lea. Si no lo lee, escribe el número impreso en el boleto.',
-          ar: 'وجّه الكاميرا إلى الباركود على ظهر التذكرة، ثم اضغط مطولاً على زر Press and Hold حتى تتم القراءة. إذا لم يُقرأ الباركود، اكتب الرقم المطبوع على التذكرة.',
+          en: 'Point the camera at the barcode on the back of the ticket, then press and hold the Press and Hold button until it reads. If the barcode won\'t read, type the number instead: on Close Day and Close Shift, just the 3-digit top ticket for the slot on the card (all 3 digits, like 069); on other pages, the full number printed on the ticket.',
+          es: 'Apunta la cámara al código de barras en la parte de atrás del boleto y mantén presionado el botón Press and Hold hasta que lo lea. Si no lo lee, escribe el número: en Close Day y Close Shift, solo los 3 dígitos del boleto de arriba para la casilla de la tarjeta (los 3 dígitos, como 069); en otras páginas, el número completo impreso en el boleto.',
+          ar: 'وجّه الكاميرا إلى الباركود على ظهر التذكرة، ثم اضغط مطولاً على زر Press and Hold حتى تتم القراءة. إذا لم يُقرأ الباركود، اكتب الرقم بدلاً من ذلك: في Close Day و Close Shift اكتب فقط الأرقام الثلاثة للتذكرة العلوية للخانة الظاهرة على البطاقة (الأرقام الثلاثة كاملة، مثل 069)؛ وفي الصفحات الأخرى اكتب الرقم الكامل المطبوع على التذكرة.',
         },
       },
       {
@@ -733,9 +733,9 @@ const FAQ = [
         id: 'wont-read', who: 'everyone',
         q: { en: 'The camera won\'t read a barcode.', es: 'La cámara no lee un código de barras.', ar: 'الكاميرا لا تقرأ الباركود.' },
         a: {
-          en: 'Hold the ticket flat and steady, with the barcode inside the guide box and out of glare. Or type the number printed on the ticket.',
-          es: 'Sostén el boleto plano y quieto, con el código dentro del recuadro guía y sin reflejos. O escribe el número impreso en el boleto.',
-          ar: 'أمسك التذكرة مستوية وثابتة، والباركود داخل المربع الإرشادي وبعيداً عن اللمعان. أو اكتب الرقم المطبوع على التذكرة.',
+          en: 'Hold the ticket flat and steady, with the barcode inside the guide box and out of glare. Or type the number (on Close Day and Close Shift, just the 3-digit top ticket).',
+          es: 'Sostén el boleto plano y quieto, con el código dentro del recuadro guía y sin reflejos. O escribe el número (en Close Day y Close Shift, solo los 3 dígitos del boleto de arriba).',
+          ar: 'أمسك التذكرة مستوية وثابتة، والباركود داخل المربع الإرشادي وبعيداً عن اللمعان. أو اكتب الرقم (في Close Day و Close Shift فقط الأرقام الثلاثة للتذكرة العلوية).',
         },
       },
       {

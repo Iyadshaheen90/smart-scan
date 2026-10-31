@@ -1,7 +1,7 @@
 // Close Day with no connection: the close is saved on the phone, resent until the server has it,
 // never saved twice, and a refusal goes back to the scans. Run: node test/browser/offline-close.js
 const assert = require('assert/strict');
-const { openApp, ABORT, sleep } = require('./harness');
+const { openApp, typeTop, ABORT, sleep } = require('./harness');
 
 const TODAY = '2026-09-26';
 const pack = (g, p, t) => ({ gameNumber: g, packNumber: p, exposedTicket: t, remaining: t + 1, price: 5 });
@@ -45,7 +45,7 @@ function handle(body) {
   }
   async function scanBoth() {
     await page.goto(base + 'close.html'); await closeViewShown();
-    for (const t of ['1747-1263622-4-035', '1718-1279742-6-018']) { await page.type('#typed', t); await page.click('#typedForm button'); }
+    for (const t of ['1747-1263622-4-035', '1718-1279742-6-018']) { await typeTop(page, t); }
   }
 
   // 1. No connection at submit: saved, pending view, nothing reached the server.

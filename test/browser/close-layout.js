@@ -6,7 +6,7 @@
 // a refused one twice (low), never both.
 // Run: node test/browser/close-layout.js   (SHOTS=dir also saves screenshots)
 const assert = require('assert/strict');
-const { openApp, sleep } = require('./harness');
+const { openApp, typeTop, tapUseThisNumber, sleep } = require('./harness');
 
 const pack = (g, p, t, price = 5) => ({ gameNumber: g, packNumber: p, exposedTicket: t, remaining: t + 1, price });
 const slots = [
@@ -32,7 +32,9 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
       const r = (id) => Math.round(document.getElementById(id).getBoundingClientRect().top + window.scrollY);
       return { hold: r('holdBtn'), camera: r('viewport') };
     });
-    const typed = async (t) => { await page.type('#typed', t); await page.click('#typedForm button'); await sleep(100); };
+    const typed = async (t) => { await typeTop(page, t); await sleep(500); }; // a list tap scrolls smoothly to the top
+    // Typed as is in the slot on the card (a mistake to refuse).
+    const raw = async (t) => { await page.$eval('#typed', (e) => { e.value = ''; }); await page.type('#typed', t); await tapUseThisNumber(page); await sleep(100); };
     const start = await where();
     const steps = [];
     const check = async (label) => {
@@ -57,8 +59,10 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
 
     await typed('1718-1279742-6-018'); await check('a scan of another slot (long note)');
     await typed('1801-0000123-6-010'); await check('a big sale (warning)');
-    await typed('9999-0000001-6-010'); await check('a pack in no slot (error)');
+    await raw('7'); await check('fewer than 3 digits (error)');
+    assert.match(await page.$eval('#typedNote', (e) => e.textContent), /Type all 3 digits of the top ticket: 007, not 7\./);
     await typed('1747-1263622-4-099'); await check('a ticket above the top one (longest error)');
+    assert.match(await page.$eval('#typedNote', (e) => e.textContent), /099 is above the last top ticket \(040\)\. This pack counts down, so the top ticket is 040 or lower\./);
     await page.click('#skipBtn'); await sleep(100); await check('Skip');
     await typed('1747-1263622-4-035'); await check('a normal scan');
     await typed('1747-1263622-4-030'); await check('scanning a done slot again');
@@ -66,10 +70,10 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
     await page.click('#soldOutBtn'); await sleep(200); await check('Sold Out, all slots done');
     assert.equal(await page.$eval('#curWhere', (e) => e.textContent), 'All Slots Done');
     assert.ok(await page.$eval('#soldOutBtn', (b) => b.disabled));
-    // The longest message fits its box (smaller text), nothing cut off.
-    await typed('1747-1263622-4-099');
-    assert.ok(await page.$eval('#flash', (e) => e.scrollHeight <= e.clientHeight), 'long message fits');
-    await check('longest error again');
+    // Every slot done: a typed number has no slot to go to.
+    await raw('099');
+    assert.match(await page.$eval('#typedNote', (e) => e.textContent), /All slots are done/);
+    await check('typed with every slot done');
     console.log(role, JSON.stringify(steps.map((s) => s[1])));
     if (process.env.SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await sleep(100); await page.screenshot({ path: `${process.env.SHOTS}/close-${role}.png` }); }
 
@@ -130,7 +134,7 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
   assert.deepEqual(await app.page.evaluate(() => window.tones), [1800], 'Auto Scan saved: one high beep');
   // A typed number that isn't saved: no held button, so two low beeps.
   await app.page.evaluate(() => { window.tones = []; });
-  await app.page.type('#typed', '9999-0000001-6-010'); await app.page.click('#typedForm button'); await sleep(200);
+  await app.page.type('#typed', '12'); await tapUseThisNumber(app.page); await sleep(200);
   assert.deepEqual(await app.page.evaluate(() => window.tones), [300, 300]);
   assert.equal(await app.page.$eval('#holdBtn', (b) => b.textContent.trim()), 'Press and Hold to Scan', 'text kept, switch not wiped');
   // A scan while the button is held: saved at once, but the screen changes only after the finger lifts (changing the
@@ -140,7 +144,7 @@ const handle = (b) => (b.action === 'closeStatus' ? { today: '2026-09-29', large
   const beforeScan = await progress();
   await app.page.mouse.move(btn.x, btn.y);
   await app.page.mouse.down();
-  await app.page.evaluate(() => { document.getElementById('typed').value = '1747-1263622-4-035'; document.getElementById('typedForm').requestSubmit(); });
+  await app.page.evaluate(() => { document.getElementById('typed').value = '035'; document.getElementById('typedForm').requestSubmit(); });
   await sleep(300);
   assert.equal(await progress(), beforeScan, 'no screen change while held');
   await app.page.mouse.up(); await sleep(400);

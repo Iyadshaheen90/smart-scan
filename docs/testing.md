@@ -23,6 +23,7 @@ node test/browser/slots-days.js           # Slots: days since activation + day-5
 node test/browser/home.js                 # home for both roles: one request, saved numbers first, tiles, chips, Start month, huge numbers fit
 node test/browser/saved-pages.js          # Slots, Settling, Back stock, Months: saved answer first (dimmed, locked), then fresh
 node test/browser/close-layout.js         # Close Day: button stays put and progress→button fit on screen through every kind of scan; buzzes
+node test/browser/close-replaced-pack.js  # pack sold out mid-day + new game in the same slot, typed 3 digits: shift closes, old-pack draft dropped, every pack logged once (real backend code)
 node test/browser/camera-revive.js        # camera un-freezes after Clear all / a pause / being shut off; stays off once closed
 node test/browser/backstock-fullpack.js # Full pack sale mode: ?mode=fullpack, pop-up, Sell/Cancel, refusals, draft kept (real backend code)
 node test/browser/full-packs.js          # Full pack sales page: totals, cards, Undo, none after close, empty month (real backend code)

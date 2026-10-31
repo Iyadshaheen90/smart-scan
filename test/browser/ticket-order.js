@@ -3,7 +3,7 @@
 // Set all slots pop-up, and Close Day refusing an already-sold ticket the pack's own way.
 // Real backend code on an in-memory sheet. Run: node test/browser/ticket-order.js   (SHOTS=dir saves screenshots)
 const assert = require('assert/strict');
-const { openApp, backendInVm, sleep } = require('./harness');
+const { openApp, typeTop, backendInVm, sleep } = require('./harness');
 
 const TODAY = '2026-10-08';
 const { ctx, addRow, call } = backendInVm(TODAY);
@@ -118,10 +118,13 @@ const arrows = (page) => page.$$eval('#list .card', (cards) => cards.slice(0, 4)
   await page.goto(app.base + 'close.html');
   await page.waitForSelector('#typed');
   await sleep(300);
-  await page.type('#typed', '1747-0000002-4-004'); await page.click('#typedForm button'); await sleep(300);
-  assert.match(await page.$eval('#flash', (el) => el.textContent), /Ticket 004 is below the last top ticket \(005\)/);
-  await page.$eval('#typed', (el) => { el.value = ''; });
-  await page.type('#typed', '1747-0000002-4-009'); await page.click('#typedForm button'); await sleep(300);
+  await typeTop(page, '1747-0000002-4-004'); await sleep(300);
+  assert.match(await page.$eval('#typedNote', (el) => el.textContent),
+    /004 is below the last top ticket \(005\)\. This pack counts up, so the top ticket is 005 or higher\./);
+  // Past the end of the ascending pack: refused with the highest top ticket it can have.
+  await typeTop(page, '1747-0000002-4-999'); await sleep(300);
+  assert.match(await page.$eval('#typedNote', (el) => el.textContent), /^This pack has no ticket 999\. The highest is \d{3}\.$/);
+  await typeTop(page, '1747-0000002-4-009'); await sleep(300);
   assert.match(await page.$eval('#review', (el) => el.textContent), /4 Sold/);
   await app.close();
 

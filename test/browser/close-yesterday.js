@@ -5,7 +5,7 @@
 // Real backend code (Close.js, Slots.js, Shifts.js) on an in-memory sheet.
 // Run: node test/browser/close-yesterday.js   (SHOTS=dir saves screenshots)
 const assert = require('assert/strict');
-const { openApp, backendInVm, sleep } = require('./harness');
+const { openApp, typeTop, backendInVm, sleep } = require('./harness');
 
 let clock = '09:00:00';
 const { ctx, addRow, call } = backendInVm('2026-10-27', () => clock);
@@ -58,7 +58,7 @@ const homeLoaded = (page) => page.waitForFunction(() => !document.querySelector(
   assert.match(await text(page, '.app-header'), /Close Yesterday/);
   assert.equal(await text(page, '#dateLine'), 'Yesterday, 2026-10-26 · scan before selling any scratchers today (until 12:00 PM)');
   assert.equal(await shown(page, '#lateBanner'), false);
-  const typed = async (t) => { await page.type('#typed', t); await page.click('#typedForm button'); await sleep(120); };
+  const typed = async (t) => { await typeTop(page, t); await sleep(120); };
   await typed('1747-0000001-0-015');
   await typed('1111-0000001-0-030');
   assert.equal(await text(page, '#submitBtn'), "Submit Yesterday's Close");
@@ -85,7 +85,7 @@ const homeLoaded = (page) => page.waitForFunction(() => !document.querySelector(
   await page.click('#reopenBtn');
   await page.waitForFunction(() => !document.getElementById('closeView').classList.contains('hidden'));
   assert.equal(call(() => ctx.summaryOn('2026-10-26')), null);
-  const typed2 = async (t) => { await page.type('#typed', t); await page.click('#typedForm button'); await sleep(120); };
+  const typed2 = async (t) => { await typeTop(page, t); await sleep(120); };
   await typed2('1747-0000001-0-015'); await typed2('1111-0000001-0-030');
   await page.click('#submitBtn');
   await page.waitForFunction(() => !document.getElementById('closedView').classList.contains('hidden'));

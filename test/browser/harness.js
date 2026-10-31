@@ -99,4 +99,29 @@ async function removeInDialog(page, packs, reason) {
   await page.click(`#removeReasons button[data-reason="${reason}"]`);
 }
 
-module.exports = { openApp, backendInVm, removeInDialog, ABORT, sleep };
+// Close Day / Close Shift: types a top ticket the way a person does (owner 2026-10-31): goes to the slot holding the
+// pack in "game-pack-check-ticket" (tapping it in the list unless it's already on the card), types the 3-digit
+// ticket, then taps Use This Number.
+async function typeTop(page, printed) {
+  const [game, pack, , ticket] = printed.split('-');
+  const want = `${game}-${pack}-`;
+  const onCard = () => page.$eval('#typedPack', (e) => e.textContent);
+  if (await onCard() !== want) {
+    const rows = await page.$$eval('.review-row', (r) => r.length);
+    for (let i = 0; i < rows && await onCard() !== want; i++) {
+      await page.evaluate((n) => document.querySelectorAll('.review-row')[n].click(), i);
+    }
+    if (await onCard() !== want) throw new Error(`no slot holds pack ${game}-${pack}`);
+  }
+  await page.$eval('#typed', (e) => { e.value = ''; });
+  await page.type('#typed', ticket);
+  await tapUseThisNumber(page);
+}
+
+// Centered first, so the tap never lands on the tab bar fixed over the bottom of the screen.
+async function tapUseThisNumber(page) {
+  await page.$eval('#typedForm button', (b) => b.scrollIntoView({ block: 'center' }));
+  await page.click('#typedForm button');
+}
+
+module.exports = { openApp, backendInVm, removeInDialog, typeTop, tapUseThisNumber, ABORT, sleep };

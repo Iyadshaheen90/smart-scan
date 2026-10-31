@@ -3,7 +3,7 @@
 // also shuts the camera off, and the scanner must bring it back. Once the day is closed the camera stays off.
 // Run: node test/browser/camera-revive.js
 const assert = require('assert/strict');
-const { openApp, sleep } = require('./harness');
+const { openApp, typeTop, sleep } = require('./harness');
 
 const pack = (g, p, t) => ({ gameNumber: g, packNumber: p, exposedTicket: t, remaining: t + 1, price: 5 });
 const slots = [{ box: 1, slot: 1, pack: pack('1747', '1263622', 40) }, { box: 1, slot: 2, pack: pack('1718', '1279742', 20) }];
@@ -29,7 +29,7 @@ const handle = (b) => {
   await waitPlaying();
 
   // Scan, then Clear all scans (confirm accepted by the harness) while iOS pauses the video.
-  await page.type('#typed', '1747-1263622-4-035'); await page.click('#typedForm button');
+  await typeTop(page, '1747-1263622-4-035');
   await page.$eval('#video', (v) => v.pause());
   await page.$eval('#clearBtn', (b) => b.click()); await sleep(100);
   assert.equal(await page.$eval('#flash', (e) => e.textContent), 'All scans cleared. Start again from the first slot.');
@@ -43,8 +43,8 @@ const handle = (b) => {
   console.log('after camera shut off:', JSON.stringify(await camera()));
 
   // Scanning still works after it came back.
-  await page.type('#typed', '1747-1263622-4-035'); await page.click('#typedForm button');
-  await page.type('#typed', '1718-1279742-6-018'); await page.click('#typedForm button');
+  await typeTop(page, '1747-1263622-4-035');
+  await typeTop(page, '1718-1279742-6-018');
   assert.match(await page.$eval('#progressText', (e) => e.textContent), /2 of 2/);
 
   // Submitted: the day is closed and the camera is turned off for good, not reopened.

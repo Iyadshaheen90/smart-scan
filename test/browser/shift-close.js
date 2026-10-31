@@ -4,7 +4,7 @@
 // $; Close Day itself still starts from last night's close; no shift close once the day is closed.
 // Runs the real backend on an in-memory sheet. Run: node test/browser/shift-close.js   (SHOTS=dir saves screenshots)
 const assert = require('assert/strict');
-const { openApp, backendInVm, sleep } = require('./harness');
+const { openApp, typeTop, backendInVm, sleep } = require('./harness');
 
 let clock = '14:00:00';
 const { ctx, sheets: S, addRow, call } = backendInVm('2026-11-10', () => clock);
@@ -28,7 +28,7 @@ const handler = (user) => (body) => {
 };
 
 const text = (page, sel) => page.$eval(sel, (el) => el.innerText.replace(/\s+/g, ' ').trim());
-const typed = async (page, t) => { await page.type('#typed', t); await page.click('#typedForm button'); await sleep(150); };
+const typed = async (page, t) => { await typeTop(page, t); await sleep(150); };
 const review = (page) => page.$$eval('#review .review-row', (els) => els.map((el) => el.innerText.replace(/\s+/g, ' ').trim()));
 
 (async () => {
@@ -48,7 +48,7 @@ const review = (page) => page.$$eval('#review .review-row', (els) => els.map((el
   await typed(page, '1747-0000001-0-020');
   await page.click('#soldOutBtn'); await sleep(150);             // slot 2 (dialog accepted)
   await typed(page, '5555-0000001-0-071');                        // above the start ticket: refused
-  assert.match(await text(page, '#flash'), /above the shift's start ticket \(070\)/);
+  assert.match(await text(page, '#typedNote'), /071 is above the shift's start ticket \(070\)/);
   await typed(page, '5555-0000001-0-070');
   assert.deepEqual(await review(page), ['B1 · S1 · $20 5 Sold · Top 020', 'B1 · S2 · $10 Sold Out · 46', 'B1 · S3 · $5 0 Sold · Top 070']);
   assert.equal(await text(page, '#submitBtn'), 'Submit Shift Close');
@@ -81,7 +81,7 @@ const review = (page) => page.$$eval('#review .review-row', (els) => els.map((el
   assert.equal(await text(page, '#curLast'), 'Shift start ticket 020 (21 left)');
   assert.deepEqual((await review(page))[1], 'B1 · S2 · $10 Sold Out · 0');
   await typed(page, '1111-0000001-0-040');
-  assert.match(await text(page, '#flash'), /was marked sold out at the 2:00 PM shift close\. Not saved\./);
+  assert.match(await text(page, '#typedNote'), /was marked sold out at the 2:00 PM shift close\./);
   await typed(page, '1747-0000001-0-015');
   await typed(page, '5555-0000001-0-060');
   assert.equal(await text(page, '#submitBtn'), 'Submit Shift Close');

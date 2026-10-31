@@ -165,7 +165,12 @@ Moved out of CLAUDE.md on 2026-10-29. Read before changing how anything is count
 
 **Scanning**
 - Press-and-hold is the default everywhere; Auto scan is an opt-in toggle (Close Day remembers it per phone).
-- Every scan screen also accepts the typed printed number (`parsePrintedTicket`).
+- Every scan screen also accepts the typed printed number (`parsePrintedTicket`), **except Close Day / Close Shift**
+  (owner 2026-10-31): there the field takes only the 3-digit top ticket of the slot on the card (game-pack shown gray
+  in front), saved with a tap on Use This Number, keyboard kept up for the next slot. Refused with a red note under the
+  field (number kept to fix): fewer than 3 digits ("069, not 69"), the sold side of the last/start ticket (says which
+  way the pack counts), past the end of an ascending pack, no slot left / sold out at a shift close. The full number
+  is not accepted there (owner's choice); no large-sale question (the existing "that is a lot" note stays).
 - The camera restarts itself (`keepCameraRunning` in scanner.js): iOS pauses the video while a confirm pop-up is open
   (e.g. Clear all scans, Sold out) or the app is in the background and never resumes it, which froze the picture (owner's
   bug 2026-09-29). Checked every second and on pause/focus/visibility/press: paused → `play()`, camera shut → reopened.

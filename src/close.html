@@ -82,10 +82,16 @@
       <button type="button" data-mode="hold">Press and Hold</button>
       <button type="button" data-mode="auto">Auto Scan</button>
     </div>
-    <form id="typedForm">
-      <label for="typed">Or Type the Number Printed on the Ticket</label>
-      <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
-      <button type="submit">Use This Number</button>
+    <!-- No camera or scanner: type only the 3-digit top ticket of the slot on the card (owner 2026-10-31).
+         The slot already knows its game and pack, shown in front of the field so the right pack is easy to check. -->
+    <form id="typedForm" novalidate>
+      <label for="typed" id="typedLabel">Or Type the Top Ticket</label>
+      <div class="typed-field" id="typedField">
+        <span class="typed-pack mono" id="typedPack"></span>
+        <input id="typed" class="mono" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="000">
+      </div>
+      <div class="typed-note" id="typedNote" role="status"></div>
+      <button type="submit" id="typedBtn">Use This Number</button>
     </form>
 
     <h2>All Slots</h2>
@@ -253,7 +259,10 @@
       const current = live.find((s) => keyOf(s) === currentKey);
       // The card stays (same size) when every slot is done, so nothing below it moves.
       ['soldOutBtn', 'skipBtn'].forEach((id) => { $(id).disabled = !current; });
-      if (current && current.pack.soldOutAtShift) $('soldOutBtn').disabled = true;
+      // The typed field is always for the slot on the card.
+      $('typedLabel').textContent = current ? `Or Type the Top Ticket for Box ${current.box} · Slot ${current.slot}` : 'Or Type the Top Ticket';
+      $('typedPack').textContent = current ? `${packKeyOf(current)}-` : '';
+      $('typedPack').classList.toggle('hidden', !current);      if (current && current.pack.soldOutAtShift) $('soldOutBtn').disabled = true;
       if (!current) {
         $('curWhere').textContent = 'All Slots Done';
         $('curPack').textContent = '\u00a0'; // a blank line the same height as a pack line
@@ -285,6 +294,8 @@
         row.append(left, right);
         row.addEventListener('click', () => {
           currentKey = keyOf(slot);
+          $('typed').value = '';
+          typedNote('');
           render();
           window.scrollTo({ top: 0, behavior: 'smooth' });
         });
@@ -441,6 +452,8 @@
     $('skipBtn').addEventListener('click', () => {
       const next = nextOpen(currentKey);
       currentKey = next && next !== currentKey ? next : currentKey;
+      $('typed').value = '';
+      typedNote('');
       $('flash').className = 'message scan-flash';
       $('flash').textContent = '';
       render();
@@ -462,14 +475,60 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
+    // A note under the typed field: red for a number that wasn't saved, green for the slot just saved.
+    function typedNote(text, kind) {
+      $('typedNote').textContent = text || '';
+      $('typedNote').className = `typed-note${kind ? ` ${kind}` : ''}`;
+      $('typedField').classList.toggle('error', kind === 'error');
+    }
+
+    // The reason a typed top ticket can't be used for this slot, or '' when it can.
+    function typedProblem(slot, text) {
+      if (!slot) return 'All slots are done. Tap a slot in the list below to change it.';
+      if (slot.pack.soldOutAtShift) return `This slot was marked sold out at the ${slot.pack.soldOutAtShift} shift close.`;
+      if (!/^\d{3}$/.test(text)) {
+        return /^\d{1,2}$/.test(text) ? `Type all 3 digits of the top ticket: ${pad3(text)}, not ${text}.`
+          : 'Type all 3 digits of the top ticket, like 069.';
+      }
+      const ticket = Number(text);
+      const { order, exposedTicket: last, remaining } = slot.pack;
+      const lastName = SHIFT_MODE ? "the shift's start ticket" : 'the last top ticket';
+      if (alreadySold(order, last, ticket)) {
+        const way = order === 'ascending' ? `counts up, so the top ticket is ${pad3(last)} or higher`
+          : `counts down, so the top ticket is ${pad3(last)} or lower`;
+        return `${text} is ${soldSide(order)} ${lastName} (${pad3(last)}). This pack ${way}.`;
+      }
+      // Only an ascending pack can go past its end (a descending one stops at 000).
+      if (ticketsSold(order, last, ticket) > remaining) {
+        return `This pack has no ticket ${text}. The highest is ${pad3(last + remaining)}.`;
+      }
+      return '';
+    }
+
+    $('typed').addEventListener('input', () => {
+      // Digits only, so a stray dash or space never counts as a digit.
+      $('typed').value = $('typed').value.replace(/\D/g, '').slice(0, 3);
+      if ($('typedField').classList.contains('error')) typedNote('');
+    });
+
     $('typedForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      try {
-        useTicket(parsePrintedTicket($('typed').value));
-        $('typed').value = '';
-      } catch (err) {
-        flash(err.message, 'error');
+      const slot = current();
+      const text = $('typed').value.trim();
+      const problem = typedProblem(slot, text);
+      if (problem) {
+        haptic('error');
+        typedNote(problem, 'error');
+        return;
       }
+      const ticket = Number(text);
+      const sold = ticketsSold(slot.pack.order, slot.pack.exposedTicket, ticket);
+      record(slot, { type: 'scan', ticketNumber: ticket, sold });
+      $('typed').value = '';
+      const large = sold >= status.largeSaleTickets ? ' That is a lot, double-check it.' : '';
+      typedNote(`Box ${slot.box} · Slot ${slot.slot}: ${text}, ${sold} sold ✓${large}`, large ? 'error' : 'ok');
+      // Keep the keyboard up for the next slot (focus inside the tap, so the iPhone allows it).
+      if (currentKey) $('typed').focus();
     });
 
     const modeButtons = document.querySelectorAll('#modeSwitch button');
