@@ -35,6 +35,11 @@
     <input id="helpSearch" type="search" autocomplete="off" autocorrect="off" spellcheck="false">
     <div id="faq"></div>
     <p class="sub hidden" id="noMatch"></p>
+    <!-- Database only: a way to support when the answer isn't here (owner 2026-10-31). -->
+    <a class="help-report hidden" id="helpReport" href="report.html">
+      <span class="help-report-text" id="notFound"></span>
+      <span class="help-report-link"><span data-icon="bug"></span>Report a Problem</span>
+    </a>
   </div>
 
   <nav class="tabbar" data-active="more"></nav>
@@ -47,6 +52,7 @@
     // Help & FAQ (owner 2026-10-29): the questions in faq.js this person may see (role, permissions, backend), in the
     // language they pick (remembered on this phone), with a search box. ?section=<id> opens at that section.
     const session = requireLogin();
+    document.getElementById('helpReport').classList.toggle('hidden', !USE_DATABASE);
     const $ = (id) => document.getElementById(id);
     const LANG_KEY = 'smartScanHelpLang';
     let lang = 'en';
@@ -97,6 +103,7 @@
       $('helpIntro').textContent = HELP_WORDS.intro[lang];
       $('helpSearch').placeholder = HELP_WORDS.search[lang];
       $('noMatch').textContent = HELP_WORDS.noMatch[lang];
+      $('notFound').textContent = HELP_WORDS.notFound[lang];
 
       const faq = $('faq');
       faq.innerHTML = '';

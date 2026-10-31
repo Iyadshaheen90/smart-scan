@@ -31,6 +31,8 @@ const HELP_WORDS = {
     ar: 'لا توجد أسئلة مطابقة. جرّب كلمات أخرى.',
   },
   goThere: { en: 'Go There', es: 'Ir allí', ar: 'اذهب إليها' },
+  // Under the questions, database only (owner 2026-10-31); the button name stays English, as elsewhere.
+  notFound: { en: "Didn't find your answer?", es: '¿No encontraste tu respuesta?', ar: 'لم تجد إجابتك؟' },
 };
 
 const FAQ = [
@@ -702,6 +704,24 @@ const FAQ = [
     id: 'problems',
     title: { en: 'Fixing Problems', es: 'Solución de problemas', ar: 'حل المشكلات' },
     items: [
+      {
+        id: 'report-problem', who: 'everyone', backend: 'supabase', go: 'report.html',
+        q: { en: 'How do I report a problem?', es: '¿Cómo reporto un problema?', ar: 'كيف أبلّغ عن مشكلة؟' },
+        a: {
+          en: 'More → Report a Problem. Pick where it happened, say what happened, add up to 3 screenshots if you can, then tap Send Report. Your store\'s details go with it by themselves. Follow it under My Reports: Received, Working on It, then Fixed.',
+          es: 'More → Report a Problem. Elige dónde pasó, cuenta qué pasó, agrega hasta 3 capturas de pantalla si puedes y toca Send Report. Los datos de tu tienda se envían solos. Síguelo en My Reports: Received, Working on It y luego Fixed.',
+          ar: 'More ← Report a Problem. اختر أين حدثت المشكلة، واكتب ما حدث، وأضف حتى 3 لقطات شاشة إن استطعت، ثم اضغط Send Report. تُرسل بيانات متجرك معها تلقائياً. تابعها في My Reports: Received ثم Working on It ثم Fixed.',
+        },
+      },
+      {
+        id: 'store-info', who: 'owner', backend: 'supabase', go: 'store.html',
+        q: { en: 'Where do I add the store\'s address and phone?', es: '¿Dónde agrego la dirección y el teléfono de la tienda?', ar: 'أين أضيف عنوان المتجر وهاتفه؟' },
+        a: {
+          en: 'More → Store Info. The Store ID is given by Smart Scan and can\'t be changed; support uses it to find your store. The address and phone go with every problem report, and the phone can help support confirm it\'s you if you lose access to your sign-in email.',
+          es: 'More → Store Info. El Store ID lo da Smart Scan y no se puede cambiar; soporte lo usa para encontrar tu tienda. La dirección y el teléfono se envían con cada reporte de problema, y el teléfono puede ayudar a soporte a confirmar que eres tú si pierdes acceso a tu correo de inicio de sesión.',
+          ar: 'More ← Store Info. رقم Store ID يعطيه Smart Scan ولا يمكن تغييره؛ ويستخدمه الدعم للعثور على متجرك. يُرسل العنوان والهاتف مع كل بلاغ عن مشكلة، ويمكن أن يساعد الهاتف الدعم في التأكد من هويتك إذا فقدت الوصول إلى بريد تسجيل الدخول.',
+        },
+      },
       {
         id: 'try-again', who: 'everyone',
         q: { en: 'A page says it couldn\'t load.', es: 'Una página dice que no pudo cargar.', ar: 'صفحة تقول إنها لم تُحمَّل.' },

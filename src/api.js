@@ -231,15 +231,17 @@ async function dbRpc(fn, body) {
   throw serverError();
 }
 
-// The members Edge Function (invite, setPassword, resendInvite); it answers { ok, data, code, error } like Apps Script.
-async function dbMembers(action, params) {
+// An Edge Function (members: invite, setPassword, resendInvite; support: report); it answers { ok, data, code, error }
+// like Apps Script.
+async function dbEdge(name, action, params) {
   const session = getSession();
-  const r = await dbFetch('/functions/v1/members', { body: { action, storeId: session && session.storeId, ...params }, token: await freshToken() });
+  const r = await dbFetch(`/functions/v1/${name}`, { body: { action, storeId: session && session.storeId, ...params }, token: await freshToken() });
   if (r.data && r.data.ok) return r.data.data;
   if (r.data && r.data.code) throw new ApiError(r.data.code, r.data.error);
   if (r.status === 401) throw signedOut();
   throw serverError();
 }
+const dbMembers = (action, params) => dbEdge('members', action, params);
 
 // Where an invite or password email's link opens (allowed in the Supabase project's redirect list).
 function setPasswordUrl() {
@@ -301,6 +303,8 @@ const DB_ACTIONS = {
   // A new invite email for someone who hasn't signed in yet (database only; the sheets have no emails).
   resendInvite: ({ username }) => dbMembers('resendInvite', { username, redirectTo: setPasswordUrl() }),
   me: () => dbRpc('me', { p_store: getSession().storeId }),
+  // Report a Problem (database only): the support Edge Function saves it, keeps the screenshots and emails support.
+  reportProblem: (params) => dbEdge('support', 'report', params),
   claimOwner: async () => { throw new ApiError('bad_request', 'With the database, a store and its owner are set up by Smart Scan.'); },
 };
 
@@ -408,6 +412,49 @@ async function signOut() {
 function showMessage(el, text, kind = 'error') {
   el.className = `message ${kind}`;
   el.textContent = text;
+  if (kind === 'error') rememberError(text);
+}
+
+// Report a Problem sends the last few red messages this phone showed and the last page used (owner 2026-10-31), so
+// support sees what went wrong without anyone typing it. Kept for this visit only (sessionStorage).
+const RECENT_ERRORS_KEY = 'smartScanRecentErrors';
+const LAST_PAGE_KEY = 'smartScanLastPage';
+function pageName() {
+  return location.pathname.split('/').pop() || 'index.html';
+}
+function rememberError(text) {
+  if (!text) return;
+  try {
+    const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const list = JSON.parse(sessionStorage.getItem(RECENT_ERRORS_KEY) || '[]');
+    list.push(`${time} ${pageName()}: ${String(text).slice(0, 250)}`);
+    sessionStorage.setItem(RECENT_ERRORS_KEY, JSON.stringify(list.slice(-5)));
+  } catch (e) {}
+}
+function recentErrors() {
+  try { return JSON.parse(sessionStorage.getItem(RECENT_ERRORS_KEY) || '[]'); } catch (e) { return []; }
+}
+// Pages that aren't where a problem happens (More, Help, the report itself, …) don't count as the last page.
+const NOT_A_WORK_PAGE = ['more.html', 'help.html', 'report.html', 'store.html', 'account.html', 'raw-scanner.html'];
+function rememberPage() {
+  const page = pageName();
+  if (NOT_A_WORK_PAGE.includes(page)) return;
+  try { sessionStorage.setItem(LAST_PAGE_KEY, page + location.search); } catch (e) {}
+}
+function lastPage() {
+  try { return sessionStorage.getItem(LAST_PAGE_KEY) || ''; } catch (e) { return ''; }
+}
+rememberPage();
+
+// The app's version = the saved set of files the phone runs (sw.js CACHE "smart-scan-v47" → "Version 47"); '' if unknown.
+async function appVersionLabel() {
+  try {
+    const keys = window.caches ? await caches.keys() : [];
+    const versions = keys.map((k) => Number((k.match(/^smart-scan-v(\d+)$/) || [])[1])).filter(Boolean);
+    return versions.length ? `Version ${Math.max(...versions)}` : '';
+  } catch (e) {
+    return '';
+  }
 }
 
 // A page that couldn't load shows why, with a Try again button under it (owner 2026-10-04).

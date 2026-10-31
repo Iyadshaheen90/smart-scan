@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Store Info</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Store Info" data-back="more.html" data-back-label="More"></header>
+  <!-- Store Info (owner 2026-10-31, database only, owner only): the Store ID Smart Scan gave the store (support uses it;
+       never the retailer number), and the name, address and phone. They go with every problem report; the phone can
+       also help support confirm the owner if they lose access to their sign-in email. -->
+
+  <p class="sub hidden" id="notYet">Store Info starts with the new database on Dec 1.</p>
+
+  <div id="storePage" class="hidden">
+    <div class="store-id-card">
+      <div>
+        <div class="store-id-label">Store ID</div>
+        <div class="store-id mono" id="storeId">—</div>
+      </div>
+      <p>Given by Smart Scan. Support uses it to find your store.</p>
+    </div>
+
+    <form id="storeForm" novalidate>
+      <label for="name">Store Name</label>
+      <input id="name" autocomplete="organization" maxlength="60" disabled>
+      <label for="street">Street Address</label>
+      <input id="street" autocomplete="address-line1" maxlength="100" disabled>
+      <label for="city">City</label>
+      <input id="city" autocomplete="address-level2" maxlength="60" disabled>
+      <div class="field-pair">
+        <div>
+          <label for="state">State</label>
+          <input id="state" autocomplete="address-level1" maxlength="2" autocapitalize="characters" disabled>
+        </div>
+        <div>
+          <label for="zip">ZIP Code</label>
+          <input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" disabled>
+        </div>
+      </div>
+      <label for="phone">Store Phone</label>
+      <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 123-4567" disabled>
+      <p class="field-help">Goes with problem reports. It can also help support confirm it's you if you ever lose access to your sign-in email.</p>
+      <div id="formMessage" class="message"></div>
+      <button class="primary" type="submit" id="saveBtn" disabled>Save Store Info</button>
+    </form>
+  </div>
+
+  <div id="message" class="message"></div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin();
+    const $ = (id) => document.getElementById(id);
+    const FIELDS = ['name', 'street', 'city', 'state', 'zip', 'phone'];
+
+    if (session && session.role !== 'owner') {
+      showMessage($('message'), 'Only the owner can see the store info.');
+    } else if (session && !USE_DATABASE) {
+      $('notYet').classList.remove('hidden');
+    } else if (session) {
+      $('storePage').classList.remove('hidden');
+      load();
+    }
+
+    function fill(info) {
+      $('storeId').textContent = info.storeId;
+      for (const f of FIELDS) $(f).value = (f === 'phone' ? info.phoneLabel : info[f]) || '';
+    }
+
+    async function load() {
+      try {
+        fill(await api('storeInfo'));
+        FIELDS.forEach((f) => { $(f).disabled = false; });
+        $('saveBtn').disabled = false;
+        $('message').className = 'message';
+        $('message').textContent = '';
+        return true;
+      } catch (err) {
+        showLoadError($('message'), err, load);
+        return false;
+      }
+    }
+
+    $('storeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('formMessage').className = 'message';
+      $('formMessage').textContent = '';
+      try {
+        const req = Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
+        const info = await whileBusy($('saveBtn'), 'Saving…', () => api('setStoreInfo', req));
+        fill(info);
+        // The header shows the store's name.
+        saveSession({ ...getSession(), storeName: info.name });
+        showMessage($('formMessage'), 'Store info saved.', 'ok');
+      } catch (err) {
+        showMessage($('formMessage'), err.message);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -124,6 +124,13 @@ Frontend (`src/`, plain HTML + JS, no build):
   answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
   (every slot's start → end ticket) and Delete (confirm). Icon `shift` (two block arrows, from the owner's picture).
 - `slots.html` both boxes (everyone sees the ↓/↑ ticket order arrow, `.order-arrow`; owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What Happened to It?" unsaved), activate, undo; then (owner's order) slot price, Ticket Order (`#orderForm`: Descending / Ascending, the chosen one in the app's green, `#orderSwitch button.active`; greyed while a pack is in), pack size, move or swap
+- `report.html` Report a Problem (database only, everyone; More → Support, and under Help & FAQ): New Report (area chips
+  picked from the last page used, `lastPage()`; text; up to 3 screenshots shrunk to 1600 px JPEG on the phone; What's
+  Included) → `reportProblem` (support Edge Function) → "Report #N Sent"; My Reports (`myReports`, status chips Received /
+  Working on It amber / Fixed green, support's note). api.js keeps the last 5 red messages (`rememberError`, from
+  `showMessage` and Close Day's typed note) and the last work page in sessionStorage. `store.html` Store Info (owner,
+  database only): Store ID card, name, address, phone (`storeInfo` / `setStoreInfo`); More's row says "Add your address
+  and phone" until it's filled.
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; the typed field is only the 3-digit
   top ticket for the slot on the card (`typedProblem`, `#typedNote`; tests type through `typeTop` in harness.js); Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in

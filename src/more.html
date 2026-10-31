@@ -33,6 +33,11 @@
         <span class="row-icon accent" data-icon="users"></span>
         <span class="row-text"><span class="row-main"><span class="row-title">Manage Employees</span><span class="row-sub">People, invites and permissions</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
       </a>
+      <!-- Owner only, database only (owner 2026-10-31): Store ID, name, address, phone. -->
+      <a class="group-row owner-only db-only hidden" href="store.html" id="storeInfoRow">
+        <span class="row-icon accent" data-icon="mapPin"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Store Info</span><span class="row-sub" id="storeInfoSub">Store ID, address and phone</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
       <!-- Owner only: the store's lottery retailer number, printed on the Theft Report. -->
       <button type="button" class="group-row owner-only hidden" id="retailerRow">
         <span class="row-icon accent" data-icon="store"></span>
@@ -55,6 +60,11 @@
       <a class="group-row" href="help.html">
         <span class="row-icon" data-icon="help"></span>
         <span class="row-text"><span class="row-main"><span class="row-title">Help &amp; FAQ</span><span class="row-sub">How-tos in English, Español, العربية</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <!-- Everyone, database only (owner 2026-10-31): send a problem to support; My Reports. -->
+      <a class="group-row db-only hidden" href="report.html">
+        <span class="row-icon" data-icon="bug"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Report a Problem</span><span class="row-sub">Send it to support, follow it</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
       </a>
       <a class="group-row" href="raw-scanner.html">
         <span class="row-icon" data-icon="scan"></span>
@@ -143,16 +153,25 @@
         document.getElementById('profileEmail').classList.remove('hidden');
       }
       if (session.role === 'owner') document.querySelectorAll('.owner-only').forEach((el) => el.classList.remove('hidden'));
+      // Rows that only work on the database (from the Dec 1 cutover).
+      document.querySelectorAll('.db-only').forEach((el) => {
+        el.classList.toggle('hidden', !USE_DATABASE || (el.classList.contains('owner-only') && session.role !== 'owner'));
+      });
+      // Store Info says so when the address or phone is still missing.
+      if (USE_DATABASE && session.role === 'owner') {
+        api('storeInfo').then((info) => {
+          if (info.complete) return;
+          document.getElementById('storeInfoSub').textContent = 'Add your address and phone';
+          document.getElementById('storeInfoSub').classList.add('row-sub-warn');
+        }).catch(() => {});
+      }
     }
-    // The app's version = the saved set of files the phone runs (sw.js CACHE "smart-scan-v47" → "Version 47").
-    if (window.caches) {
-      caches.keys().then((keys) => {
-        const versions = keys.map((k) => Number((k.match(/^smart-scan-v(\d+)$/) || [])[1])).filter(Boolean);
-        if (!versions.length) return;
-        document.getElementById('appVersion').textContent = `Smart Scan · Version ${Math.max(...versions)}`;
-        document.getElementById('appVersion').classList.remove('hidden');
-      }).catch(() => {});
-    }
+    // The app's version (appVersionLabel in api.js).
+    appVersionLabel().then((version) => {
+      if (!version) return;
+      document.getElementById('appVersion').textContent = `Smart Scan · ${version}`;
+      document.getElementById('appVersion').classList.remove('hidden');
+    });
     document.getElementById('signOut').addEventListener('click', () => signOut());
 
     const $ = (id) => document.getElementById(id);

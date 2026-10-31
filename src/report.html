@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Report a Problem</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Report a Problem" data-back="more.html" data-back-label="More"></header>
+  <!-- Report a Problem (owner 2026-10-31, database only): everyone. Where it happened, what happened, up to 3
+       screenshots; the store's details, who sent it, the app version, the phone and the last red messages go with it by
+       themselves. The support Edge Function saves it and emails support. My Reports: the owner sees the store's reports,
+       an employee their own, each with its status (Received / Working on It / Fixed). -->
+
+  <p class="sub hidden" id="notYet">Report a Problem starts with the new database on Dec 1. Until then, tell the owner.</p>
+
+  <div id="reportPage" class="hidden">
+    <div class="segmented" id="tabs">
+      <button type="button" data-tab="new" class="active">New Report</button>
+      <button type="button" data-tab="mine">My Reports</button>
+    </div>
+
+    <form id="reportForm" novalidate>
+      <p class="sub">Tell us what went wrong. Your store's details go with it, so you don't need to add them.</p>
+
+      <label id="areaLabel">Where Did It Happen?</label>
+      <div class="choice-chips" id="areas" role="radiogroup" aria-labelledby="areaLabel"></div>
+
+      <label for="description">What Happened?</label>
+      <textarea id="description" rows="5" maxlength="2000"
+        placeholder="What did you tap, and what did you see? For example: I typed 045 for Box 1 · Slot 3 and it said…"></textarea>
+      <div class="field-foot"><span>At least 10 letters</span><span id="descCount">0 / 2,000</span></div>
+
+      <label>Screenshots <span class="label-note">Optional, up to 3</span></label>
+      <div class="shots" id="shots">
+        <button type="button" class="shot-add" id="addShot"><span data-icon="image"></span><span>Add</span></button>
+      </div>
+      <input type="file" id="shotInput" accept="image/*" multiple class="hidden">
+
+      <details class="included">
+        <summary>What's Included</summary>
+        <ul>
+          <li>Your store's name, address, phone and Store ID</li>
+          <li>Your name and whether you're the owner or an employee</li>
+          <li>The app version, your phone type and the page you were on</li>
+          <li>The last red messages this phone showed</li>
+        </ul>
+        <p>Never your password.</p>
+      </details>
+
+      <div id="formMessage" class="message"></div>
+      <button class="primary" type="submit" id="sendBtn">Send Report</button>
+    </form>
+
+    <div id="sentView" class="hidden">
+      <div class="sent-card">
+        <span class="sent-icon" data-icon="check"></span>
+        <div class="sent-title" id="sentTitle"></div>
+        <p class="sent-text" id="sentText"></p>
+      </div>
+      <button type="button" class="primary" id="viewMine">View My Reports</button>
+      <a class="button" href="more.html">Done</a>
+    </div>
+
+    <div id="mineView" class="hidden">
+      <div id="mineList"></div>
+      <div id="mineMessage" class="message"></div>
+    </div>
+  </div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin();
+    const $ = (id) => document.getElementById(id);
+
+    const AREAS = [['close', 'Close Day'], ['shift', 'Close Shift'], ['slots', 'Slots'], ['backstock', 'Back Stock'],
+      ['reports', 'Reports'], ['months', 'Months'], ['signin', 'Sign In'], ['other', 'Something Else']];
+    // The page someone came from picks the area for them (they can change it).
+    const AREA_OF_PAGE = { 'close.html': 'close', 'slots.html': 'slots', 'activate.html': 'slots', 'backstock.html': 'backstock',
+      'shipments.html': 'backstock', 'returns.html': 'backstock', 'full-packs.html': 'backstock', 'reports.html': 'reports',
+      'theft-report.html': 'reports', 'settling.html': 'reports', 'shifts.html': 'reports', 'month.html': 'months',
+      'login.html': 'signin', 'set-password.html': 'signin' };
+    const STATUS = { received: ['Received', ''], working: ['Working on It', 'amber'], fixed: ['Fixed', 'green'] };
+    const MAX_SHOTS = 3;
+    // Screenshots are made smaller on the phone before sending (a phone screenshot can be several MB).
+    const SHOT_MAX_SIDE = 1600;
+
+    let area = null;
+    let shots = [];   // { type, data (base64), url (preview) }
+
+    if (session && !USE_DATABASE) {
+      $('notYet').classList.remove('hidden');
+    } else if (session) {
+      $('reportPage').classList.remove('hidden');
+      start();
+    }
+
+    function start() {
+      // Area chips.
+      for (const [key, label] of AREAS) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.dataset.area = key;
+        chip.setAttribute('role', 'radio');
+        chip.textContent = label;
+        chip.addEventListener('click', () => pickArea(key));
+        $('areas').append(chip);
+      }
+      const last = lastPage();
+      const page = last.split('?')[0];
+      pickArea(page === 'close.html' && /shift=1/.test(last) ? 'shift' : AREA_OF_PAGE[page] || null);
+
+      $('description').addEventListener('input', () => {
+        $('descCount').textContent = `${$('description').value.length.toLocaleString()} / 2,000`;
+      });
+      $('addShot').addEventListener('click', () => $('shotInput').click());
+      $('shotInput').addEventListener('change', addShots);
+      $('reportForm').addEventListener('submit', send);
+      document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+      $('viewMine').addEventListener('click', () => showTab('mine'));
+      showTab(new URLSearchParams(location.search).get('tab') === 'mine' ? 'mine' : 'new');
+    }
+
+    function pickArea(key) {
+      area = key;
+      document.querySelectorAll('#areas button').forEach((b) => {
+        b.classList.toggle('active', b.dataset.area === key);
+        b.setAttribute('aria-checked', String(b.dataset.area === key));
+      });
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+      $('reportForm').classList.toggle('hidden', tab !== 'new');
+      $('sentView').classList.add('hidden');
+      $('mineView').classList.toggle('hidden', tab !== 'mine');
+      if (tab === 'mine') loadMine();
+    }
+
+    // --- Screenshots ---
+
+    async function addShots() {
+      const files = [...$('shotInput').files];
+      $('shotInput').value = '';
+      for (const file of files) {
+        if (shots.length >= MAX_SHOTS) { showMessage($('formMessage'), 'You can add up to 3 screenshots.'); break; }
+        try {
+          shots.push(await shrink(file));
+        } catch (e) {
+          showMessage($('formMessage'), "That picture couldn't be added. Try a different one.");
+        }
+      }
+      drawShots();
+    }
+
+    // A JPEG no bigger than SHOT_MAX_SIDE on its long side, as base64, plus a preview.
+    function shrink(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const src = URL.createObjectURL(file);
+        img.onload = () => {
+          const scale = Math.min(1, SHOT_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.naturalWidth * scale);
+          canvas.height = Math.round(img.naturalHeight * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(src);
+          const url = canvas.toDataURL('image/jpeg', 0.82);
+          resolve({ type: 'image/jpeg', data: url.split(',')[1], url });
+        };
+        img.onerror = () => { URL.revokeObjectURL(src); reject(new Error('bad image')); };
+        img.src = src;
+      });
+    }
+
+    function drawShots() {
+      $('shots').querySelectorAll('.shot').forEach((el) => el.remove());
+      shots.forEach((shot, i) => {
+        const tile = document.createElement('div');
+        tile.className = 'shot';
+        const img = document.createElement('img');
+        img.src = shot.url;
+        img.alt = `Screenshot ${i + 1}`;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'shot-remove';
+        remove.setAttribute('aria-label', `Remove screenshot ${i + 1}`);
+        remove.innerHTML = icon('x');
+        remove.addEventListener('click', () => { shots.splice(i, 1); drawShots(); });
+        tile.append(img, remove);
+        $('shots').insertBefore(tile, $('addShot'));
+      });
+      $('addShot').classList.toggle('hidden', shots.length >= MAX_SHOTS);
+    }
+
+    // --- Sending ---
+
+    // "iPhone · Safari · Home Screen App" and the full browser line, for support.
+    function deviceLabel() {
+      const ua = navigator.userAgent;
+      const kind = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android'
+        : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Other';
+      const browser = /CriOS|Chrome/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'Browser';
+      const app = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone ? ' · Home Screen App' : '';
+      return `${kind} · ${browser}${app} · ${ua}`;
+    }
+
+    async function send(e) {
+      e.preventDefault();
+      $('formMessage').className = 'message';
+      $('formMessage').textContent = '';
+      const description = $('description').value.trim();
+      if (!area) return problem('Pick where it happened.');
+      if (description.length < 10) return problem('Tell us a bit more: what did you tap, and what happened?');
+      try {
+        const result = await whileBusy($('sendBtn'), 'Sending…', async () => api('reportProblem', {
+          area, description, page: lastPage(), appVersion: await appVersionLabel(), device: deviceLabel(),
+          recentErrors: recentErrors(), screenshots: shots.map(({ type, data }) => ({ type, data })),
+        }));
+        $('sentTitle').textContent = `Report #${result.number} Sent`;
+        $('sentText').textContent = 'Thanks. Support has your report and your store\'s details. Follow it in My Reports.';
+        $('reportForm').reset();
+        $('descCount').textContent = '0 / 2,000';
+        shots = [];
+        drawShots();
+        $('reportForm').classList.add('hidden');
+        $('sentView').classList.remove('hidden');
+        window.scrollTo({ top: 0 });
+      } catch (err) {
+        showMessage($('formMessage'), err.message);
+      }
+    }
+
+    function problem(text) {
+      showMessage($('formMessage'), text);
+    }
+
+    // --- My Reports ---
+
+    async function loadMine() {
+      $('mineMessage').className = 'message';
+      $('mineMessage').textContent = '';
+      $('mineList').innerHTML = '<p class="sub">Loading…</p>';
+      try {
+        drawMine(await api('myReports'));
+        return true;
+      } catch (err) {
+        $('mineList').innerHTML = '';
+        showLoadError($('mineMessage'), err, loadMine);
+        return false;
+      }
+    }
+
+    function drawMine(list) {
+      const box = $('mineList');
+      box.innerHTML = '';
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `<span class="empty-icon">${icon('bug')}</span>`;
+        const title = document.createElement('div');
+        title.className = 'empty-title';
+        title.textContent = 'No Reports Yet';
+        const text = document.createElement('p');
+        text.textContent = session.role === 'owner' ? 'Reports from you and your employees show here, with what support is doing about them.'
+          : 'Reports you send show here, with what support is doing about them.';
+        empty.append(title, text);
+        box.append(empty);
+        return;
+      }
+      for (const r of list) {
+        const card = document.createElement('div');
+        card.className = 'problem-card';
+        const top = document.createElement('div');
+        top.className = 'problem-top';
+        const name = document.createElement('span');
+        name.className = 'problem-name';
+        name.textContent = `#${r.number} · ${r.areaLabel}`;
+        const [word, color] = STATUS[r.status] || STATUS.received;
+        const chip = document.createElement('span');
+        chip.className = `chip ${color}`;
+        chip.textContent = word;
+        top.append(name, chip);
+        const text = document.createElement('div');
+        text.className = 'problem-text';
+        text.textContent = r.description;
+        const meta = document.createElement('div');
+        meta.className = 'problem-meta';
+        const by = session.role === 'owner' ? ` · ${r.username}` : '';
+        const pics = r.screenshots ? ` · ${r.screenshots} screenshot${r.screenshots === 1 ? '' : 's'}` : '';
+        meta.textContent = `Sent ${r.sentAt}${by}${pics}`;
+        card.append(top, text, meta);
+        if (r.statusNote) {
+          const note = document.createElement('div');
+          note.className = 'problem-note';
+          note.textContent = `Support${r.statusAt ? `, ${r.statusAt}` : ''}: ${r.statusNote}`;
+          card.append(note);
+        }
+        box.append(card);
+      }
+    }
+  </script>
+</body>
+</html>

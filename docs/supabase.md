@@ -116,6 +116,22 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   (api.js turns it into the message; set-password.html no longer treats it as saved); the owner's Reset Password goes
   through the admin API, which doesn't check, so the members function asks `public.service_is_current_password`
   (migration 0018, postgres-owned, service key only, bcrypt compare, yes/no). Only the last password, not a history.
+- **Store Info + Report a Problem (owner 2026-10-31; database only, migration 0020, on dev):** every store gets a
+  **Store ID** (`stores.store_number`, sequence from 10001, never changed; support's identifier — **never the retailer
+  number**) and `street/city/state/zip/phone` (owner: `store_info` / `set_store_info`, every field checked, phone saved as
+  10 digits; More → Store Info, `store.html`; later also the setup wizard). `app.problem_reports` (number = id from 1001,
+  forced RLS): `report_problem` (anyone; area, 10–2000 letters, 0–3 screenshots, page/appVersion/device/last 5 red
+  messages; 10 an hour per person), `my_reports` (owner: the store's; employee: their own; last 50). Service key only:
+  `service_problem_for_email`, `service_problem_emailed`, `service_set_problem_status` (signed-in people have no execute).
+  **support Edge Function** (`supabase/functions/support`): report_problem as the caller → screenshots to the private
+  bucket `problem-screenshots` (`<store>/<number>/<n>.jpg`, service key only) → email to SUPPORT_EMAIL over **Gmail SMTPS
+  port 465** (Edge Functions block 25 and 587; 465 checked from dev 2026-10-31), Reply-To the reporter, screenshots
+  attached; the report is saved first, so a failed email keeps it (`email_error`). A test store gets `testEmail` back
+  instead (or sends for real with `sendTestEmail: true`). Secrets SMTP_USER / SMTP_PASS / SUPPORT_EMAIL only in
+  `~/.smart-scan/smtp.env` + `support.env`, set with `sh scripts/push-function-secrets.sh`. Statuses: support runs
+  `node scripts/report-status.js <store uuid> <number> received|working|fixed "note"` (the email ends with it).
+  Deploy: `npx --yes supabase@2.122.0 functions deploy support --use-api`. Tests: `supabase/tests/problem_reports_test.sql`,
+  `test/browser/db-report.js`. Sheets: nothing (More rows, Help link and FAQ answers are database only).
 - **The import (built 2026-10-27; real Sep + Oct exported and checked 2026-10-27 10:22: no problems, 1221 close lines, 67 packs, 25 reads identical; totals matched the owner's phone):** Sheets `exportMonth`
   (`Export.js`, owner only, read only, no page calls it): no label → the month list; a label → every tab as plain rows,
   dates as store-time text, no Sessions or password columns. `scripts/import-sheets.js export` signs in as the owner

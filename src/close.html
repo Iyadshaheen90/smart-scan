@@ -519,6 +519,7 @@
       if (problem) {
         haptic('error');
         typedNote(problem, 'error');
+        rememberError(problem);
         return;
       }
       const ticket = Number(text);
