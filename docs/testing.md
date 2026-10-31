@@ -67,3 +67,7 @@ and answer backend calls with a fake (`openApp({ role, handle })`) or with the r
 in-memory spreadsheet (`backendInVm`). They never touch the live backend. Deploy the backend before the pages when a
 page needs a new action. Pages: bump `CACHE` in sw.js + `node test/sw-version.js --update` before every pages push. After deploying, `curl -sL "$URL"` should return `{"ok":true,...,"slots":48}`, and an
 unknown-but-registered action should answer `unauthorized` (not `unknown_action`).
+
+**Tapping buttons in browser tests:** a button near the bottom can sit under the fixed tab bar, so a plain
+`page.click` may hit a tab (e.g. Stock) instead. Center it first: `tapUseThisNumber` / `typeTop` in harness.js, `tap` in
+db-report.js. Close Day typed entry is 3 digits for the slot on the card: use `typeTop(page, 'game-pack-x-ticket')`.

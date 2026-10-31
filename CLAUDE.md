@@ -48,6 +48,8 @@ that applies to almost every change belongs below.
   parity test) or added to the migration plan's "Added during the move" list, and the owner is told.
 - **The repo is public:** the retailer number, emails, passwords and keys never go in code, tests, git or notes.
 - **Live deploys need the owner's OK** for each change.
+- **Verify, never guess:** look up every column, field, function name and path (e.g. `Schema.js`) before using it.
+- **Support knows a store by its Store ID** (`stores.store_number`), never the retailer number (sensitive, Vault only).
 
 ## Code conventions
 
