@@ -39,7 +39,7 @@ node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against 
 node test/sw-version.js                   # CACHE bumped after any change to a saved file (--update records it); every page/script is in SHELL
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
-node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete (real backend code)
+node test/browser/shifts.js               # Shift Closure report: by day, details, ended packs, Delete, Select several to delete (real backend code)
 node test/browser/slot-end-cancel.js      # slot page Sold out / Returned: sold-today numbers before saving, Cancel from every step, nothing saved
 node test/browser/ticket-order.js         # Slots arrows, slot page Ticket order, More Set all, Close Day / return refusals (real backend code)
 node test/browser/reports.js              # Reports tab: list with numbers, Shipments Received + Returned Packs cards, ‹ Reports pills (real backend code)
