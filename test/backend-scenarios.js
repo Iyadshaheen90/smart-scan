@@ -492,6 +492,15 @@ console.log('game ended scenarios pass');
   assert.equal(r.ticketsSold, 0);
   for (const a of ['listShiftCloses', 'deleteShiftClose']) assert.equal(run(`SIGNED_IN_ACTIONS.${a}.owner`), true);
   for (const a of ['shiftStatus', 'submitShiftClose']) assert.equal(run(`SIGNED_IN_ACTIONS.${a}.owner`), undefined);
+  // Delete several together: none saved is refused; one already gone doesn't stop the others
+  assert.equal(code(() => run(`deleteShiftClose(owner, { shiftIds: [] })`)), 'nothing_to_delete');
+  assert.equal(code(() => run(`deleteShiftClose(owner, { shiftIds: ['nope', 'nope2'] })`)), 'nothing_to_delete');
+  const before = run('listShiftCloses(owner)');
+  const twoIds = before.shifts.slice(0, 2).map((s) => s.shiftId);
+  list = run(`deleteShiftClose(owner, { shiftIds: ${JSON.stringify([twoIds[0], 'nope', twoIds[1]])} })`);
+  assert.equal(list.count, before.count - 2);
+  assert.ok(list.shifts.every((s) => !twoIds.includes(s.shiftId)));
+  assert.equal(code(() => run(`deleteShiftClose(owner, { shiftIds: ${JSON.stringify(twoIds)} })`)), 'nothing_to_delete');
 
   // Night Close Day: the whole day from last night's close, as if no shift was closed. Slot 2 is
   // marked sold out again (not pre-filled).

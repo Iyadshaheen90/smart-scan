@@ -272,10 +272,12 @@ function listShiftCloses(user) {
 
 // Owner: removes a shift close made by mistake. A wrong scan would otherwise be every later shift's start
 // ticket that day, and an employee can close their shift again once theirs is deleted.
+// One (req.shiftId) or several together (req.shiftIds). One already gone is fine (another phone may have deleted it);
+// nothing_to_delete only when none are left.
 function deleteShiftClose(user, req) {
-  const shiftId = String(req.shiftId || '');
+  const shiftIds = Array.isArray(req.shiftIds) ? req.shiftIds.map(String) : [String(req.shiftId || '')];
   return withLock(() => {
-    const isShift = (r) => r.shift_id === shiftId;
+    const isShift = (r) => shiftIds.includes(r.shift_id);
     if (!shiftRows('ShiftCloses').some(isShift)) throw new ApiError('nothing_to_delete', "That shift close isn't saved any more.");
     deleteRowsWhere(shiftSheet('ShiftCloseLog'), isShift);
     deleteRowsWhere(shiftSheet('ShiftCloses'), isShift);

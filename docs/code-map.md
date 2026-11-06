@@ -122,7 +122,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   pack, ticket price, pack size, total value) with Undo until that day is closed. Icon `ticket`.
 - `shifts.html` (owner, 2026-09-30) Shift Closure: this month's shift closes by day, newest first (`listShiftCloses`, saved
   answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
-  (every slot's start → end ticket) and Delete (confirm). Icon `shift` (two block arrows, from the owner's picture).
+  (every slot's start → end ticket) and Delete (confirm). **Select** (beside the first day, 2+ shift closes; owner 2026-11-06) chooses several: tap cards, Select All / Deselect All, `.select-bar` in the tab bar's place (Cancel, count, Delete; confirm names them), one `deleteShiftClose` with `shiftIds`. Icon `shift` (two block arrows, from the owner's picture).
 - `slots.html` both boxes (everyone sees the ↓/↑ ticket order arrow, `.order-arrow`; owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What Happened to It?" unsaved), activate, undo; then (owner's order) slot price, Ticket Order (`#orderForm`: Descending / Ascending, the chosen one in the app's green, `#orderSwitch button.active`; greyed while a pack is in), pack size, move or swap
 - `report.html` Report a Problem (database only, everyone; More → Support, and under Help & FAQ): New Report (area chips
   picked from the last page used, `lastPage()`; text; up to 3 screenshots shrunk to 1600 px JPEG on the phone; What's

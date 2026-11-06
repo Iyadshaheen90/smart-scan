@@ -54,6 +54,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   (asserts in DO blocks; switch users with `set local role authenticated` + `set local request.jwt.claims`).
   `npx --yes supabase@2.122.0 db advisors --linked` should show only the two expected warnings (definer API functions callable
   by signed-in users; two select policies on stores/store_members).
+- `delete_shift_close` takes `shiftIds` too (migration 0021, 2026-11-06), same as Sheets; covered by `test/parity/shifts.js`.
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

@@ -148,7 +148,8 @@ Moved out of CLAUDE.md on 2026-10-29. Read before changing how anything is count
 - Wrong close → `reopenClose` restores every top ticket (found by pack, so moves after the close are fine).
 - Close submitted by mistake while still unsent → "Stop sending and change scans" on Close Day.
 - Shift close made by mistake → Delete on the Shift Closure page (`deleteShiftClose`): later shift closes that day start
-  from the one before it, and that employee can close their shift again.
+  from the one before it, and that employee can close their shift again. Several at once: Select on that page (`shiftIds`,
+  all in one request; one already gone doesn't stop the others).
 - Full pack sold by mistake → Undo on the Full pack sales page (`undoFullPackSale`), while that sales day isn't closed:
   the pack goes back in the back and the sale is removed.
 - Game ended by mistake → Bring back (or it comes back by itself when received).

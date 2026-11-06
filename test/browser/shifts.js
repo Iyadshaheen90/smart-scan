@@ -1,6 +1,6 @@
 // Shift Closure report (shifts.html, owner): this month's shift closes grouped by day, newest first; each card has who
 // and when, from → to, tickets, $, slots scanned, packs ended during the shift; Slots opens every slot's start → end
-// ticket; Delete (after a confirm) removes it. Runs the real backend on an in-memory sheet.
+// ticket; Delete (after a confirm) removes it; Select chooses several to delete together. Runs the real backend on an in-memory sheet.
 // Run: node test/browser/shifts.js   (SHOT=file saves a screenshot)
 const assert = require('assert/strict');
 const { openApp, backendInVm, sleep } = require('./harness');
@@ -29,8 +29,8 @@ function handle(body) {
 }
 
 (async () => {
-  let dialog = null;
-  const app = await openApp({ role: 'owner', handle, onDialog: (d) => { dialog = d.message(); d.accept(); } });
+  let dialog = null; let answer = true;
+  const app = await openApp({ role: 'owner', handle, onDialog: (d) => { dialog = d.message(); return answer ? d.accept() : d.dismiss(); } });
   const { page, base } = app;
   const cards = () => page.$$eval('#list .card', (els) => els.map((el) => el.innerText.replace(/\s+/g, ' ').trim()));
   await page.goto(base + 'shifts.html'); await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 2);
@@ -61,6 +61,63 @@ function handle(body) {
   // None left.
   await page.$eval('#list .card button.danger', (b) => b.click());
   await page.waitForFunction(() => document.getElementById('list').innerText.includes('No shift closes this month yet.'));
+
+  // ---- Choosing several ----
+  clock = '19:00:00'; ctx.submitShiftClose(emp, scan(18, 60), 's3', '2026-11-10');
+  clock = '19:10:00'; ctx.submitShiftClose(owner, scan(17, 60), 's4', '2026-11-10');
+  clock = '19:20:00'; ctx.submitShiftClose(owner, scan(16, 60), 's5', '2026-11-10');
+  await page.goto(base + 'shifts.html'); await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 3);
+  const shown = (sel) => page.$eval(sel, (e) => e.getClientRects().length > 0);
+  const text = (sel) => page.$eval(sel, (e) => e.textContent);
+  const tapCard = (i) => page.$$eval('#list .card', (els, n) => els[n].click(), i);
+  const marked = () => page.$$eval('#list .card', (els) => els.map((e) => e.classList.contains('selected')));
+  // Before: Select, each card's own Delete, the tab bar; tapping a card chooses nothing.
+  assert.equal(await text('#selectToggle'), 'Select');
+  assert.equal(await shown('.shift-delete'), true); assert.equal(await shown('nav.tabbar'), true); assert.equal(await shown('#selectBar'), false);
+  await tapCard(0); assert.deepEqual(await marked(), [false, false, false]);
+  // Select: the bar takes the tab bar's place, card Deletes and Slots go, nothing chosen yet.
+  await page.click('#selectToggle');
+  assert.equal(await shown('#selectBar'), true); assert.equal(await shown('nav.tabbar'), false);
+  assert.equal(await shown('.shift-delete'), false); assert.equal(await shown('.shift-card details'), false);
+  assert.equal(await text('#selectCount'), 'Select Shifts'); assert.equal(await text('#selectToggle'), 'Select All');
+  assert.equal(await page.$eval('#selectDelete', (b) => b.disabled), true);
+  // Tap chooses, tap again un-chooses.
+  await tapCard(0); await tapCard(2);
+  assert.deepEqual(await marked(), [true, false, true]); assert.equal(await text('#selectCount'), '2 Selected');
+  assert.equal(await page.$eval('#selectDelete', (b) => b.disabled), false);
+  await tapCard(2); assert.deepEqual(await marked(), [true, false, false]); assert.equal(await text('#selectCount'), '1 Selected');
+  // Select All / Deselect All.
+  await page.click('#selectToggle'); assert.deepEqual(await marked(), [true, true, true]); assert.equal(await text('#selectToggle'), 'Deselect All');
+  await page.click('#selectToggle'); assert.deepEqual(await marked(), [false, false, false]); assert.equal(await text('#selectCount'), 'Select Shifts');
+  // Cancel drops the choice and brings everything back.
+  await tapCard(1); await page.click('#selectCancel');
+  assert.equal(await shown('#selectBar'), false); assert.equal(await shown('nav.tabbar'), true); assert.equal(await shown('.shift-delete'), true);
+  assert.deepEqual(await marked(), [false, false, false]); assert.equal(await text('#selectToggle'), 'Select');
+  // Answering No to the question deletes nothing and keeps the choice.
+  await page.click('#selectToggle'); await tapCard(0); await tapCard(2);
+  answer = false; await page.click('#selectDelete'); await sleep(100); answer = true;
+  assert.match(dialog, /^Delete 2 shift closes\? This can't be undone\.\n\no, 7:20 PM, Tue, Nov 10\ne, 7:00 PM, Tue, Nov 10$/);
+  assert.equal(ctx.listShiftCloses(owner).count, 3); assert.deepEqual(await marked(), [true, false, true]);
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT.replace(/\.png$/, '-select.png') });
+  // Yes: both go in one request; one left, so no more Select.
+  let deletes = 0; page.on('request', (r) => { if ((r.postData() || '').includes('deleteShiftClose')) deletes += 1; });
+  await page.click('#selectDelete');
+  await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 1);
+  assert.equal(deletes, 1, 'one request');
+  assert.equal(await text('#message'), 'Deleted 2 shift closes.');
+  assert.match((await cards())[0], /^o · 7:10 PM/);
+  assert.equal(await shown('nav.tabbar'), true); assert.equal(await shown('#selectBar'), false);
+  assert.equal(await page.$('#selectToggle'), null);
+  assert.equal(ctx.shiftStatus(emp).myShiftToday, null, 'e can close a shift again');
+  // Already deleted on another phone: says so and shows the list as it is now.
+  clock = '19:30:00'; ctx.submitShiftClose(owner, scan(15, 60), 's6', '2026-11-10');
+  await page.goto(base + 'shifts.html'); await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 2);
+  await page.click('#selectToggle'); await tapCard(0);
+  ctx.deleteShiftClose(owner, { shiftId: 's6' });
+  await page.click('#selectDelete');
+  await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 1);
+  assert.equal(await text('#message'), "That shift close isn't saved any more.");
+  assert.equal(await shown('#selectBar'), false);
   console.log('SHIFTS PAGE CHECKS PASS');
   await app.close();
 })().catch((e) => { console.error(e); process.exit(1); });

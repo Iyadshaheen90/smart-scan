@@ -570,9 +570,9 @@ const FAQ = [
         id: 'shift-closes', who: 'owner', go: 'shifts.html',
         q: { en: 'Where do I see shift closes?', es: '¿Dónde veo los cierres de turno?', ar: 'أين أرى إغلاقات الورديات؟' },
         a: {
-          en: 'The Shift Closure card on Home. Each one shows who, when, tickets and $, and every slot\'s start and end ticket. Delete removes a mistaken one.',
-          es: 'La tarjeta Shift Closure en Home. Cada cierre muestra quién, cuándo, boletos y $, y el boleto inicial y final de cada casilla. Delete borra uno equivocado.',
-          ar: 'بطاقة Shift Closure في Home. يعرض كل إغلاق من أغلقه ومتى، والتذاكر و$، وتذكرة البداية والنهاية لكل خانة. يحذف Delete الإغلاق الخاطئ.',
+          en: 'The Shift Closure card on Home. Each one shows who, when, tickets and $, and every slot\'s start and end ticket. Delete removes a mistaken one. To remove several, tap Select, choose them and tap Delete.',
+          es: 'La tarjeta Shift Closure en Home. Cada cierre muestra quién, cuándo, boletos y $, y el boleto inicial y final de cada casilla. Delete borra uno equivocado. Para borrar varios, toca Select, elígelos y toca Delete.',
+          ar: 'بطاقة Shift Closure في Home. يعرض كل إغلاق من أغلقه ومتى، والتذاكر و$، وتذكرة البداية والنهاية لكل خانة. يحذف Delete الإغلاق الخاطئ. لحذف عدة إغلاقات، اضغط Select واخترها ثم اضغط Delete.',
         },
       },
       {

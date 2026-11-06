@@ -1,6 +1,6 @@
 // Parity: shift closes on Sheets vs Supabase. Every refusal, an employee's shift close (scan + sold out), their second
 // try, a resend, packs ended / sold whole / put in between shifts, a second employee's shift close (the earlier sold out
-// filled in, the ended packs counted from the first shift's tickets), deleting a shift close, and none after Close Day.
+// filled in, the ended packs counted from the first shift's tickets), deleting one or several shift closes, and none after Close Day.
 // After every step: Close shift (employee and owner), Shift Closure (owner), the employee home (closeStatus).
 // Run: node test/parity/shifts.js
 const assert = require('assert/strict');
@@ -62,7 +62,7 @@ const { parity } = require('./harness');
     // ---- Second shift close: 1-3 filled in as sold out earlier; the return and the full pack count in it ----
     await at('15:02:00');
     r = await step('sara', 'submitShiftClose', { entries: [e(1, 2, '1111-0000777', { type: 'scan', ticketNumber: 20 }),
-      e(1, 4, '1747-0000300', { type: 'scan', ticketNumber: 25 })] });
+      e(1, 4, '1747-0000300', { type: 'scan', ticketNumber: 25 })], shiftId: 'sara-1' });
     assert.equal(r.ticketsSold, 5 + 4 + 2 + 30);
     await at('15:30:00');
     r = await step('o', 'submitShiftClose', { entries: [e(1, 2, '1111-0000777', { type: 'scan', ticketNumber: 20 }),
@@ -81,6 +81,13 @@ const { parity } = require('./harness');
     await step('o', 'submitClose', { entries: [e(1, 2, '1111-0000777', { type: 'scan', ticketNumber: 30 }), e(1, 3, '5555-0000042', { type: 'sold_out' }),
       e(1, 4, '1747-0000300', { type: 'scan', ticketNumber: 10 })], closeId: 'c-23' });
     await step('o', 'submitShiftClose', { entries: [], shiftId: 'late' });
+
+    // ---- Deleting several together ----
+    await step('sara', 'deleteShiftClose', { shiftIds: ['sara-1'] });                                          // owner only
+    await step('o', 'deleteShiftClose', { shiftIds: [] });
+    await step('o', 'deleteShiftClose', { shiftIds: ['nope', 'nope2'] });
+    await step('o', 'deleteShiftClose', { shiftIds: ['sara-1', 'nope', 'owner-1'] });                          // one already gone is fine
+    await step('o', 'deleteShiftClose', { shiftIds: ['sara-1', 'owner-1'] });
     console.log(`shift close parity: ${steps} steps match (with Close shift, Shift Closure and the employee home after each)`);
   } finally {
     await p.done();

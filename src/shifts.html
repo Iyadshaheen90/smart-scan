@@ -18,10 +18,17 @@
   <p class="sub">Shift closes this month, newest first, to compare with the register. Each counts from the shift
     close before it that day (or last night's close). Close Day still covers the whole day.</p>
 
-  <div id="message" class="message"></div>
+  <!-- Floats above the bar: choosing several can leave you far down the page, away from the top. -->
+  <div class="toast-wrap" aria-live="polite"><div id="message" class="message"></div></div>
   <div id="list" class="saved-dim saved-lock"></div>
 
   <nav class="tabbar" data-active=""></nav>
+  <!-- While choosing several to delete, this takes the tab bar's place. -->
+  <div id="selectBar" class="select-bar hidden">
+    <button type="button" class="small" id="selectCancel">Cancel</button>
+    <span class="select-count" id="selectCount"></span>
+    <button type="button" class="small danger" id="selectDelete">Delete</button>
+  </div>
 
   <script src="config.js"></script>
   <script src="api.js"></script>
@@ -32,6 +39,9 @@
     const $ = (id) => document.getElementById(id);
     const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
     const pad3 = (n) => String(n).padStart(3, '0');
+    let shifts = [];             // the list on screen
+    let selecting = false;       // choosing several to delete
+    const chosen = new Set();    // their shiftIds
 
     // "2026-10-05" -> "Mon, Oct 5"
     function dayName(label) {
@@ -67,9 +77,14 @@
     }
 
     function shiftCard(shift) {
-      const card = el('div', 'card');
+      const card = el('div', 'card shift-card');
+      card.dataset.shiftId = shift.shiftId;
       const top = el('div', 'row');
-      top.append(el('span', 'slot-num', `${shift.closedBy} · ${shift.closedAt}`), el('span', 'chip green', money(shift.dollarsSold)));
+      const who = el('span', 'shift-who');
+      const mark = el('span', 'select-mark');
+      mark.innerHTML = icon('check');
+      who.append(mark, el('span', 'slot-num', `${shift.closedBy} · ${shift.closedAt}`));
+      top.append(who, el('span', 'chip green', money(shift.dollarsSold)));
       const from = shift.since ? `the ${shift.since} shift close` : "last night's close";
       const stats = el('div', 'stat-grid');
       stats.append(stat(String(shift.ticketsSold), 'Tickets Sold'), stat(money(shift.dollarsSold), 'Sold'),
@@ -92,28 +107,120 @@
       }
       card.append(details);
 
-      const del = el('button', 'small danger', 'Delete');
+      const del = el('button', 'small danger shift-delete', 'Delete');
       del.type = 'button';
       del.style.marginTop = '12px';
       del.addEventListener('click', () => deleteShift(shift, del));
       card.append(del);
+      card.addEventListener('click', () => {
+        if (!selecting || busy) return;
+        if (chosen.has(shift.shiftId)) chosen.delete(shift.shiftId); else chosen.add(shift.shiftId);
+        showChoice();
+      });
       return card;
     }
 
     function showShifts(data) {
+      shifts = data.shifts;
       const list = $('list');
       list.innerHTML = '';
-      if (data.shifts.length === 0) list.append(el('p', 'sub', 'No shift closes this month yet.'));
+      if (shifts.length === 0) list.append(el('p', 'sub', 'No shift closes this month yet.'));
       let day = null;
-      for (const shift of data.shifts) {
+      for (const shift of shifts) {
         if (shift.date !== day) {
+          const label = el('div', 'section-label', dayName(shift.date));
+          // The first day's row also holds Select; with only one shift close there is nothing to choose between.
+          if (day === null && shifts.length > 1) {
+            const row = el('div', 'section-row');
+            const toggle = el('button', 'small text-action');
+            toggle.type = 'button';
+            toggle.id = 'selectToggle';
+            toggle.addEventListener('click', selectToggle);
+            row.append(label, toggle);
+            list.append(row);
+          } else {
+            list.append(label);
+          }
           day = shift.date;
-          list.append(el('div', 'section-label', dayName(day)));
         }
         list.append(shiftCard(shift));
       }
+      setSelecting(selecting && shifts.length > 1);
       fitNumbers();
     }
+
+    let busy = false;   // a delete is on its way
+
+    // The floating message fades by itself, like Manage Employees'; a problem stays longer.
+    let messageTimer = null;
+    function floatMessage(text, kind) {
+      showMessage($('message'), text, kind);
+      clearTimeout(messageTimer);
+      messageTimer = setTimeout(() => { $('message').className = 'message'; $('message').textContent = ''; }, kind === 'ok' ? 5000 : 9000);
+    }
+
+    function setSelecting(on) {
+      selecting = on;
+      if (!on) chosen.clear();
+      // Keep only what's still on the list (a fresh answer may have fewer).
+      for (const id of [...chosen]) if (!shifts.some((s) => s.shiftId === id)) chosen.delete(id);
+      document.body.classList.toggle('selecting', on);
+      $('selectBar').classList.toggle('hidden', !on);
+      showChoice();
+    }
+
+    // Draws the current choice: the marks, the count, Delete, and Select / Select All / Deselect All.
+    function showChoice() {
+      document.querySelectorAll('.shift-card').forEach((card) => {
+        const on = chosen.has(card.dataset.shiftId);
+        card.classList.toggle('selected', selecting && on);
+        if (selecting) card.setAttribute('aria-pressed', String(on)); else card.removeAttribute('aria-pressed');
+      });
+      const toggle = $('selectToggle');
+      if (toggle) toggle.textContent = !selecting ? 'Select' : chosen.size === shifts.length ? 'Deselect All' : 'Select All';
+      $('selectCount').textContent = chosen.size ? `${chosen.size} Selected` : 'Select Shifts';
+      $('selectDelete').disabled = busy || chosen.size === 0;
+      $('selectCancel').disabled = busy;
+    }
+
+    function selectToggle() {
+      if (busy) return;
+      if (!selecting) return setSelecting(true);
+      if (chosen.size === shifts.length) chosen.clear(); else shifts.forEach((s) => chosen.add(s.shiftId));
+      showChoice();
+    }
+
+    // Names each one, so a whole month isn't deleted by a slip; a long list ends in "and N more".
+    function chosenText(picked) {
+      const lines = picked.slice(0, 5).map((s) => `${s.closedBy}, ${s.closedAt}, ${dayName(s.date)}`);
+      if (picked.length > 5) lines.push(`and ${picked.length - 5} more`);
+      return lines.join('\n');
+    }
+
+    // All together in one request, so they can't half delete. Same result as Delete on each one.
+    async function deleteChosen() {
+      const picked = shifts.filter((s) => chosen.has(s.shiftId));
+      if (!picked.length || busy) return;
+      if (!confirm(`Delete ${picked.length} shift close${picked.length === 1 ? '' : 's'}? This can't be undone.\n\n${chosenText(picked)}`)) return;
+      busy = true;
+      showChoice();
+      try {
+        const data = await whileBusy($('selectDelete'), 'Deleting…', () => api('deleteShiftClose', { shiftIds: picked.map((s) => s.shiftId) }));
+        busy = false;
+        selecting = false;
+        showShifts(data);
+        floatMessage(`Deleted ${picked.length} shift close${picked.length === 1 ? '' : 's'}.`, 'ok');
+      } catch (err) {
+        busy = false;
+        showChoice();
+        floatMessage(err.message);
+        // They were already deleted elsewhere: show the list as it is now.
+        if (err.code === 'nothing_to_delete') { selecting = false; load(); }
+      }
+    }
+
+    $('selectCancel').addEventListener('click', () => { if (!busy) setSelecting(false); });
+    $('selectDelete').addEventListener('click', deleteChosen);
 
     // For a shift close made by mistake: later shift closes that day then start from the one before it,
     // and an employee can close their shift again.
@@ -122,9 +229,9 @@
       try {
         const data = await whileBusy(button, 'Deleting…', () => api('deleteShiftClose', { shiftId: shift.shiftId }));
         showShifts(data);
-        showMessage($('message'), `Deleted ${shift.closedBy}'s shift close at ${shift.closedAt}.`, 'ok');
+        floatMessage(`Deleted ${shift.closedBy}'s shift close at ${shift.closedAt}.`, 'ok');
       } catch (err) {
-        showMessage($('message'), err.message);
+        floatMessage(err.message);
       }
     }
 
@@ -132,7 +239,7 @@
       try {
         await loadSaved('shifts', () => api('listShiftCloses'), showShifts);
       } catch (err) {
-        showMessage($('message'), err.message);
+        floatMessage(err.message);
       }
     }
     if (session) load();
