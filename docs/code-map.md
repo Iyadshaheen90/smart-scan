@@ -44,7 +44,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   (`fitBackLabels` in nav.js) rather than pushing the name pill down (owner 2026-10-13). `icons.js` inline
   line icons (`icon(name)`, `data-icon`). Owner's rule: numbers are never cut off — put `fit` on the box and call
   `fitText`/`fitNumbers` (nav.js) after filling it; grids use `minmax(0, 1fr)`. Pages with the tab bar get
-  `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. Dialogs sit above it (z-index).
+  `body.has-tabbar` bottom padding and `scroll-padding-bottom`, so scrolled-to buttons stop above the bar. The tab bar is a floating dark-glass pill (owner 2026-11-05; 64px tall); anything that stays above it is measured from `--tabbar-clear` in `style.css`. Dialogs sit above it (z-index).
 - **Saved answers** (`loadSaved(name, request, show)` in api.js): Slots, Settling (shares Slots' saved `listSlots`), Back stock,
   Months & totals, Reports, Shipments Received and Returned Packs (a `?date=` day view reuses its report's saved answer) draw the last answer saved on the phone at once, then the fresh one. While it shows, `body.showing-saved`
   dims `.saved-dim` and makes `.saved-lock` untappable (Back stock's list and ended games, Months' Start and past months), and

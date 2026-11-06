@@ -21,6 +21,10 @@
   --error-bg: #3a1717;
   --warn-bg: #3a2e10;
   --warn-mark: #f5c518;
+  /* The floating tab bar: how far it sits above the screen's bottom edge (clear of the iPhone's home line), and the
+     height it takes up in all. Everything that has to stay above the bar is measured from --tabbar-clear. */
+  --tabbar-lift: max(12px, calc(env(safe-area-inset-bottom) - 8px));
+  --tabbar-clear: calc(var(--tabbar-lift) + 64px);
   /* Older names some pages still use. */
   --surface: var(--card);
 }
@@ -37,9 +41,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 /* Pages with the bottom tab bar leave room for it. */
-body.has-tabbar { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+body.has-tabbar { padding-bottom: calc(var(--tabbar-clear) + 20px); }
 /* Anything scrolled to (a focused field, the next button) stops above the tab bar, not under it. */
-html:has(body.has-tabbar) { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+html:has(body.has-tabbar) { scroll-padding-bottom: calc(var(--tabbar-clear) + 20px); }
 a { color: var(--accent-bright); }
 h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 8px 0 4px; }
 h2 { font-size: 18px; font-weight: 700; margin: 26px 0 8px; }
@@ -382,7 +386,7 @@ button.add-member svg { width: 20px; height: 20px; }
 .slot-hero.empty .slot-hero-main { color: var(--danger); }
 .slot-hero .slot-detail { margin-top: 4px; }
 /* A message that floats above the tab bar and fades, so nothing on the page moves (Manage Employees, slot settings). */
-.toast-wrap { position: fixed; left: 16px; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 25; pointer-events: none; }
+.toast-wrap { position: fixed; left: 16px; right: 16px; bottom: calc(var(--tabbar-clear) + 8px); z-index: 25; pointer-events: none; }
 .toast-wrap .message { margin: 0; pointer-events: auto; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); animation: toast-in 0.18s ease-out; }
 body:not(.has-tabbar) .toast-wrap { bottom: calc(16px + env(safe-area-inset-bottom)); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -469,20 +473,31 @@ body.showing-saved .saved-lock { pointer-events: none; }
 .list-card.danger .icon-box { color: var(--danger); }
 a.banner { display: block; color: inherit; text-decoration: none; }
 
-/* Bottom tab bar (nav.js). */
+/* Bottom tab bar (nav.js): a floating pill of dark glass (owner 2026-11-05). The page shows through it, blurred;
+   the active tab sits on its own lighter pill. Stays inside the page's 480px column on a wide screen. */
 .tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  display: flex; justify-content: space-around;
-  padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
-  background: rgba(14, 16, 16, 0.94); border-top: 1px solid var(--border);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  position: fixed; z-index: 20;
+  left: max(12px, calc((100vw - 480px) / 2 + 12px));
+  right: max(12px, calc((100vw - 480px) / 2 + 12px));
+  bottom: var(--tabbar-lift);
+  height: 64px; padding: 6px;
+  display: flex; gap: 2px;
+  border-radius: 32px;
+  background: rgba(24, 27, 27, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 30px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
 }
 .tabbar a {
-  flex: 1; max-width: 96px; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 600;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border-radius: 26px;
+  color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 600; white-space: nowrap;
+  transition: transform 0.12s ease;
 }
 .tabbar a svg { width: 22px; height: 22px; }
-.tabbar a.active { color: var(--accent-bright); }
+.tabbar a.active { color: var(--accent-bright); background: rgba(255, 255, 255, 0.09); }
+.tabbar a:active { transform: scale(0.95); }
+@media (prefers-reduced-motion: reduce) { .tabbar a { transition: none; } }
 
 /* Settling page: one card per pack live 50+ days. */
 .settle-card .stat-grid { margin: 12px 0 8px; }
@@ -568,7 +583,7 @@ label.radio-card input { width: 22px; height: 22px; margin: 1px 0 0; flex: none;
 .theft-fab {
   position: fixed; z-index: 21;
   right: max(16px, calc((100vw - 480px) / 2 + 16px));
-  bottom: calc(80px + env(safe-area-inset-bottom));
+  bottom: calc(var(--tabbar-clear) + 12px);
   width: 64px; height: 64px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   /* Red and black (owner 2026-10-23): red circle, black shield. */
@@ -577,8 +592,8 @@ label.radio-card input { width: 22px; height: 22px; margin: 1px 0 0; flex: none;
 }
 .theft-fab svg { width: 32px; height: 32px; stroke-width: 2.4; }
 .theft-fab:active { transform: scale(0.94); }
-body.has-tabbar.has-fab { padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
-html:has(body.has-fab) { scroll-padding-bottom: calc(176px + env(safe-area-inset-bottom)); }
+body.has-tabbar.has-fab { padding-bottom: calc(var(--tabbar-clear) + 96px); }
+html:has(body.has-fab) { scroll-padding-bottom: calc(var(--tabbar-clear) + 96px); }
 
 /* Launch screen (splash.js; owner 2026-10-26). SMART across in white, SCAN down in green, sharing the S, coming in one
    letter at a time behind a blinking green cursor; then a barcode slides open in the corner and a green beam sweeps
