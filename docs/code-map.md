@@ -127,10 +127,16 @@ Frontend (`src/`, plain HTML + JS, no build):
 - `report.html` Report a Problem (database only, everyone; More → Support, and under Help & FAQ): New Report (area chips
   picked from the last page used, `lastPage()`; text; up to 3 screenshots shrunk to 1600 px JPEG on the phone; What's
   Included) → `reportProblem` (support Edge Function) → "Report #N Sent"; My Reports (`myReports`, status chips Received /
-  Working on It amber / Fixed green, support's note). api.js keeps the last 5 red messages (`rememberError`, from
+  Working on It amber / Fixed green, support's note; Clear on a Fixed card, Clear All Fixed (2+), Undo toast, Show Cleared
+  Reports → Restore: `clearReports` / `restoreReports`, `myReports { cleared }`). api.js keeps the last 5 red messages (`rememberError`, from
   `showMessage` and Close Day's typed note) and the last work page in sessionStorage. `store.html` Store Info (owner,
   database only): Store ID card, name, address, phone (`storeInfo` / `setStoreInfo`); More's row says "Add your address
-  and phone" until it's filled.
+  and phone" until it's filled. `report-status.html` Update Report (support, no sign-in): opened from a support email's
+  Working on It / Fixed / Received button; the signed link after the # is the key (support function `linkReport` /
+  `linkSetStatus`); nothing changes until Save.
+- More → **Database Move** (until the cutover): Try the Database / Use Sheets Again for this phone only (api.js
+  `PHONE_ON_DATABASE`, `switchPhoneBackend`); a switched phone shows an amber `Database` chip in every header (nav.js)
+  and on the version line, and Sign In has a Use Sheets Again line. test/browser/phone-switch.js.
 - `close.html` Close Day: walks live slots box 1 → 2, slot 1 → 24; a scan finds its slot by game+pack; the typed field is only the 3-digit
   top ticket for the slot on the card (`typedProblem`, `#typedNote`; tests type through `typeTop` in harness.js); Sold out /
   Skip (no "No sales" button — every live slot must be scanned; unchanged ticket = 0 sold). Scans are a draft in

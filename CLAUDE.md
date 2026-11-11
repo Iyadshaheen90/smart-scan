@@ -2,6 +2,8 @@
 
 Scratcher (California Lottery instant ticket) tracking for Route 66 Liquor. Phone-first web app:
 static pages on GitHub Pages, backend in Google Apps Script, data in Google Sheets (moving to Supabase on Dec 1, 2026).
+The production database (`smart-scan-prod`) is set up and holds an imported copy; only the owner's phone uses it
+(More → Try the Database) until the cutover.
 
 - Live app: https://iyadshaheen90.github.io/smart-scan/src/index.html (Pages serves the repo root, so pages live under `/src/`)
 - Backend URL: `SMART_SCAN_API_URL` in `src/config.js` (one Web App deployment, updated in place so the URL never changes)
@@ -73,6 +75,8 @@ npx @google/clasp push -f                 # push backend (clasp isn't installed 
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"
 git push origin main                      # publishes the pages (GitHub Pages, ~1 min)
 ```
+Supabase: this folder stays linked to the **dev** project; every **prod** command names `--project-ref` (see
+docs/supabase.md), and prod changes need the owner's OK like any live deploy.
 Deploy the backend before the pages when a page needs a new action. Pages: bump `CACHE` in sw.js +
 `node test/sw-version.js --update` before every pages push. After deploying, `curl -sL "$URL"` should return
 `{"ok":true,...,"slots":48}`, and an unknown-but-registered action should answer `unauthorized` (not `unknown_action`).
