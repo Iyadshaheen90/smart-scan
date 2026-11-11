@@ -4,7 +4,7 @@
 // Run: node test/browser/backstock-fullpack.js   (SHOT=dir also saves screenshots)
 const assert = require('assert/strict');
 const path = require('path');
-const { openApp, backendInVm } = require('./harness');
+const { openApp, backendInVm, tapUseThisNumber } = require('./harness');
 
 const { ctx, sheets: S, addRow, call } = backendInVm('2026-10-05');
 addRow('ReserveInventory', { game_number: '1747', price_per_ticket: 20, tickets_per_pack: 30, packs_in_reserve: 2, tickets_in_reserve: 60 });
@@ -26,7 +26,7 @@ function handle(body) {
   const { page, base } = app;
   const text = (sel) => page.$eval(sel, (el) => el.innerText);
   const open = () => page.$eval('#sellDialog', (el) => !el.classList.contains('hidden'));
-  const enter = async (t) => { await page.type('#typed', t); await page.click('#typedForm button'); };
+  const enter = async (t) => { await page.type('#typed', t); await tapUseThisNumber(page); };
   const shot = async (name) => { if (process.env.SHOT) await page.screenshot({ path: path.join(process.env.SHOT, name) }); };
 
   // 1. Opened from the Full pack sales page: already in Full pack sale mode.

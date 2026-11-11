@@ -3,7 +3,7 @@
 // Run: node test/browser/backstock-shipment.js   (SHOT=dir also saves screenshots of the pop-up)
 const assert = require('assert/strict');
 const path = require('path');
-const { openApp, backendInVm } = require('./harness');
+const { openApp, backendInVm, tapUseThisNumber } = require('./harness');
 
 const { ctx, sheets: S, addRow, call } = backendInVm('2026-09-28');
 addRow('ReserveInventory', { game_number: '1747', price_per_ticket: 20, tickets_per_pack: 30, packs_in_reserve: 2, tickets_in_reserve: 60 });
@@ -28,7 +28,7 @@ function handle(body) {
   const text = (sel) => page.$eval(sel, (el) => el.innerText);
   const open = () => page.$eval('#shipDialog', (el) => !el.classList.contains('hidden'));
   const disabled = (sel) => page.$eval(sel, (b) => b.disabled);
-  const enter = async (game) => { await page.type('#typed', game); await page.click('#typedForm button'); };
+  const enter = async (game) => { await page.type('#typed', game); await tapUseThisNumber(page); };
   const shot = async (name) => { if (process.env.SHOT) await page.screenshot({ path: path.join(process.env.SHOT, name) }); };
 
   assert.match(await page.$eval('#modeSwitch .active', (b) => b.textContent), /Shipment Received/);
