@@ -750,6 +750,13 @@ html.leaving body { display: none; }
 .problem-text { margin-top: 8px; font-size: 15px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .problem-meta { margin-top: 8px; font-size: 13px; color: var(--muted); }
 .problem-note { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); font-size: 14px; line-height: 1.4; }
+/* Update Report (report-status.html, support's email buttons): the whole description, then the status and note form. */
+.problem-text.full { display: block; -webkit-line-clamp: unset; overflow: visible; white-space: pre-wrap; }
+.status-form { margin-top: 14px; }
+.status-form .segmented { margin-bottom: 4px; }
+.status-form .segmented button { flex: 1; min-width: 0; padding: 10px 4px; font-size: 14px; }
+.status-form textarea { resize: vertical; min-height: 84px; background: var(--bg); }
+.label-hint { font-weight: 400; color: var(--muted); }
 
 /* Store Info (store.html, owner 2026-10-31). */
 .store-id-card { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 18px; background: var(--card); border: 1px solid var(--border); }

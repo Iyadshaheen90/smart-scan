@@ -46,6 +46,11 @@ const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.o
     await service('test_seed', { p_store: store, data: { slots: [{ box: 1, slot: 1, price: 20 }] } });
 
     const supportAnswers = [];
+    // The support function's next answer (the response is read after the page has already moved on).
+    const nextAnswer = async () => {
+      for (let i = 0; i < 200 && !supportAnswers.length; i += 1) await sleep(50);
+      return supportAnswers.shift();
+    };
     app = await openApp({
       signedIn: false,
       configJs: `const SMART_SCAN_API_URL = 'https://script.google.com/never-called';\nconst STORE_NAME = 'Report Test Store';\n`
@@ -113,7 +118,7 @@ const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.o
     if (shots) await page.screenshot({ path: `${shots}/report-new.png`, fullPage: true });
     await tap(page, '#sendBtn');
     await page.waitForFunction(() => !document.getElementById('sentView').classList.contains('hidden'), { timeout: 30000 });
-    const sent = supportAnswers.pop();
+    const sent = await nextAnswer();
     assert.equal(sent.ok, true, JSON.stringify(sent));
     const number = sent.data.number;
     assert.equal(await text(page, '#sentTitle'), `Report #${number} Sent`);
@@ -129,6 +134,17 @@ const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.o
     assert.match(mail.text, /store\.html: Enter the 5-digit ZIP code\./, 'the red message from Store Info');
     assert.equal(mail.replyTo, people.owner.email);
     assert.equal(mail.attachments, 1);
+    // Status buttons (owner 2026-11-10): three signed links in the text and as buttons in the HTML version.
+    const statusLinks = Object.fromEntries([...mail.text.matchAll(/^ {2}(Working on It|Fixed|Received): +(\S+)$/gm)].map((m) => [m[1], m[2]]));
+    assert.deepEqual(Object.keys(statusLinks), ['Working on It', 'Fixed', 'Received'], mail.text);
+    for (const [label, url] of Object.entries(statusLinks)) {
+      assert.match(url, /^https:\/\/iyadshaheen90\.github\.io\/smart-scan\/src\/report-status\.html\?status=(working|fixed|received)#[\w-]+\.[\w-]+$/, url);
+      assert.ok(mail.html.includes(`>${label}</a>`), `HTML button ${label}`);
+    }
+    assert.ok(mail.html.includes('Too short: the Slots page showed the wrong price for slot 1.'), 'HTML has the description');
+    assert.ok(!/<script/i.test(mail.html), 'no scripts in the email');
+    const fixedLink = statusLinks.Fixed;
+    if (shots) require('fs').writeFileSync(`${shots}/report-email.html`, mail.html);
     const files = await http('POST', '/storage/v1/object/list/problem-screenshots', { key: keys().service, body: { prefix: `${store}/${number}` } });
     assert.deepEqual(files.data.map((f) => f.name), ['1.jpg'], JSON.stringify(files.data));
 
@@ -153,20 +169,61 @@ const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.o
     await page.type('#description', 'Close Day froze after Submit.');
     await tap(page, '#sendBtn');
     await page.waitForFunction(() => !document.getElementById('sentView').classList.contains('hidden'), { timeout: 30000 });
-    const mine = supportAnswers.pop();
+    const mine = await nextAnswer();
     assert.match(mine.testEmail.text, new RegExp(`By:         ${people.employee.username} \\(Employee\\)`));
     await tap(page, '#viewMine');
     await page.waitForSelector('.problem-card');
     assert.deepEqual(await page.$$eval('.problem-name', (e) => e.map((x) => x.textContent)), [`#${mine.data.number} · Close Day`]);
 
-    // ---- Support marks the owner's report Fixed; the owner sees it ----
-    await service('service_set_problem_status', { p_store: store, p_report: number, p_status: 'fixed', p_note: 'Fixed in version 54.' });
+    // ---- Support marks the owner's report Fixed from the email's button; the owner sees it ----
+    const linkPage = (url) => base + url.slice(url.indexOf('report-status.html'));
+    // A link changed by one character is refused, and shows no form. (A character mid-signature: the last one of
+    // base64 carries unused bits, so changing it can leave the same signature.)
+    const at = fixedLink.lastIndexOf('.') + 10;
+    const tampered = fixedLink.slice(0, at) + (fixedLink[at] === 'A' ? 'B' : 'A') + fixedLink.slice(at + 1);
+    await page.goto(linkPage(tampered));
+    await page.waitForFunction(() => document.getElementById('message').textContent);
+    assert.equal(await text(page, '#message'), "This link isn't right. Open it again from the support email.");
+    assert.equal(await shown(page, '#form'), false);
+    // No link at all.
+    await page.goto(base + 'report-status.html');
+    await page.waitForFunction(() => document.getElementById('message').textContent);
+    assert.equal(await text(page, '#message'), 'Open this page from a button in the support email.');
+    // The real link: the report, Fixed picked (the tapped button), nothing changed yet.
+    await page.goto(linkPage(fixedLink));
+    await page.waitForFunction(() => !document.getElementById('form').classList.contains('hidden'), { timeout: 15000 });
+    assert.equal(await page.evaluate(() => location.hash + location.search), '', 'the link is taken out of the address');
+    assert.equal(await text(page, '.problem-name'), `#${number} · Slots`);
+    assert.equal(await text(page, '#currentStatus'), 'Received', 'opening the link changed nothing');
+    assert.match(await text(page, '.problem-meta'), new RegExp(`^Report Test Store \\(Store ID ${storeId}\\) · ${people.owner.username} \\(Owner\\) · Sent `));
+    assert.equal(await text(page, '#statuses button.active'), 'Fixed');
+    if (shots) await page.screenshot({ path: `${shots}/report-status.png`, fullPage: true });
+    // A note that's too long is refused; nothing saved.
+    await page.$eval('#note', (el) => { el.removeAttribute('maxlength'); el.value = 'x'.repeat(301); });
+    await tap(page, '#saveBtn');
+    await page.waitForFunction(() => document.getElementById('message').textContent);
+    assert.equal(await text(page, '#message'), 'Keep the note under 300 characters.');
+    // Working on It first, then Fixed with a note.
+    await tap(page, '#statuses button[data-status="working"]');
+    await page.$eval('#note', (el) => { el.value = ''; });
+    await tap(page, '#saveBtn');
+    await page.waitForFunction(() => document.getElementById('message').classList.contains('ok'), { timeout: 15000 });
+    assert.equal(await text(page, '#currentStatus'), 'Working on It');
+    await tap(page, '#statuses button[data-status="fixed"]');
+    await page.type('#note', 'Fixed in version 54.');
+    await tap(page, '#saveBtn');
+    await page.waitForFunction(() => document.getElementById('currentStatus').textContent === 'Fixed', { timeout: 15000 });
+    assert.equal(await text(page, '#message'), 'Saved: Fixed. They see it in My Reports now.');
+    assert.match(await text(page, '.problem-note'), /^Support, .+: Fixed in version 54\.$/);
+    if (shots) await page.screenshot({ path: `${shots}/report-status-saved.png`, fullPage: true });
+    // The link only reaches its own report: the employee's report is untouched.
     await signIn('owner');
     await page.goto(base + 'report.html?tab=mine');
     await page.waitForSelector('.problem-card');
     assert.deepEqual(await page.$$eval('.problem-name', (e) => e.map((x) => x.textContent)),
       [`#${mine.data.number} · Close Day`, `#${number} · Slots`]);
     assert.equal(await page.$$eval('.problem-card .chip', (e) => e[1].textContent), 'Fixed');
+    assert.equal(await page.$$eval('.problem-card .chip', (e) => e[0].textContent), 'Received', 'the other report is untouched');
     assert.match(await page.$$eval('.problem-note', (e) => e[0].textContent), /^Support, .+: Fixed in version 54\.$/);
     if (shots) await page.screenshot({ path: `${shots}/report-mine.png`, fullPage: true });
     await app.close();

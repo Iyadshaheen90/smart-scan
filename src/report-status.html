@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1010">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Smart Scan — Update Report</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Support (owner 2026-11-10): opened from a button in a problem report's support email. The address carries a link
+       the support Edge Function signed for that one report (after the #, so it's never sent to the web host). The
+       report and its status show here; nothing changes until Save. No sign-in: the link is the key, for 60 days. -->
+  <div class="auth-brand">
+    <img src="icons/icon-192.png" alt="" width="72" height="72">
+    <h1>Update Report</h1>
+    <p class="sub">They see the status and note in My Reports.</p>
+  </div>
+
+  <div id="loading" class="sub">Loading the report…</div>
+  <div id="reportCard" class="problem-card hidden"></div>
+
+  <form id="form" class="auth-card status-form hidden">
+    <label>Status</label>
+    <div class="segmented" id="statuses" role="radiogroup" aria-label="Status">
+      <button type="button" data-status="received" role="radio">Received</button>
+      <button type="button" data-status="working" role="radio">Working on It</button>
+      <button type="button" data-status="fixed" role="radio">Fixed</button>
+    </div>
+    <label for="note">Note for Them <span class="label-hint">(optional)</span></label>
+    <textarea id="note" rows="3" maxlength="300" placeholder="e.g. Fixed in version 59"></textarea>
+    <button class="primary" type="submit" id="saveBtn">Save</button>
+  </form>
+  <div id="message" class="message"></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const STATUS = { received: ['Received', ''], working: ['Working on It', 'amber'], fixed: ['Fixed', 'green'] };
+
+    // The signed link is after the #; ?status= is the button that was tapped (only picks the choice, changes nothing).
+    const link = location.hash.slice(1);
+    const tapped = new URLSearchParams(location.search).get('status');
+    // Out of the address bar and history, so it isn't shared by mistake (the page keeps it in memory).
+    history.replaceState(null, '', location.pathname);
+    let chosen = null;
+
+    async function support(body) {
+      const r = await dbFetch('/functions/v1/support', { body });
+      if (r.data && r.data.ok) return r.data.data;
+      throw new ApiError((r.data && r.data.code) || 'server_error', (r.data && r.data.error) || 'Something went wrong on the server. Try again.');
+    }
+
+    function choose(status) {
+      chosen = STATUS[status] ? status : null;
+      document.querySelectorAll('#statuses button').forEach((b) => {
+        b.classList.toggle('active', b.dataset.status === chosen);
+        b.setAttribute('aria-checked', String(b.dataset.status === chosen));
+      });
+    }
+
+    function showReport(r) {
+      const card = $('reportCard');
+      card.innerHTML = '';
+      const top = document.createElement('div');
+      top.className = 'problem-top';
+      const name = document.createElement('span');
+      name.className = 'problem-name';
+      name.textContent = `#${r.number} · ${r.areaLabel}`;
+      const [word, color] = STATUS[r.status] || STATUS.received;
+      const chip = document.createElement('span');
+      chip.className = `chip ${color}`;
+      chip.textContent = word;
+      chip.id = 'currentStatus';
+      top.append(name, chip);
+      const text = document.createElement('div');
+      text.className = 'problem-text full';
+      text.textContent = r.description;
+      const meta = document.createElement('div');
+      meta.className = 'problem-meta';
+      meta.textContent = `${r.storeName} (Store ID ${r.storeNumber}) · ${r.username} (${r.role === 'owner' ? 'Owner' : 'Employee'}) · Sent ${r.sentAt}`;
+      card.append(top, text, meta);
+      if (r.statusNote) {
+        const note = document.createElement('div');
+        note.className = 'problem-note';
+        note.textContent = `Support${r.statusAt ? `, ${r.statusAt}` : ''}: ${r.statusNote}`;
+        card.append(note);
+      }
+      card.classList.remove('hidden');
+    }
+
+    (async () => {
+      try {
+        if (!link || typeof SUPABASE_URL === 'undefined' || !SUPABASE_URL) {
+          throw new ApiError('bad_link', 'Open this page from a button in the support email.');
+        }
+        const r = await support({ action: 'linkReport', link });
+        showReport(r);
+        // The tapped button's status is picked; the note starts as the one they already see.
+        choose(tapped || r.status);
+        $('note').value = r.statusNote || '';
+        $('form').classList.remove('hidden');
+      } catch (err) {
+        showMessage($('message'), err.message);
+      } finally {
+        $('loading').classList.add('hidden');
+      }
+    })();
+
+    $('statuses').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-status]');
+      if (b) choose(b.dataset.status);
+    });
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('message').className = 'message';
+      $('message').textContent = '';
+      if (!chosen) {
+        showMessage($('message'), 'Choose a status first.');
+        return;
+      }
+      try {
+        const r = await whileBusy($('saveBtn'), 'Saving…', () => support({ action: 'linkSetStatus', link, status: chosen, note: $('note').value }));
+        showReport(r);
+        showMessage($('message'), `Saved: ${STATUS[r.status][0]}. They see it in My Reports now.`, 'ok');
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    });
+  </script>
+</body>
+</html>

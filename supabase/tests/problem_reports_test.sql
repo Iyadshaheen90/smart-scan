@@ -123,6 +123,24 @@ begin
   -- The wrong store can't touch it.
   begin perform public.service_set_problem_status('00000000-0000-4000-8000-00000000000b', n, 'working'); raise exception 'x';
   exception when others then assert sqlerrm = 'No such report in that store.', sqlerrm; end;
+  -- The email link's page (migration 0023): the report with its status and note, for its own store only.
+  r := public.service_problem_for_link(s, n);
+  assert (r ->> 'number')::bigint = n and r ->> 'status' = 'fixed' and r ->> 'statusNote' = 'Fixed in version 54'
+    and r ->> 'storeName' = 'Store A' and (r ->> 'storeNumber')::int >= 10001 and r ->> 'role' = 'owner'
+    and r ->> 'areaLabel' = 'Close Day' and r ->> 'username' = 'ownera', r::text;
+  begin perform public.service_problem_for_link('00000000-0000-4000-8000-00000000000b', n); raise exception 'x';
+  exception when others then assert sqlerrm = 'No such report in that store.', sqlerrm; end;
+end $$;
+reset role;
+
+-- ---- Signed in: not the link's read ----
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-0000000000a1", "role": "authenticated"}';
+do $$
+begin
+  perform public.service_problem_for_link('00000000-0000-4000-8000-00000000000a', 1);
+  raise exception 'x';
+exception when insufficient_privilege then null;
 end $$;
 
 select 'problem reports ok' as result;
