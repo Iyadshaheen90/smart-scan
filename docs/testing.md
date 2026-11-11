@@ -33,6 +33,7 @@ node test/browser/try-again.js            # Try again on Slots, Back stock, Mont
 node test/browser/sw-offline.js           # real service worker: every file saved on install; offline Slots shows Try again
 node test/browser/sw-cache-first.js       # real service worker: opens with no answer from the server; a deploy downloads as one set (?v=), shows from the next page, old set deleted; back to the front checks
 node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
+                                          #   incl. prod_import_test.sql: import, clear only with the store's name, import again keeping people
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
 node test/browser/retailer-number.js     # More → Retailer Number (owner only, pop-up, refusals) and the number on the Theft Report (screen, text, PDF; owner + employee)
 node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against a dev test store: email sign-in, Forgot Password, invite → Resend Invite → set password, change password, token renewal, owner sets password / turns off

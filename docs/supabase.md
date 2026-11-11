@@ -4,7 +4,7 @@ Moved out of CLAUDE.md on 2026-10-29. Read before any database, sign-in, email o
 
 Plan: `~/.claude/plans/submitting-reports-and-updating-mossy-floyd.md`. Account: the owner's own **iyadshaheen90@gmail.com**
 (the product is theirs; Route 66 Liquor is its first store). Dev project **`smart-scan-dev`** (ref `kqoenvgcbypnehmjefjx`,
-West US, Free) — test data only; prod (Pro) is made near cutover. No local Supabase (this Mac can't run Docker): tests run on
+West US, Free; since 2026-11-10 in its own Free org **Smart Scan Dev** so it costs nothing) — test data only. Prod project **`smart-scan-prod`** (ref `ulxiphcgningbjgrvdui`, West US, Micro, org **I.S Technology LLC** on Pro, made 2026-11-10; DB password in `~/.smart-scan/prod-db.env`). The folder stays **linked to dev**: every prod command names it with `--project-ref ulxiphcgningbjgrvdui` (db push also `-p` the password; advisors need `--db-url` via the pooler `aws-0-us-west-1.pooler.supabase.com:5432`, user `postgres.<ref>`). The two scripts push to the linked project, so for prod run their commands by hand with `--project-ref`. Prod has all 21 migrations, the auth config (same diff as dev: only the pooler sizes), members + support functions (same code hashes as dev) and the 3 secrets; no store or users yet. No local Supabase (this Mac can't run Docker): tests run on
 the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owner's keychain; folder linked to dev).
 - `supabase/migrations/*.sql` — the schema, applied with `npx --yes supabase@2.122.0 db push --linked --yes`. Never edit an
   applied migration; add a new one.
@@ -145,7 +145,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   (the real store at cutover) and `service_import_store` (service key only, one transaction, empty store only, rows in
   the sheets' order so id order matches row order). Packs: live from the newest SlotState, ended from every month's
   PackHistory; activation ticket = the first close line's previous ticket; ended_at = the ending close line's logged_at.
-  Prod import (real emails, invites) still to build at cutover.
+  **Prod import (built 2026-11-10, migration 0022):** `node scripts/import-sheets.js prod` runs `check` first (must pass), makes the store once (`service_create_store`, id kept in `~/.smart-scan/prod-store.json`), makes each person's account with the real email via the admin API (**no email sent**; same email = reused), then `service_import_store` and checks every table's count against the check. A store with data (the side-by-side copy) is emptied by `service_clear_store` only after the store's name is typed (Terminal); it keeps the store row (Store Info, Store ID), people (signed_in_at), retailer number and problem reports; the import then updates people from the sheets (upsert) and adds new ones. `node scripts/import-sheets.js invite <username…>|--all` sends the invite emails on prod after typing `send`; anyone already confirmed is skipped (Supabase Auth's /invite resends to an unconfirmed account, refuses a confirmed one, checked in its source 2026-11-10). Test: `supabase/tests/prod_import_test.sql`.
 - **Next (owner's decisions pending):** prod project (Supabase Pro $25/month — owner's OK before creating it; its auth
   settings from config.toml, incl. the password rule, pushed with `sh scripts/push-auth-config.sh` linked to prod), the prod
   import (real emails from `~/.smart-scan/members.json`; sends everyone an invite, owner's choice 2026-10-29; before it,
