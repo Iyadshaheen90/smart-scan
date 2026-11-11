@@ -750,6 +750,17 @@ html.leaving body { display: none; }
 .problem-text { margin-top: 8px; font-size: 15px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .problem-meta { margin-top: 8px; font-size: 13px; color: var(--muted); }
 .problem-note { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); font-size: 14px; line-height: 1.4; }
+/* My Reports (report.html): the count and Clear All Fixed on top, Clear / Restore on a card, Show Cleared Reports, Undo. */
+.mine-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 4px 0 2px; min-height: 40px; }
+.mine-title { font-size: 14px; font-weight: 600; color: var(--muted); }
+button.quiet-pill { width: auto; min-height: 36px; padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+  background: var(--card-2); border-color: transparent; color: var(--text); }
+.problem-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+button.link-button { display: block; width: auto; margin: 18px auto 0; padding: 10px 14px; min-height: 44px; background: none;
+  border: none; color: var(--accent-bright); font-size: 15px; font-weight: 600; }
+.toast-undo:not(:empty) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.toast-undo .toast-action { width: auto; margin: 0; padding: 6px 12px; min-height: 36px; border-radius: 999px; border: none;
+  background: rgba(255, 255, 255, 0.12); color: var(--text); font-weight: 700; font-size: 14px; }
 /* Update Report (report-status.html, support's email buttons): the whole description, then the status and note form. */
 .problem-text.full { display: block; -webkit-line-clamp: unset; overflow: visible; white-space: pre-wrap; }
 .status-form { margin-top: 14px; }

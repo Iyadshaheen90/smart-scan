@@ -71,10 +71,18 @@
     </div>
 
     <div id="mineView" class="hidden">
+      <!-- Clearing fixed reports (owner 2026-11-10): Clear on a Fixed card, Clear All Fixed when there are 2 or more,
+           Undo right after, and Show Cleared Reports → Restore. One shared list for the store. -->
+      <div class="mine-head hidden" id="mineHead">
+        <span class="mine-title" id="mineTitle"></span>
+        <button type="button" class="small quiet-pill hidden" id="clearAll"></button>
+      </div>
       <div id="mineList"></div>
       <div id="mineMessage" class="message"></div>
+      <button type="button" class="link-button hidden" id="toggleCleared"></button>
     </div>
   </div>
+  <div class="toast-wrap" aria-live="polite"><div id="toast" class="message toast-undo"></div></div>
 
   <nav class="tabbar" data-active="more"></nav>
 
@@ -100,6 +108,7 @@
 
     let area = null;
     let shots = [];   // { type, data (base64), url (preview) }
+    let showingCleared = false;   // My Reports, or the cleared ones (Show Cleared Reports)
 
     if (session && !USE_DATABASE) {
       $('notYet').classList.remove('hidden');
@@ -131,6 +140,12 @@
       $('reportForm').addEventListener('submit', send);
       document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
       $('viewMine').addEventListener('click', () => showTab('mine'));
+      $('toggleCleared').addEventListener('click', () => {
+        showingCleared = !showingCleared;
+        hideToast();
+        loadMine();
+        window.scrollTo({ top: 0 });
+      });
       showTab(new URLSearchParams(location.search).get('tab') === 'mine' ? 'mine' : 'new');
     }
 
@@ -255,7 +270,7 @@
       $('mineMessage').textContent = '';
       $('mineList').innerHTML = '<p class="sub">Loading…</p>';
       try {
-        drawMine(await api('myReports'));
+        drawMine(await api('myReports', showingCleared ? { cleared: true } : {}));
         return true;
       } catch (err) {
         $('mineList').innerHTML = '';
@@ -264,9 +279,74 @@
       }
     }
 
+    // Clears or restores reports, then draws what's showing. Clearing offers Undo for a few seconds.
+    async function changeCleared(numbers, clear, button) {
+      hideToast();
+      $('mineMessage').className = 'message';
+      $('mineMessage').textContent = '';
+      try {
+        const run = () => api(clear ? 'clearReports' : 'restoreReports', { numbers });
+        const list = button ? await whileBusy(button, clear ? 'Clearing…' : 'Restoring…', run) : await run();
+        if (showingCleared) await loadMine(); else drawMine(list);
+        const what = numbers.length === 1 ? `Report #${numbers[0]}` : `${numbers.length} fixed reports`;
+        if (clear) showToast(`${what} cleared.`, () => changeCleared(numbers, false));
+        else showToast(`${what} back in My Reports.`);
+      } catch (err) {
+        showMessage($('mineMessage'), err.message);
+      }
+    }
+
+    let toastTimer = null;
+    function showToast(text, undo) {
+      const toast = $('toast');
+      toast.className = 'message ok toast-undo';
+      toast.innerHTML = '';
+      const words = document.createElement('span');
+      words.textContent = text;
+      toast.append(words);
+      if (undo) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'toast-action';
+        b.textContent = 'Undo';
+        b.addEventListener('click', () => { hideToast(); undo(); });
+        toast.append(b);
+      }
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, undo ? 7000 : 3500);
+    }
+    function hideToast() {
+      clearTimeout(toastTimer);
+      $('toast').className = 'message toast-undo';
+      $('toast').innerHTML = '';
+    }
+
     function drawMine(list) {
       const box = $('mineList');
       box.innerHTML = '';
+      // The top line: how many, and Clear All Fixed when 2 or more are fixed (My Reports only).
+      const fixed = showingCleared ? [] : list.filter((r) => r.status === 'fixed').map((r) => r.number);
+      $('mineHead').classList.toggle('hidden', !list.length && !showingCleared);
+      $('mineTitle').textContent = showingCleared ? 'Cleared Reports'
+        : `${list.length} Report${list.length === 1 ? '' : 's'}`;
+      $('clearAll').classList.toggle('hidden', fixed.length < 2);
+      $('clearAll').textContent = `Clear All Fixed (${fixed.length})`;
+      $('clearAll').onclick = () => changeCleared(fixed, true, $('clearAll'));
+      $('toggleCleared').textContent = showingCleared ? 'Back to My Reports' : 'Show Cleared Reports';
+      $('toggleCleared').classList.remove('hidden');
+      if (!list.length && showingCleared) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.innerHTML = `<span class="empty-icon">${icon('check')}</span>`;
+        const title = document.createElement('div');
+        title.className = 'empty-title';
+        title.textContent = 'No Cleared Reports';
+        const text = document.createElement('p');
+        text.textContent = 'Fixed reports you clear show here, so you can bring one back.';
+        empty.append(title, text);
+        box.append(empty);
+        return;
+      }
       if (!list.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
@@ -308,6 +388,19 @@
           note.className = 'problem-note';
           note.textContent = `Support${r.statusAt ? `, ${r.statusAt}` : ''}: ${r.statusNote}`;
           card.append(note);
+        }
+        // Fixed: Clear (My Reports) or Restore (Cleared Reports).
+        if (showingCleared || r.status === 'fixed') {
+          const actions = document.createElement('div');
+          actions.className = 'problem-actions';
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'small quiet-pill';
+          b.dataset.number = r.number;
+          b.textContent = showingCleared ? 'Restore' : 'Clear';
+          b.addEventListener('click', () => changeCleared([r.number], !showingCleared, b));
+          actions.append(b);
+          card.append(actions);
         }
         box.append(card);
       }

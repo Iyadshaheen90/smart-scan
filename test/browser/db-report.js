@@ -226,6 +226,58 @@ const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.o
     assert.equal(await page.$$eval('.problem-card .chip', (e) => e[0].textContent), 'Received', 'the other report is untouched');
     assert.match(await page.$$eval('.problem-note', (e) => e[0].textContent), /^Support, .+: Fixed in version 54\.$/);
     if (shots) await page.screenshot({ path: `${shots}/report-mine.png`, fullPage: true });
+
+    // ---- Clearing fixed reports (owner 2026-11-10) ----
+    const names = () => page.$$eval('.problem-name', (e) => e.map((x) => x.textContent));
+    const visible = (sel) => page.$eval(sel, (e) => !e.classList.contains('hidden')).catch(() => false);
+    // One fixed: Clear on its card only, no Clear All; the open one has no Clear.
+    assert.equal(await visible('#clearAll'), false, 'Clear All only for 2 or more fixed');
+    assert.deepEqual(await page.$$eval('.problem-actions button', (e) => e.map((b) => [b.textContent, b.dataset.number])),
+      [['Clear', String(number)]]);
+    assert.equal(await text(page, '#mineTitle'), '2 Reports');
+    // Clear, then Undo.
+    await tap(page, `.problem-actions button[data-number="${number}"]`);
+    await page.waitForFunction(() => document.querySelectorAll('.problem-card').length === 1, { timeout: 15000 });
+    assert.equal(await text(page, '#toast span'), `Report #${number} cleared.`);
+    assert.equal(await text(page, '#toast .toast-action'), 'Undo');
+    if (shots) await page.screenshot({ path: `${shots}/report-cleared-toast.png` });
+    await page.$eval('#toast .toast-action', (b) => b.click());
+    await page.waitForFunction(() => document.querySelectorAll('.problem-card').length === 2, { timeout: 15000 });
+    assert.match(await text(page, '#toast'), new RegExp(`^Report #${number} back in My Reports\\.$`));
+    // The employee's is fixed too: Clear All Fixed (2) clears both; the list is empty for both of them.
+    await service('service_set_problem_status', { p_store: store, p_report: mine.data.number, p_status: 'fixed' });
+    await page.goto(base + 'report.html?tab=mine');
+    await page.waitForFunction(() => !document.getElementById('clearAll').classList.contains('hidden'), { timeout: 15000 });
+    assert.equal(await text(page, '#clearAll'), 'Clear All Fixed (2)');
+    if (shots) await page.screenshot({ path: `${shots}/report-clear-all.png`, fullPage: true });
+    await tap(page, '#clearAll');
+    await page.waitForSelector('.empty-title', { timeout: 15000 });
+    assert.equal(await text(page, '.empty-title'), 'No Reports Yet');
+    assert.equal(await text(page, '#toast span'), '2 fixed reports cleared.');
+    assert.equal(await text(page, '#toast .toast-action'), 'Undo');
+    // Show Cleared Reports → Restore one → Back to My Reports.
+    assert.equal(await text(page, '#toggleCleared'), 'Show Cleared Reports');
+    await tap(page, '#toggleCleared');
+    await page.waitForFunction(() => document.getElementById('mineTitle').textContent === 'Cleared Reports' && document.querySelectorAll('.problem-card').length === 2, { timeout: 15000 });
+    assert.deepEqual(await page.$$eval('.problem-actions button', (e) => e.map((b) => b.textContent)), ['Restore', 'Restore']);
+    if (shots) await page.screenshot({ path: `${shots}/report-cleared-list.png`, fullPage: true });
+    await tap(page, `.problem-actions button[data-number="${number}"]`);
+    await page.waitForFunction(() => document.querySelectorAll('.problem-card').length === 1, { timeout: 15000 });
+    assert.deepEqual(await names(), [`#${mine.data.number} · Close Day`]);
+    await tap(page, '#toggleCleared');
+    await page.waitForFunction(() => document.getElementById('mineTitle').textContent === '1 Report', { timeout: 15000 });
+    assert.deepEqual(await names(), [`#${number} · Slots`]);
+    // The employee: their report was cleared by the owner (one list), and they can bring it back themselves.
+    await signIn('employee');
+    await page.goto(base + 'report.html?tab=mine');
+    await page.waitForSelector('.empty-title', { timeout: 15000 });
+    await tap(page, '#toggleCleared');
+    await page.waitForFunction(() => document.querySelectorAll('.problem-card').length === 1, { timeout: 15000 });
+    await tap(page, '.problem-actions button');
+    await page.waitForFunction(() => document.querySelectorAll('.problem-card').length === 0, { timeout: 15000 });
+    await tap(page, '#toggleCleared');
+    await page.waitForFunction(() => document.querySelectorAll('.problem-card').length === 1, { timeout: 15000 });
+    assert.deepEqual(await names(), [`#${mine.data.number} · Close Day`]);
     await app.close();
     app = null;
 

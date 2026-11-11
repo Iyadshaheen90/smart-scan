@@ -143,5 +143,87 @@ begin
 exception when insufficient_privilege then null;
 end $$;
 
+-- ---- Clearing fixed reports (migration 0024): the sender or the owner, Fixed only, shared, Undo/Restore ----
+reset role;
+-- Sara's first report is fixed by support; her second one isn't.
+select set_config('test.sara_fixed', min(id)::text, true), set_config('test.sara_open', max(id)::text, true)
+  from app.problem_reports where store_id = '00000000-0000-4000-8000-00000000000a' and username = 'sara';
+update app.problem_reports set status = 'fixed' where id = current_setting('test.sara_fixed')::bigint;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-0000000000a2", "role": "authenticated"}';
+do $$
+declare s uuid := '00000000-0000-4000-8000-00000000000a'; r jsonb;
+  mine bigint := current_setting('test.sara_fixed')::bigint; open bigint := current_setting('test.sara_open')::bigint;
+  owners bigint := current_setting('test.first_report')::bigint;
+begin
+  -- Not hers, not fixed, nothing picked: refused, nothing cleared.
+  begin perform public.clear_reports(s, jsonb_build_object('numbers', jsonb_build_array(owners))); raise exception 'x';
+  exception when others then assert sqlerrm = 'That report isn''t in your reports.', sqlerrm; end;
+  begin perform public.clear_reports(s, jsonb_build_object('numbers', jsonb_build_array(mine, open))); raise exception 'x';
+  exception when others then assert sqlerrm = 'Only fixed reports can be cleared.', sqlerrm; end;
+  begin perform public.clear_reports(s, '{"numbers": []}'); raise exception 'x';
+  exception when others then assert sqlerrm = 'Pick a report first.', sqlerrm; end;
+  begin perform public.clear_reports(s, '{}'); raise exception 'x';
+  exception when others then assert sqlerrm = 'Pick a report first.', sqlerrm; end;
+  assert jsonb_array_length(public.my_reports(s)) = 10, 'nothing cleared by a refused request';
+  -- Her fixed one: gone from My Reports, listed under Show Cleared.
+  r := public.clear_reports(s, jsonb_build_object('numbers', jsonb_build_array(mine)));
+  assert jsonb_array_length(r) = 9 and not r @> jsonb_build_array(jsonb_build_object('number', mine)), r::text;
+  r := public.my_reports(s, '{"cleared": true}');
+  assert jsonb_array_length(r) = 1 and (r -> 0 ->> 'number')::bigint = mine and r -> 0 ->> 'status' = 'fixed', r::text;
+  -- Undo.
+  r := public.restore_reports(s, jsonb_build_object('numbers', jsonb_build_array(mine)));
+  assert jsonb_array_length(r) = 10 and jsonb_array_length(public.my_reports(s, '{"cleared": true}')) = 0, r::text;
+  perform public.clear_reports(s, jsonb_build_object('numbers', jsonb_build_array(mine)));
+end $$;
+
+-- Owner: Sara's cleared report is cleared for the owner too (one list); the owner clears any fixed report, all at once.
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-0000000000a1", "role": "authenticated"}';
+do $$
+declare s uuid := '00000000-0000-4000-8000-00000000000a'; r jsonb;
+  saras bigint := current_setting('test.sara_fixed')::bigint; owners bigint := current_setting('test.first_report')::bigint;
+begin
+  r := public.my_reports(s);
+  assert jsonb_array_length(r) = 10 and not r @> jsonb_build_array(jsonb_build_object('number', saras)), 'shared list';
+  r := public.restore_reports(s, jsonb_build_object('numbers', jsonb_build_array(saras)));
+  assert jsonb_array_length(r) = 11, 'the owner restores an employee''s report';
+  -- Clear All Fixed: the owner's and Sara's.
+  r := public.clear_reports(s, jsonb_build_object('numbers', jsonb_build_array(owners, saras)));
+  assert jsonb_array_length(r) = 9, r::text;
+  assert jsonb_array_length(public.my_reports(s, '{"cleared": true}')) = 2, 'both under Show Cleared';
+  -- Clearing again is fine (nothing changes).
+  perform public.clear_reports(s, jsonb_build_object('numbers', jsonb_build_array(owners)));
+end $$;
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-0000000000b1", "role": "authenticated"}';
+do $$
+begin
+  -- Another store's owner: not theirs.
+  begin perform public.restore_reports('00000000-0000-4000-8000-00000000000b',
+    jsonb_build_object('numbers', jsonb_build_array(current_setting('test.first_report')::bigint))); raise exception 'x';
+  exception when others then assert sqlerrm = 'That report isn''t in your reports.', sqlerrm; end;
+end $$;
+reset role;
+
+reset role;
+do $$
+begin
+  assert (select cleared_by from app.problem_reports where id = current_setting('test.sara_fixed')::bigint) = 'ownera',
+    'who cleared it is kept for support';
+end $$;
+
+-- Support moves a cleared report back to Working on It: it shows again.
+set local role service_role;
+set local request.jwt.claims = '{"role": "service_role"}';
+select public.service_set_problem_status('00000000-0000-4000-8000-00000000000a', current_setting('test.sara_fixed')::bigint, 'working');
+reset role;
+do $$
+begin
+  assert (select cleared_at is null and cleared_by is null from app.problem_reports where id = current_setting('test.sara_fixed')::bigint),
+    'moved back from Fixed: not cleared any more';
+  assert (select cleared_at is not null from app.problem_reports where id = current_setting('test.first_report')::bigint),
+    'the other one stays cleared';
+end $$;
+
 select 'problem reports ok' as result;
 rollback;

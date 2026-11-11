@@ -714,6 +714,15 @@ const FAQ = [
         },
       },
       {
+        id: 'clear-reports', who: 'everyone', backend: 'supabase', go: 'report.html?tab=mine',
+        q: { en: 'How do I clear fixed reports?', es: '¿Cómo borro los reportes resueltos?', ar: 'كيف أمسح البلاغات التي تم إصلاحها؟' },
+        a: {
+          en: 'In My Reports, tap Clear on a Fixed report, or Clear All Fixed when there are several. Only fixed reports can be cleared. Tap Undo right after if it was a mistake, or Show Cleared Reports → Restore later. Clearing hides it for everyone in the store; support still keeps it. The owner can clear anyone\'s fixed report.',
+          es: 'En My Reports, toca Clear en un reporte Fixed, o Clear All Fixed cuando hay varios. Solo se pueden borrar los reportes resueltos. Toca Undo enseguida si fue un error, o después Show Cleared Reports → Restore. Al borrarlo se oculta para todos en la tienda; soporte lo sigue guardando. El dueño puede borrar el reporte resuelto de cualquiera.',
+          ar: 'في My Reports اضغط Clear على بلاغ Fixed، أو Clear All Fixed عندما يكون هناك أكثر من واحد. لا يمكن مسح إلا البلاغات التي تم إصلاحها. اضغط Undo فوراً إن كان خطأ، أو لاحقاً Show Cleared Reports ← Restore. المسح يخفي البلاغ عن الجميع في المتجر، ويبقى محفوظاً لدى الدعم. يمكن للمالك مسح البلاغ المُصلَح لأي شخص.',
+        },
+      },
+      {
         id: 'store-info', who: 'owner', backend: 'supabase', go: 'store.html',
         q: { en: 'Where do I add the store\'s address and phone?', es: '¿Dónde agrego la dirección y el teléfono de la tienda?', ar: 'أين أضيف عنوان المتجر وهاتفه؟' },
         a: {
