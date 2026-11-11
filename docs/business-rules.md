@@ -141,6 +141,9 @@ Moved out of CLAUDE.md on 2026-10-29. Read before changing how anything is count
   back (`price_before_activation`), pack returns to back stock only if it came from there.
 - Pack wrongly marked sold out/returned → `undoEndPack`, while the slot is still empty and that sales day
   isn't closed. If a replacement went in, undo that activation first.
+- Activate Several (database only, owner 2026-11-10): Activate All saves every pack or none (one refused pack → nothing
+  saved, each row says why). Right after, **Undo All** = each undoActivation + undoEndPack, last first, all or none; the
+  packs go back on the list. Later, each slot's own undo on the slot page (same limits as above).
 - Swap/move is its own undo (swap the same two slots again).
 - Wrong activation date → set it again on the slot page (`setActivationDate`).
 - Close Yesterday done wrong → the owner reopens it on Close Yesterday (before noon, today not closed).

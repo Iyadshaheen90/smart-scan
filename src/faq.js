@@ -366,6 +366,15 @@ const FAQ = [
         },
       },
       {
+        id: 'activate-several', who: ['owner', 'load_packs'], backend: 'supabase', go: 'activate-several.html',
+        q: { en: 'How do I put many packs in at once?', es: '¿Cómo pongo muchos paquetes a la vez?', ar: 'كيف أضع عدة رزم مرة واحدة؟' },
+        a: {
+          en: 'On Slots, tap Activate Several and scan the top ticket of each pack. Each pack gets the slot its game was last in; tap the slot to pick another.\n- A slot that still has a pack asks Sold Out or Returned on that row. For Returned, scan or type its top ticket.\n- A game in several slots shows each one with its tickets left. Tap the one it goes in.\n- A new game asks its ticket price and pack size.\nEach pack says Ready or Needs a Fix. When all are Ready, tap Activate All. Nothing is saved until then, and if one pack has a problem, none are saved. Right after, Undo All puts everything back.',
+          es: 'En Slots, toca Activate Several y escanea el boleto de arriba de cada paquete. Cada paquete recibe la casilla donde estuvo su juego la última vez; toca la casilla para elegir otra.\n- Si la casilla todavía tiene un paquete, la fila pregunta Sold Out o Returned. Para Returned, escanea o escribe su boleto de arriba.\n- Un juego que está en varias casillas las muestra todas con los boletos que quedan. Toca la correcta.\n- Un juego nuevo pide el precio del boleto y el tamaño del paquete.\nCada paquete dice Ready o Needs a Fix. Cuando todos estén Ready, toca Activate All. No se guarda nada antes, y si un paquete tiene un problema, no se guarda ninguno. Justo después, Undo All deja todo como estaba.',
+          ar: 'في Slots، اضغط Activate Several وامسح التذكرة العلوية لكل رزمة. تأخذ كل رزمة الخانة التي كانت فيها لعبتها آخر مرة؛ اضغط على الخانة لاختيار غيرها.\n- إذا كانت الخانة لا تزال فيها رزمة، يسأل الصف Sold Out أو Returned. في Returned امسح تذكرتها العلوية أو اكتبها.\n- اللعبة الموجودة في عدة خانات تظهر كل خانة مع عدد التذاكر المتبقية. اضغط على الخانة الصحيحة.\n- اللعبة الجديدة تطلب سعر التذكرة وعدد التذاكر في الرزمة.\nكل رزمة تظهر Ready أو Needs a Fix. عندما تكون كلها Ready اضغط Activate All. لا يُحفظ شيء قبل ذلك، وإذا كانت في رزمة مشكلة لا يُحفظ أي منها. وبعدها مباشرة يعيد Undo All كل شيء كما كان.',
+        },
+      },
+      {
         id: 'sold-out-midday', who: ['owner', 'load_packs'], go: 'slots.html',
         q: { en: 'A pack sold out during the day.', es: 'Un paquete se agotó durante el día.', ar: 'نفدت رزمة خلال اليوم.' },
         a: {

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Activate Several</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Activate Several (owner 2026-11-10; database only): scan many packs, then one Activate All puts each in its slot.
+       Each pack gets the slot its game was last in (tap to change); a slot that still has a pack asks Sold Out or
+       Returned on that row; the database checks every row (activate_several, check) before anything is saved. -->
+  <header class="app-header" data-title="Activate Several" data-back="slots.html" data-back-label="Slots" data-help="packs"></header>
+  <div id="loadMessage" class="message"></div>
+
+  <div id="notOnDatabase" class="card hidden">Activate Several comes with the move to the database on December 1. Until then, put packs in one at a time from Slots.</div>
+
+  <div id="scanView" class="hidden">
+    <p class="sub">Scan the top ticket of each pack going out. Each one gets the slot its game was last in; tap a slot to change it.</p>
+    <div class="scan-viewport paused" id="viewport">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="scan-guide"></div>
+    </div>
+    <label class="button hold-button" id="holdBtn">Press and Hold to Scan</label>
+    <form id="typedForm">
+      <label for="typed">Or Type the Number Printed on the Ticket</label>
+      <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
+      <button type="submit">Use This Number</button>
+    </form>
+    <div id="message" class="message"></div>
+
+    <div class="bulk-head-row hidden" id="listHead">
+      <h2 class="group-label" id="listTitle"></h2>
+      <button type="button" class="text-action" id="clearBtn">Clear List</button>
+    </div>
+    <div id="rows"></div>
+  </div>
+
+  <!-- After saving: what went in, and Undo All while nothing else has changed. -->
+  <div id="doneView" class="hidden">
+    <div class="card">
+      <h2 id="doneTitle" style="margin: 0;"></h2>
+      <div id="doneLines"></div>
+    </div>
+    <div id="doneMessage" class="message"></div>
+    <button type="button" class="danger" id="undoAllBtn">Undo All</button>
+    <a class="button" id="moreBtn" href="activate-several.html">Activate More Packs</a>
+    <a class="button" href="slots.html">Back to Slots</a>
+  </div>
+
+  <div class="bulk-bar hidden" id="bulkBar">
+    <button type="button" class="primary" id="activateAllBtn" disabled>Activate All</button>
+  </div>
+
+  <!-- Pick a slot for one pack: both boxes, the slots its game was last in outlined, slots already on the list greyed. -->
+  <div class="overlay hidden" id="slotDialog" role="dialog" aria-modal="true">
+    <div class="dialog">
+      <div class="dialog-title" id="slotDialogTitle">Pick a Slot</div>
+      <div class="segmented" id="pickBox" style="margin-top: 12px;">
+        <button type="button" data-box="1">Box 1</button>
+        <button type="button" data-box="2">Box 2</button>
+      </div>
+      <div class="slot-pick-grid" id="pickGrid"></div>
+      <div class="dialog-buttons"><button type="button" class="cancel" id="pickCancel">Cancel</button></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script src="barcode.js"></script>
+  <script type="module">
+    import { startScanner, afterLift, haptic } from './scanner.js';
+
+    // The owner, or an employee the owner gave Load packs (Returned on a row also needs Return packs).
+    const session = requireLogin(['load_packs']);
+    const $ = (id) => document.getElementById(id);
+    const pad3 = (n) => String(n).padStart(3, '0');
+    const isOwner = session && session.role === 'owner';
+    const canReturn = can(session, 'return_packs');
+    const DRAFT_KEY = `smartScanActivateSeveral:${session ? session.username : ''}`;
+    const slotId = (box, slot) => `${box}-${slot}`;
+    const slotWords = (box, slot) => `Box ${box} · Slot ${slot}`;
+    const soldText = (tickets, price) => `${tickets} sold today` + (isOwner ? ` ($${(tickets * price).toLocaleString()})` : '');
+
+    let slots = [];        // listSlots
+    let rows = [];         // the scanned packs, newest first: { game, pack, ticket, box, slot, choices, oldEnd, oldTop, override, gamePrice, size, status }
+    let version = 0;       // bumps on every change; Activate All waits for a check of the latest one
+    let checkedVersion = -1;
+    let checkTimer = null;
+    let saved = null;      // after Activate All: { rows, answers } for the done view and Undo All
+    let pickingRow = null;
+    let pickBox = 1;
+
+    const keyOf = (r) => `${r.game}-${r.pack}`;
+    const slotAt = (box, slot) => slots.find((s) => s.box === box && s.slot === slot);
+    const liveKey = (s) => (s && s.pack ? `${s.pack.gameNumber}-${s.pack.packNumber}` : null);
+
+    // ---- The list, kept on this phone until it's saved (leaving the page doesn't lose the scans) ----
+    function saveDraft() {
+      try {
+        const keep = rows.map(({ status, ...r }) => r);
+        if (keep.length) localStorage.setItem(DRAFT_KEY, JSON.stringify(keep)); else localStorage.removeItem(DRAFT_KEY);
+      } catch (e) { /* private mode: the list just isn't kept */ }
+    }
+    function loadDraft() {
+      try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '[]'); } catch (e) { return []; }
+    }
+
+    function changed() {
+      version += 1;
+      saveDraft();
+      render();
+      clearTimeout(checkTimer);
+      checkTimer = setTimeout(check, 350);
+    }
+
+    function flash(text, kind = 'error') {
+      showMessage($('message'), text, kind);
+      if (kind === 'error') haptic('error');
+    }
+
+    // ---- Suggested slot: a slot whose game is this one (an empty slot it was last in first), not on the list yet ----
+    function takenSlots(except) {
+      return new Set(rows.filter((r) => r !== except && r.box).map((r) => slotId(r.box, r.slot)));
+    }
+    function setSlot(row, box, slot) {
+      Object.assign(row, { box, slot, choices: null, oldEnd: null, oldTop: null, oldTopText: '', override: false });
+    }
+    function suggest(row) {
+      const taken = takenSlots(row);
+      const mine = slots.filter((s) => !taken.has(slotId(s.box, s.slot))
+        && (s.pack ? s.pack.gameNumber === row.game : s.lastGame && s.lastGame.gameNumber === row.game));
+      const empty = mine.find((s) => !s.pack);
+      if (empty) setSlot(row, empty.box, empty.slot);
+      else if (mine.length === 1) setSlot(row, mine[0].box, mine[0].slot);
+      // Still live in several: the person picks which one (each shows its tickets left).
+      else if (mine.length > 1) row.choices = mine.map((s) => slotId(s.box, s.slot));
+    }
+
+    // ---- A scanned or typed ticket ----
+    function useTicket(ticket) {
+      afterLift($('holdBtn'), () => addTicket(ticket));
+    }
+    function addTicket(t) {
+      const key = `${t.gameNumber}-${t.packNumber}`;
+      // A ticket from a pack being returned on one of the rows: that's its top ticket.
+      const returning = rows.find((r) => r.box && r.oldEnd === 'returned' && liveKey(slotAt(r.box, r.slot)) === key);
+      if (returning) {
+        const pack = slotAt(returning.box, returning.slot).pack;
+        if (alreadySold(pack.order, pack.exposedTicket, t.ticketNumber)) {
+          flash(`Ticket ${pad3(t.ticketNumber)} is ${soldSide(pack.order)} the last recorded top ticket (${pad3(pack.exposedTicket)}) of pack ${key}. Scan the ticket on top now.`);
+          return;
+        }
+        returning.oldTop = t.ticketNumber;
+        returning.oldTopText = pad3(t.ticketNumber);
+        flash(`Top ticket ${pad3(t.ticketNumber)} of returned pack ${key}.`, 'ok');
+        changed();
+        return;
+      }
+      if (rows.some((r) => keyOf(r) === key)) { flash(`Pack ${key} is already on the list.`); return; }
+      const live = slots.find((s) => liveKey(s) === key);
+      if (live) { flash(`Pack ${key} is already live in box ${live.box}, slot ${live.slot}.`); return; }
+      const row = { game: t.gameNumber, pack: t.packNumber, ticket: t.ticketNumber, box: null, slot: null, choices: null,
+        oldEnd: null, oldTop: null, oldTopText: '', override: false, gamePrice: '', size: '', sizeAuto: false, status: null };
+      suggest(row);
+      rows.unshift(row);
+      flash(row.box ? `Pack ${key} → ${slotWords(row.box, row.slot)}.` : `Pack ${key} added. Pick its slot.`, 'ok');
+      changed();
+    }
+
+    // ---- The database checks every row (nothing saved) ----
+    function request(r) {
+      const req = { box: r.box || undefined, slot: r.slot || undefined, gameNumber: r.game, packNumber: r.pack, ticketNumber: r.ticket,
+        oldPackEnd: r.oldEnd || undefined, oldPackTicket: r.oldTop === null ? undefined : r.oldTop, overridePrice: r.override };
+      if (r.gamePrice !== '' || r.size !== '') { req.gamePrice = r.gamePrice; req.ticketsPerPack = r.size; }
+      return req;
+    }
+    async function check() {
+      if (!rows.length) { checkedVersion = version; render(); return; }
+      const asked = version;
+      try {
+        const result = await api('activateSeveral', { check: true, packs: rows.map(request) });
+        if (asked !== version) return;   // the list changed meanwhile; a newer check is on its way
+        result.rows.forEach((answer, i) => { rows[i].status = answer; });
+        checkedVersion = asked;
+        $('loadMessage').className = 'message';
+        render();
+      } catch (err) {
+        if (asked !== version) return;
+        showLoadError($('loadMessage'), err, async () => { await check(); return checkedVersion === version; });
+      }
+    }
+
+    // ---- Drawing ----
+    function el(tag, className, text) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+
+    function render() {
+      // Keep the cursor in a row's field across a redraw.
+      const active = document.activeElement;
+      const focus = active && active.dataset && active.dataset.field ? { field: active.dataset.field, key: active.dataset.key,
+        at: active.selectionStart } : null;
+      const ready = rows.length && checkedVersion === version && rows.every((r) => r.status && r.status.ok);
+      const bad = rows.filter((r) => r.status && !r.status.ok).length;
+
+      $('listHead').classList.toggle('hidden', !rows.length);
+      $('listTitle').textContent = `${rows.length} ${rows.length === 1 ? 'Pack' : 'Packs'} to Activate`;
+      $('bulkBar').classList.toggle('hidden', !rows.length || Boolean(saved));
+      document.body.classList.toggle('has-bulk-bar', Boolean(rows.length) && !saved);
+      $('activateAllBtn').disabled = !ready;
+      $('activateAllBtn').textContent = checkedVersion !== version ? 'Checking…'
+        : bad ? `${bad} ${bad === 1 ? 'Pack Needs' : 'Packs Need'} a Fix`
+          : `Activate ${rows.length === 1 ? '1 Pack' : `All ${rows.length} Packs`}`;
+
+      const list = $('rows');
+      list.innerHTML = '';
+      for (const r of rows) list.append(rowCard(r));
+      if (focus) {
+        const again = list.querySelector(`[data-field="${focus.field}"][data-key="${focus.key}"]`);
+        if (again) { again.focus(); try { again.setSelectionRange(focus.at, focus.at); } catch (e) { /* number fields */ } }
+      }
+    }
+
+    function rowCard(r) {
+      const key = keyOf(r);
+      const status = checkedVersion === version ? r.status : null;
+      const code = status && !status.ok ? status.code : null;
+      const card = el('div', 'card bulk-row' + (code ? ' problem' : ''));
+      card.dataset.key = key;
+
+      const head = el('div', 'bulk-head');
+      const name = el('div', 'bulk-name');
+      name.append(el('div', 'mono bulk-pack', key), el('div', 'slot-detail', `Top Ticket ${pad3(r.ticket)}`));
+      const tag = el('span', 'tag', status ? (status.ok ? 'Ready' : 'Needs a Fix') : 'Checking');
+      tag.classList.add(status ? (status.ok ? 'live' : 'warn') : 'days');
+      const remove = el('button', 'bulk-remove');
+      remove.type = 'button';
+      remove.innerHTML = icon('x');
+      remove.setAttribute('aria-label', `Remove ${key}`);
+      remove.addEventListener('click', () => { rows = rows.filter((x) => x !== r); $('message').className = 'message'; changed(); });
+      head.append(name, tag, remove);
+      card.append(head);
+
+      // The slot: tap to pick another.
+      const slotBtn = el('button', 'bulk-slot' + (r.box ? '' : ' pick'));
+      slotBtn.type = 'button';
+      slotBtn.dataset.key = key;
+      const slotText = el('span', 'bulk-slot-text');
+      if (r.box) {
+        const s = slotAt(r.box, r.slot);
+        slotText.append(el('span', null, slotWords(r.box, r.slot)), el('span', 'bulk-slot-sub', s ? `$${s.slotPrice} Slot` : ''));
+      } else {
+        slotText.append(el('span', null, r.choices ? 'Which Slot?' : 'Pick a Slot'));
+      }
+      slotBtn.append(slotText);
+      slotBtn.insertAdjacentHTML('beforeend', icon('chevronRight'));
+      slotBtn.addEventListener('click', () => openPicker(r));
+      card.append(slotBtn);
+
+      // The game is still live in several slots: one button each, with its tickets left.
+      if (!r.box && r.choices) {
+        card.append(el('div', 'bulk-note', `Game ${r.game} is in ${r.choices.length} slots. Which one is it going in?`));
+        const choices = el('div', 'bulk-choices');
+        for (const id of r.choices) {
+          const [box, slot] = id.split('-').map(Number);
+          const s = slotAt(box, slot);
+          const b = el('button', null, `${slotWords(box, slot)}`);
+          b.type = 'button';
+          b.append(el('span', 'bulk-choice-sub', s && s.pack ? `${s.pack.remaining} Left` : 'Empty'));
+          b.addEventListener('click', () => { setSlot(r, box, slot); changed(); });
+          choices.append(b);
+        }
+        card.append(choices);
+      }
+
+      // The slot still has a pack: what happened to it?
+      const s = r.box ? slotAt(r.box, r.slot) : null;
+      if (s && s.pack) {
+        const pack = s.pack;
+        const end = el('div', 'bulk-end');
+        end.append(el('div', 'bulk-note', `Still has pack ${pack.gameNumber}-${pack.packNumber} (${pack.remaining} left). What happened to it?`));
+        const seg = el('div', 'segmented');
+        for (const [reason, label] of [['sold_out', 'Sold Out'], ['returned', 'Returned']]) {
+          if (reason === 'returned' && !canReturn) continue;
+          const b = el('button', r.oldEnd === reason ? 'active' : '', label);
+          b.type = 'button';
+          b.dataset.end = reason;
+          b.addEventListener('click', () => { r.oldEnd = r.oldEnd === reason ? null : reason; r.oldTop = null; r.oldTopText = ''; changed(); });
+          seg.append(b);
+        }
+        end.append(seg);
+        if (r.oldEnd === 'sold_out') {
+          end.append(el('div', 'bulk-note', `Sold out: ${soldText(pack.remaining, pack.price)}.`));
+        } else if (r.oldEnd === 'returned') {
+          if (r.oldTop === null) {
+            end.append(el('div', 'bulk-note amber', `Scan the top ticket still in pack ${pack.gameNumber}-${pack.packNumber}, or type it:`));
+          } else {
+            const size = pack.ticketsPerPack || pack.standardPackSize;
+            end.append(el('div', 'bulk-note', `Returned with top ticket ${pad3(r.oldTop)}: ${soldText(ticketsSold(pack.order, pack.exposedTicket, r.oldTop), pack.price)}, ${ticketsLeftAt(pack.order, r.oldTop, size)} going back.`));
+          }
+          end.append(field(r, 'oldTop', 'Top Ticket Left in It', r.oldTopText || '', '000'));
+        }
+        card.append(end);
+      }
+
+      // A game the app hasn't seen: its price and pack size, once.
+      if (code === 'unknown_game' || r.gamePrice !== '' || r.size !== '') {
+        const fields = el('div', 'bulk-fields');
+        fields.append(field(r, 'gamePrice', 'Price per Ticket ($)', r.gamePrice, ''), field(r, 'size', 'Tickets per Pack', r.size, ''));
+        card.append(el('div', 'bulk-note', 'First time this game has been seen. Enter its details once.'), fields);
+        const standard = STANDARD_PACK_SIZES[Number(r.gamePrice)];
+        if (standard && r.size !== '' && Number(r.size) !== standard) {
+          card.append(el('div', 'bulk-note amber', `$${r.gamePrice} packs usually have ${standard} tickets, not ${r.size}. Check the pack.`));
+        }
+      }
+
+      // What the database said about this row (Pick a Slot and Sold Out / Returned already ask on the row).
+      if (code && !['pick_slot', 'slot_occupied'].includes(code) && !(code === 'unknown_game' && r.gamePrice === '')) {
+        card.append(el('div', 'bulk-note error', status.message));
+      }
+      if (code === 'price_mismatch' && !r.override) {
+        const fix = el('button', 'small bulk-fix', 'Change Slot Price');
+        fix.type = 'button';
+        fix.addEventListener('click', () => { r.override = true; changed(); });
+        card.append(fix);
+      }
+      if (r.override) card.append(el('div', 'bulk-note', 'The slot price changes to this game\'s price.'));
+      return card;
+    }
+
+    function field(r, name, label, value, placeholder) {
+      const wrap = el('label', 'bulk-field');
+      wrap.append(el('span', null, label));
+      const input = el('input');
+      input.inputMode = name === 'gamePrice' ? 'decimal' : 'numeric';
+      input.autocomplete = 'off';
+      input.value = value;
+      input.placeholder = placeholder;
+      input.dataset.field = name;
+      input.dataset.key = keyOf(r);
+      input.addEventListener('input', () => {
+        const v = input.value.trim();
+        if (name === 'oldTop') {
+          // The ticket counts once all three digits are in (what's typed so far stays on the row).
+          r.oldTopText = v;
+          r.oldTop = /^\d{3}$/.test(v) ? Number(v) : null;
+        } else {
+          r[name] = v;
+          // A new game's pack size follows the usual size for its price until it's typed by hand.
+          if (name === 'gamePrice' && (r.size === '' || r.sizeAuto)) {
+            r.size = STANDARD_PACK_SIZES[Number(v)] ? String(STANDARD_PACK_SIZES[Number(v)]) : '';
+            r.sizeAuto = true;
+          }
+          if (name === 'size') r.sizeAuto = false;
+        }
+        changed();
+      });
+      wrap.append(input);
+      return wrap;
+    }
+
+    // ---- Picking a slot ----
+    function openPicker(r) {
+      pickingRow = r;
+      pickBox = r.box || (r.choices ? Number(r.choices[0].split('-')[0]) : 1);
+      $('slotDialogTitle').textContent = `Slot for ${keyOf(r)}`;
+      drawPicker();
+      $('slotDialog').classList.remove('hidden');
+    }
+    function drawPicker() {
+      const r = pickingRow;
+      const taken = takenSlots(r);
+      document.querySelectorAll('#pickBox button').forEach((b) => b.classList.toggle('active', Number(b.dataset.box) === pickBox));
+      const grid = $('pickGrid');
+      grid.innerHTML = '';
+      for (const s of slots.filter((x) => x.box === pickBox)) {
+        const id = slotId(s.box, s.slot);
+        const b = el('button', 'slot-pick');
+        b.type = 'button';
+        b.dataset.slot = s.slot;
+        const game = s.pack ? s.pack.gameNumber : s.lastGame ? s.lastGame.gameNumber : null;
+        if (game === r.game) b.classList.add('suggest');
+        if (r.box === s.box && r.slot === s.slot) b.classList.add('current');
+        b.append(el('span', 'n', String(s.slot)),
+          el('span', 's', taken.has(id) ? 'On List' : s.pack ? `${s.pack.gameNumber} · ${s.pack.remaining}` : 'Empty'));
+        b.setAttribute('aria-label', `Slot ${s.slot}: ${taken.has(id) ? 'already on the list' : s.pack ? `game ${s.pack.gameNumber}, ${s.pack.remaining} left` : 'empty'}`);
+        b.disabled = taken.has(id);
+        b.addEventListener('click', () => {
+          setSlot(r, s.box, s.slot);
+          $('slotDialog').classList.add('hidden');
+          changed();
+        });
+        grid.append(b);
+      }
+    }
+    document.querySelectorAll('#pickBox button').forEach((b) => b.addEventListener('click', () => { pickBox = Number(b.dataset.box); drawPicker(); }));
+    $('pickCancel').addEventListener('click', () => $('slotDialog').classList.add('hidden'));
+    $('slotDialog').addEventListener('click', (e) => { if (e.target === $('slotDialog')) $('slotDialog').classList.add('hidden'); });
+
+    // ---- Activate All: saved only if every row is good ----
+    $('activateAllBtn').addEventListener('click', async () => {
+      const sent = rows.slice();
+      let result;
+      try {
+        result = await whileBusy($('activateAllBtn'), 'Activating…', () => api('activateSeveral', { packs: sent.map(request) }));
+      } catch (err) {
+        flash(err.message);
+        return;
+      }
+      if (!result.saved) {
+        result.rows.forEach((answer, i) => { sent[i].status = answer; });
+        checkedVersion = version;
+        render();
+        flash('Nothing was saved. Fix the packs marked Needs a Fix, then try again.');
+        return;
+      }
+      saved = { rows: sent, answers: result.rows };
+      rows = [];
+      version += 1;
+      checkedVersion = version;
+      saveDraft();
+      await reloadSlots();
+      showDone();
+    });
+
+    function showDone() {
+      $('scanView').classList.add('hidden');
+      $('bulkBar').classList.add('hidden');
+      document.body.classList.remove('has-bulk-bar');
+      $('doneView').classList.remove('hidden');
+      const n = saved.answers.length;
+      $('doneTitle').textContent = `${n} ${n === 1 ? 'Pack' : 'Packs'} Activated`;
+      const lines = $('doneLines');
+      lines.innerHTML = '';
+      for (const a of saved.answers) {
+        const line = el('div', 'bulk-done-line');
+        line.append(el('div', null, `${slotWords(a.box, a.slot)}: `), el('span', 'mono', a.packKey));
+        const notes = [];
+        if (a.oldPack) {
+          notes.push(a.oldPack.reason === 'sold_out'
+            ? `Pack ${a.oldPack.packKey} marked sold out (${a.oldPack.ticketsSoldToday} sold today).`
+            : `Pack ${a.oldPack.packKey} marked returned (${a.oldPack.ticketsSoldToday} sold today, ${a.oldPack.remainingReturned} going back).`);
+        }
+        notes.push(`${a.packsInBack} left in the back.`);
+        if (a.backWasEmpty) notes.push('Back stock showed none of this game. Check that the shipment was entered.');
+        line.append(el('div', 'slot-detail', notes.join(' ')));
+        lines.append(line);
+      }
+    }
+
+    // Undo All: every pack comes back out (to back stock if it came from there), every old pack is put back, last first.
+    $('undoAllBtn').addEventListener('click', async () => {
+      const n = saved.answers.length;
+      if (!confirm(`Undo all ${n} activations? Each pack comes back out of its slot, and packs marked sold out or returned go back in.`)) return;
+      try {
+        await whileBusy($('undoAllBtn'), 'Undoing…', () => api('undoActivateSeveral', {
+          slots: saved.answers.map((a) => ({ box: a.box, slot: a.slot, oldPack: Boolean(a.oldPack) })) }));
+      } catch (err) {
+        showMessage($('doneMessage'), err.message);
+        return;
+      }
+      // The packs go back on the list as they were, to fix and try again (or remove).
+      rows = saved.rows.map((r) => ({ ...r, status: null }));
+      saved = null;
+      await reloadSlots();
+      $('doneView').classList.add('hidden');
+      $('scanView').classList.remove('hidden');
+      flash('Undone. Everything is back as it was, and the packs are on the list again.', 'ok');
+      changed();
+    });
+
+    $('clearBtn').addEventListener('click', () => {
+      if (!confirm(`Remove all ${rows.length} packs from the list? Nothing has been saved yet.`)) return;
+      rows = [];
+      $('message').className = 'message';
+      changed();
+    });
+
+    $('typedForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      try {
+        addTicket(parsePrintedTicket($('typed').value));
+        $('typed').value = '';
+      } catch (err) {
+        flash(err.message);
+      }
+    });
+
+    async function reloadSlots() {
+      try { slots = await api('listSlots'); } catch (e) { /* the next check still runs on the database's own state */ }
+    }
+
+    async function load() {
+      try {
+        slots = await api('listSlots');
+      } catch (err) {
+        showLoadError($('loadMessage'), err, load);
+        return false;
+      }
+      $('scanView').classList.remove('hidden');
+      // A draft from before (this phone): drop rows whose pack went live meanwhile.
+      rows = loadDraft().filter((r) => !slots.some((s) => liveKey(s) === `${r.game}-${r.pack}`)).map((r) => ({ ...r, status: null }));
+      startScanner({
+        video: $('video'),
+        viewport: $('viewport'),
+        holdBtn: $('holdBtn'),
+        onStatus: (text) => (text ? showMessage($('message'), text) : null),
+        onScan: useTicket,
+      });
+      changed();
+      return true;
+    }
+
+    if (session) {
+      if (!USE_DATABASE) $('notOnDatabase').classList.remove('hidden');
+      else load();
+    }
+  </script>
+</body>
+</html>

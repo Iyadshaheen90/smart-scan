@@ -55,6 +55,13 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   `npx --yes supabase@2.122.0 db advisors --linked` should show only the two expected warnings (definer API functions callable
   by signed-in users; two select policies on stores/store_members).
 - `delete_shift_close` takes `shiftIds` too (migration 0021, 2026-11-06), same as Sheets; covered by `test/parity/shifts.js`.
+- **Activate Several (migration 0025, 2026-11-11; database only, no Sheets version):** `activate_several { packs: [activate_pack
+  requests], check? }` runs each row through `public.activate_pack` in its own sub-transaction (same checks and
+  messages), in order; a refused row → `{ ok: false, code, message }` (only app errors with a hint; others re-raise),
+  plus `pick_slot`, `slot_twice`, `pack_twice`; good → `{ ok: true, …activate_pack's answer }`. `check` or any refused
+  row → everything thrown away (custom SQLSTATE SS001), `saved: false`; max 48 rows. `undo_activate_several { slots:
+  [{ box, slot, oldPack }] }`: last first, undo_activation then undo_end_pack when oldPack; all or nothing, a refusal is
+  prefixed "Box b, slot s:". Both need load_packs. Test: `supabase/tests/activate_several_test.sql`.
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

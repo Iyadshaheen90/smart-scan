@@ -18,6 +18,13 @@
   <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
   <div id="loadMessage" class="message"></div>
   <p class="sub" id="hint"></p>
+  <!-- Activate Several (owner 2026-11-10): database only, for the owner and employees with Load packs. -->
+  <div class="group hidden" id="bulkGroup" style="margin-bottom: 14px;">
+    <a class="group-row" href="activate-several.html" id="bulkLink">
+      <span class="row-icon accent" data-icon="scan"></span>
+      <span class="row-text"><span class="row-main"><span class="row-title">Activate Several</span><span class="row-sub">Scan many packs, put them all in at once</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+    </a>
+  </div>
 
   <div class="segmented" id="boxSwitch">
     <button type="button" data-box="1">Box 1</button>
@@ -43,6 +50,7 @@
           : can(session, 'load_packs') ? 'Tap a slot to mark its pack sold out and put a new pack in.'
             : can(session, 'return_packs') ? 'Tap a slot to mark its pack returned.'
               : 'View only. Packs that sold out are marked during Close Day. Tell the owner when a slot needs a new pack.';
+      document.getElementById('bulkGroup').classList.toggle('hidden', !USE_DATABASE || !can(session, 'load_packs'));
     }
 
     // From OLD_PACK_DAYS (api.js) on, the owner sees a yellow mark on the slot so the pack gets pushed.

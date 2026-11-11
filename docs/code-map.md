@@ -124,6 +124,18 @@ Frontend (`src/`, plain HTML + JS, no build):
   answer first): who · when, $ chip, from → to, tickets / $ / slots scanned, packs ended or sold whole during it, Slots
   (every slot's start → end ticket) and Delete (confirm). **Select** (beside the first day, 2+ shift closes; owner 2026-11-06) chooses several: tap cards, Select All / Deselect All, `.select-bar` in the tab bar's place (Cancel, count, Delete; confirm names them), one `deleteShiftClose` with `shiftIds`. Icon `shift` (two block arrows, from the owner's picture).
 - `slots.html` both boxes (everyone sees the ↓/↑ ticket order arrow, `.order-arrow`; owner also sees days since activation and the day-50 mark) · `activate.html?box=&slot=` one slot: end pack (Sold out / Returned show "N sold today ($X)[, M going back]" before anything saves, and a red Cancel on every step after them returns to "What Happened to It?" unsaved), activate, undo; then (owner's order) slot price, Ticket Order (`#orderForm`: Descending / Ascending, the chosen one in the app's green, `#orderSwitch button.active`; greyed while a pack is in), pack size, move or swap
+- `activate-several.html` Activate Several (database only; owner + Load packs; owner 2026-11-10): Slots' top row
+  (`#bulkGroup`, hidden on Sheets) opens it. Scan/type top tickets into a list (newest first, kept on the phone in
+  localStorage `smartScanActivateSeveral:<username>`). Each row (`.bulk-row[data-key]`): suggested slot (`suggest`: from
+  `listSlots`, an empty slot whose `lastGame` is that game first, else its one live slot; several live → `.bulk-choices`
+  buttons with tickets left; none → amber Pick a Slot), `.bulk-slot` opens `#slotDialog` (both boxes, slots on the list
+  disabled "On List", the game's slots outlined); a slot with a pack shows Sold Out / Returned (`data-end`, Returned needs
+  return_packs, then its top ticket typed or scanned: a scan of that pack fills it); a new game shows price + pack size
+  (size follows the price's usual size until typed); a price mismatch shows Change Slot Price. Every change re-runs
+  `activateSeveral { check: true }` (350 ms) and each row shows Ready / Needs a Fix with the database's message. The
+  floating `.bulk-bar` Activate All is enabled only when the latest check is all Ready. Saved → done view (per slot,
+  old pack ended, left in the back) with **Undo All** (`undoActivateSeveral`; the packs go back on the list). Same
+  pack twice or a pack already live is refused at scan. Test: test/browser/activate-several.js (dev project).
 - `report.html` Report a Problem (database only, everyone; More → Support, and under Help & FAQ): New Report (area chips
   picked from the last page used, `lastPage()`; text; up to 3 screenshots shrunk to 1600 px JPEG on the phone; What's
   Included) → `reportProblem` (support Edge Function) → "Report #N Sent"; My Reports (`myReports`, status chips Received /

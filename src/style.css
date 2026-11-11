@@ -782,3 +782,61 @@ button.link-button { display: block; width: auto; margin: 18px auto 0; padding: 
   border-radius: 18px; border: 1px solid var(--border); background: var(--card); text-decoration: none; color: var(--muted); font-size: 14px; }
 .help-report-link { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-bright); font-weight: 700; font-size: 15px; }
 .help-report-link svg { width: 18px; height: 18px; }
+
+/* Activate Several (owner 2026-11-10; database only): one card per scanned pack, the slot it goes in as a tappable
+   row, then a floating Activate All bar (no tab bar on this page). */
+.bulk-head-row { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
+.bulk-head-row .group-label { margin: 0 0 0 4px; }
+.bulk-head-row button.text-action { width: auto; margin: 0; padding: 8px 4px; font-size: 15px; }
+.bulk-row { margin-top: 10px; }
+.bulk-row.problem { border-color: #5a2a27; }
+.bulk-head { display: flex; align-items: center; gap: 10px; }
+.bulk-name { flex: 1; min-width: 0; }
+.bulk-pack { font-size: 17px; font-weight: 700; overflow-wrap: anywhere; }
+.bulk-name .slot-detail { margin-top: 2px; }
+button.bulk-remove { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+  margin: 0; padding: 0; border-radius: 50%; border-color: transparent; background: var(--card-2); color: var(--muted); }
+button.bulk-remove svg { width: 16px; height: 16px; }
+button.bulk-slot { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 12px 14px; min-height: 52px;
+  text-align: left; background: var(--card-2); border-color: transparent; }
+button.bulk-slot svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+button.bulk-slot.pick { background: var(--amber-bg); color: var(--amber); }
+button.bulk-slot.pick svg { color: var(--amber); }
+.bulk-slot-text { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.bulk-slot-sub { font-size: 14px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.bulk-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.bulk-choices button { margin: 0; padding: 10px 8px; font-size: 15px; background: var(--card-2); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bulk-choice-sub { font-size: 13px; font-weight: 600; color: var(--accent-bright); }
+.bulk-end { margin-top: 12px; }
+.bulk-end .segmented { margin-top: 8px; }
+.bulk-note { margin-top: 10px; font-size: 14px; line-height: 1.4; color: var(--muted); }
+.bulk-note.error { color: var(--danger); }
+.bulk-note.amber { color: var(--amber); }
+.bulk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bulk-field { display: block; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.bulk-field input { margin-top: 6px; }
+button.small.bulk-fix { margin-top: 10px; }
+.bulk-done-line { padding: 12px 0; border-top: 1px solid var(--border); }
+.bulk-done-line:first-child { margin-top: 10px; }
+.bulk-done-line > div:first-child { display: inline; font-weight: 700; }
+.bulk-bar {
+  position: fixed; z-index: 20;
+  left: max(12px, calc((100vw - 480px) / 2 + 12px));
+  right: max(12px, calc((100vw - 480px) / 2 + 12px));
+  bottom: var(--tabbar-lift);
+  padding: 8px; border-radius: 22px;
+  background: rgba(24, 27, 27, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 30px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+}
+.bulk-bar button.primary { margin: 0; }
+body.has-bulk-bar { padding-bottom: calc(var(--tabbar-lift) + 96px); scroll-padding-bottom: calc(var(--tabbar-lift) + 96px); }
+.slot-pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 12px; max-height: 52vh; overflow-y: auto; }
+button.slot-pick { margin: 0; padding: 8px 4px; min-height: 60px; border-radius: 12px; background: var(--card-2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.slot-pick .n { font-size: 17px; font-weight: 800; }
+.slot-pick .s { max-width: 100%; font-size: 11px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.slot-pick.suggest { border-color: var(--accent-bright); }
+button.slot-pick.current { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.slot-pick.current .s { color: var(--accent-text); }
