@@ -27,11 +27,13 @@ const groups = (page) => page.$$eval('.group-block:not(.hidden)', (blocks) => bl
     ['Store', 'Manage Employees', 'Retailer Number', 'Ticket Order'],
     ['Support', 'Help & FAQ', 'Scanner Test', 'About Smart Scan'],
     ['Account', 'Change My Password'],
+    // Before the Dec 1 cutover only: the owner can switch this phone to the database (test/browser/phone-switch.js).
+    ['Database Move', 'Try the Database'],
   ]);
   // Hairline dividers only between visible rows: none above a group's first row.
   const borders = await page.$$eval('.group-block:not(.hidden) .group', (gs) => gs.map((g) => [...g.querySelectorAll('.group-row:not(.hidden) .row-text')]
     .map((t) => getComputedStyle(t).borderTopStyle)));
-  assert.deepEqual(borders, [['none', 'solid', 'solid'], ['none', 'solid', 'solid'], ['none']]);
+  assert.deepEqual(borders, [['none', 'solid', 'solid'], ['none', 'solid', 'solid'], ['none'], ['none']]);
   assert.equal(await page.$eval('#signOut', (e) => e.textContent.trim()), 'Sign Out');
   assert.ok(await noSideScroll(page));
   // The version: the newest saved set of files ("smart-scan-v47" → "Version 47"); older sets and other caches don't count.

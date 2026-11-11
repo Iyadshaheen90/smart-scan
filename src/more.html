@@ -88,6 +88,19 @@
     </div>
   </div>
 
+  <!-- Before the Dec 1 cutover only (owner 2026-11-10): the owner switches this one phone to the database for the
+       side-by-side checks, and back. Shown to the owner on Sheets, and to anyone on a switched phone (so the test
+       account can switch back too). Gone once BACKEND is 'supabase'. -->
+  <div class="group-block hidden" id="switchBlock">
+    <h2 class="group-label">Database Move</h2>
+    <div class="group">
+      <button type="button" class="group-row" id="switchRow">
+        <span class="row-icon amber" data-icon="swap"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title" id="switchTitle"></span><span class="row-sub" id="switchSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </button>
+    </div>
+  </div>
+
   <div class="group signout-group">
     <button type="button" class="group-row signout-row" id="signOut"><span class="row-title">Sign Out</span></button>
   </div>
@@ -119,6 +132,18 @@
       <div class="dialog-buttons">
         <button type="button" class="cancel" id="retailerCancel">Cancel</button>
         <button type="button" class="save" id="retailerSave" disabled>Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="switchDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="switchDialogTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="switchDialogTitle"></div>
+      <div class="slot-detail" id="switchText"></div>
+      <div id="switchError" class="message"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="cancel" id="switchCancel">Cancel</button>
+        <button type="button" class="save" id="switchGo">Switch</button>
       </div>
     </div>
   </div>
@@ -169,12 +194,38 @@
     // The app's version (appVersionLabel in api.js).
     appVersionLabel().then((version) => {
       if (!version) return;
-      document.getElementById('appVersion').textContent = `Smart Scan · ${version}`;
+      document.getElementById('appVersion').textContent = `Smart Scan · ${version}${PHONE_ON_DATABASE ? ' · Database' : ''}`;
       document.getElementById('appVersion').classList.remove('hidden');
     });
     document.getElementById('signOut').addEventListener('click', () => signOut());
 
     const $ = (id) => document.getElementById(id);
+
+    // Try the Database / Use Sheets Again (before the cutover; see the comment on #switchBlock).
+    if (session && PHONE_SWITCH_OFFERED && (PHONE_ON_DATABASE || session.role === 'owner')) {
+      $('switchBlock').classList.remove('hidden');
+      $('switchTitle').textContent = PHONE_ON_DATABASE ? 'Use Sheets Again' : 'Try the Database';
+      $('switchSub').textContent = PHONE_ON_DATABASE ? 'Put this phone back on the live app' : 'This phone only, until Dec 1';
+      $('switchDialogTitle').textContent = PHONE_ON_DATABASE ? 'Use Sheets Again' : 'Try the Database';
+      $('switchText').textContent = PHONE_ON_DATABASE
+        ? 'This phone goes back to the live app. You\'ll sign in with your username again.'
+        : 'This phone switches to the database so you can do the same closes there and compare. You\'ll sign in with'
+          + ' your email. Every other phone stays on the live app. Do the real close on the live app first: what you do'
+          + ' on the database is practice until Dec 1.';
+      $('switchRow').addEventListener('click', () => {
+        $('switchError').className = 'message';
+        $('switchError').textContent = '';
+        $('switchDialog').classList.remove('hidden');
+      });
+      $('switchCancel').addEventListener('click', () => $('switchDialog').classList.add('hidden'));
+      $('switchGo').addEventListener('click', async () => {
+        try {
+          await whileBusy($('switchGo'), 'Switching…', () => switchPhoneBackend(!PHONE_ON_DATABASE));
+        } catch (err) {
+          showMessage($('switchError'), err.message);
+        }
+      });
+    }
 
     $('aboutText').textContent = APP_DISCLAIMER;
     $('aboutRow').addEventListener('click', () => $('aboutDialog').classList.remove('hidden'));

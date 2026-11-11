@@ -48,7 +48,11 @@ function renderHeader(el, session) {
   const help = el.dataset.help
     ? `<a class="help-link" href="help.html?from=${encodeURIComponent(from)}&amp;section=${encodeURIComponent(el.dataset.help)}" aria-label="Help">?</a>`
     : '';
-  const title = help ? `<div class="title-row">${h1}${help}</div>` : h1;
+  // A phone switched to the database before the cutover says so on every page, so a real close isn't done there by
+  // mistake (PHONE_ON_DATABASE in api.js).
+  const onDatabase = typeof PHONE_ON_DATABASE !== 'undefined' && PHONE_ON_DATABASE;
+  const dbChip = onDatabase ? '<span class="chip amber db-chip">Database</span>' : '';
+  const title = help || dbChip ? `<div class="title-row">${h1}${dbChip}${help}</div>` : h1;
   // With a back pill, it and the name pill share the top row (level with each other) and the title goes under them.
   el.classList.toggle('with-back', Boolean(back));
   el.innerHTML = back ? `${top}${pill}${title}` : `<div>${top}${title}</div>${pill}`;

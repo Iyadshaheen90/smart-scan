@@ -45,6 +45,9 @@
   </form>
   <div id="message" class="message"></div>
 
+  <!-- A phone switched to the database before the cutover (More → Try the Database): the way back, even before anyone
+       can sign in there. -->
+  <p id="switchLine" class="auth-note hidden"><span class="chip amber">Database</span><br>This phone is trying the database. <a href="#" id="useSheets">Use Sheets Again</a></p>
   <p id="setupLine" class="auth-note">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
   <p class="fine-print auth-fine" id="disclaimer"></p>
 
@@ -67,6 +70,18 @@
       form.username.setAttribute('inputmode', 'email');
       document.getElementById('forgotLine').classList.remove('hidden');
       document.getElementById('setupLine').classList.add('hidden');
+    }
+
+    if (PHONE_ON_DATABASE) {
+      document.getElementById('switchLine').classList.remove('hidden');
+      document.getElementById('useSheets').addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          await switchPhoneBackend(false);
+        } catch (err) {
+          showMessage(messageEl, err.message);
+        }
+      });
     }
 
     document.getElementById('forgot').addEventListener('click', async (e) => {

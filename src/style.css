@@ -262,6 +262,8 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
 .app-header .title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .app-header.with-back .title-row { grid-column: 1 / -1; }
 .app-header .title-row h1 { min-width: 0; }
+/* A phone switched to the database before the cutover (nav.js): never squeezed by the title. */
+.app-header .db-chip { flex: none; }
 .help-link { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin-top: 2px;
   border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--accent-bright);
   font-size: 17px; font-weight: 800; text-decoration: none; }
@@ -319,6 +321,7 @@ button.save { background: var(--accent); border-color: var(--accent); color: var
   border-radius: 10px; background: var(--card-2); color: var(--text); }
 .row-icon svg { width: 18px; height: 18px; }
 .row-icon.accent { background: var(--accent-soft); color: var(--accent-bright); }
+.row-icon.amber { background: var(--amber-bg); color: var(--amber); }
 .row-icon.danger { background: var(--error-bg); color: var(--danger); }
 /* This month's numbers under a report's title (Reports tab): green, shrunk to fit rather than cut off. */
 .group-row .row-sub.report-nums { color: var(--accent-bright); font-weight: 700; font-variant-numeric: tabular-nums; text-overflow: clip; }

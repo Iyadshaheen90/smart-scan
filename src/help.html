@@ -108,7 +108,7 @@
       const faq = $('faq');
       faq.innerHTML = '';
       for (const section of FAQ) {
-        const items = section.items.filter((item) => faqVisible(item, session, BACKEND));
+        const items = section.items.filter((item) => faqVisible(item, session, USE_DATABASE ? 'supabase' : 'sheets'));
         if (!items.length) continue;
         const box = document.createElement('section');
         box.className = 'faq-section';

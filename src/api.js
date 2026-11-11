@@ -141,7 +141,49 @@ async function api(action, params = {}) {
 // short-lived access token, renewed with the refresh token when it runs out. Adding an employee and the owner setting
 // someone's password go through the members Edge Function (only the server's secret key can do those).
 
-const USE_DATABASE = typeof BACKEND !== 'undefined' && BACKEND === 'supabase';
+// One phone on the database before the cutover (owner 2026-11-10, the side-by-side week): while BACKEND is still
+// 'sheets', the owner can switch their own phone to the database (More → Try the Database) and do the same closes
+// there to compare; every other phone stays on Sheets. It's kept on this phone only (an iPhone's home-screen app has
+// its own storage, apart from Safari). From the cutover (BACKEND 'supabase') the switch is forgotten, so a rollback to
+// 'sheets' puts every phone back on Sheets.
+const PHONE_BACKEND_KEY = 'smartScanPhoneBackend';
+const PHONE_SWITCH_OFFERED = typeof BACKEND !== 'undefined' && BACKEND === 'sheets'
+  && typeof SUPABASE_URL !== 'undefined' && Boolean(SUPABASE_URL);
+const PHONE_ON_DATABASE = (() => {
+  try {
+    if (!PHONE_SWITCH_OFFERED) {
+      localStorage.removeItem(PHONE_BACKEND_KEY);
+      return false;
+    }
+    return localStorage.getItem(PHONE_BACKEND_KEY) === 'database';
+  } catch (e) {
+    return false;
+  }
+})();
+
+// Switches this phone (true: to the database, false: back to Sheets) and opens Sign In, since each one has its own
+// sign-in. The pages' saved answers are from the other one, so they go too. Refused while a close is still waiting to
+// be sent: it belongs to the backend it was made on.
+async function switchPhoneBackend(toDatabase) {
+  if (getPendingClose()) {
+    throw new ApiError('pending_close', 'A close on this phone is still waiting to be sent. Open Close Day to send it first, then switch.');
+  }
+  if (getSession()) {
+    try { await api('logout'); } catch (e) {}
+  }
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('smartScanSaved:') || key.startsWith('smartScanOwnerHome:'))) localStorage.removeItem(key);
+    }
+    if (toDatabase) localStorage.setItem(PHONE_BACKEND_KEY, 'database');
+    else localStorage.removeItem(PHONE_BACKEND_KEY);
+  } catch (e) {}
+  clearSession();
+  location.replace('login.html');
+}
+
+const USE_DATABASE = (typeof BACKEND !== 'undefined' && BACKEND === 'supabase') || PHONE_ON_DATABASE;
 // Signed in for this long, as on the Apps Script backend (Auth.js SESSION_HOURS).
 const DB_SESSION_HOURS = 12;
 

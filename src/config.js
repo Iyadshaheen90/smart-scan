@@ -8,7 +8,8 @@ const STORE_NAME = 'Route 66 Liquor';
 // Which backend the pages use: 'sheets' (the Apps Script above) until the database move's cutover (Dec 1, 2026), then
 // 'supabase'. Switching back to 'sheets' is the rollback.
 const BACKEND = 'sheets';
-// The Supabase project and its public (anon) key, filled in at cutover with the production project's. The key only lets
+// The production Supabase project (smart-scan-prod) and its public (anon) key, filled in 2026-11-10 for the side-by-side
+// week (a phone switched with More → Try the Database uses them; see api.js). The key only lets
 // the app call the API; every database function checks who is signed in and what they may do.
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL = 'https://ulxiphcgningbjgrvdui.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVseGlwaGNnbmluZ2JqZ3J2ZHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQzNjYzOTAsImV4cCI6MjEwOTk0MjM5MH0.8mKZH-wFeQqTZgjn64iOQyRY4y-osKYlLyALa1gAwCA';

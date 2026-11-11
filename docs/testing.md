@@ -37,6 +37,7 @@ node test/db/run.js                       # database: store separation, sign-in 
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
 node test/browser/retailer-number.js     # More → Retailer Number (owner only, pop-up, refusals) and the number on the Theft Report (screen, text, PDF; owner + employee)
 node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against a dev test store: email sign-in, Forgot Password, invite → Resend Invite → set password, change password, token renewal, owner sets password / turns off
+node test/browser/phone-switch.js         # one phone on the database before the cutover: More Try the Database / Use Sheets Again, Database chip, Sign In way back, pending close refused, cutover forgets it, invite link in a Sheets browser
 node test/sw-version.js                   # CACHE bumped after any change to a saved file (--update records it); every page/script is in SHELL
 node test/browser/settling.js             # Settling: 50+ day packs, order, colors, totals, drop off when ended, owner only
 node test/browser/shift-close.js          # Close shift: start tickets, earlier sold out, once a day for employees, no $, Close Day untouched (real backend code)
