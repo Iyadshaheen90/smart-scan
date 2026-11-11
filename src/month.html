@@ -130,8 +130,13 @@
       if (url) {
         action = link(url, 'Open Spreadsheet');
       } else {
-        action = el('button', 'small download-month', 'Download Month');
+        // A round green download arrow in the app's colors (owner 2026-11-10: an icon, not the words); its name is read
+        // aloud and shown on a long press.
+        action = el('button', 'download-month');
         action.type = 'button';
+        action.innerHTML = icon('download');
+        action.setAttribute('aria-label', `Download ${monthName(label)}`);
+        action.title = 'Download Month';
         action.dataset.month = label;
         action.addEventListener('click', () => downloadMonth(label, action));
       }
@@ -208,7 +213,12 @@
     // Like the Theft Report's PDF: the iPhone home-screen app can't download, so the file goes to the share sheet
     // (Save to Files, Mail…); elsewhere it downloads.
     async function downloadMonth(label, button) {
-      await whileBusy(button, 'Making…', async () => {
+      // While the file is made the arrow pulses and can't be tapped again (whileBusy's "Making…" would replace the icon).
+      if (button.disabled) return;
+      button.disabled = true;
+      button.classList.add('busy');
+      button.setAttribute('aria-busy', 'true');
+      await (async () => {
         try {
           const [data, XLSX] = await Promise.all([api('monthWorkbook', { label }), loadSheetJs()]);
           const bytes = XLSX.write(workbookFrom(XLSX, data), { bookType: 'xlsx', type: 'array' });
@@ -227,8 +237,12 @@
           setTimeout(() => URL.revokeObjectURL(a.href), 10000);
         } catch (err) {
           showMessage(message, err.message);
+        } finally {
+          button.disabled = false;
+          button.classList.remove('busy');
+          button.removeAttribute('aria-busy');
         }
-      });
+      })();
     }
 
     function showCurrent(summary) {

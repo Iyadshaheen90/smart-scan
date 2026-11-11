@@ -525,9 +525,9 @@ const FAQ = [
         id: 'month-excel', who: 'owner', backend: 'supabase', go: 'month.html',
         q: { en: 'How do I get a month as an Excel file?', es: '¿Cómo obtengo un mes en archivo de Excel?', ar: 'كيف أحصل على شهر كملف Excel؟' },
         a: {
-          en: 'On Months & Totals, tap Download Month on that month. On iPhone, the share sheet lets you save it to Files or email it.',
-          es: 'En Months & Totals, toca Download Month en ese mes. En iPhone, el menú de compartir te deja guardarlo en Archivos o enviarlo por correo.',
-          ar: 'في Months & Totals اضغط Download Month على ذلك الشهر. على iPhone تتيح لك قائمة المشاركة حفظه في الملفات أو إرساله بالبريد.',
+          en: 'On Months & Totals, tap the green download arrow next to that month. On iPhone, the share sheet lets you save it to Files or email it.',
+          es: 'En Months & Totals, toca la flecha verde de descarga junto a ese mes. En iPhone, el menú de compartir te deja guardarlo en Archivos o enviarlo por correo.',
+          ar: 'في Months & Totals اضغط سهم التنزيل الأخضر بجانب ذلك الشهر. على iPhone تتيح لك قائمة المشاركة حفظه في الملفات أو إرساله بالبريد.',
         },
       },
       {

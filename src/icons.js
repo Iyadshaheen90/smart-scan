@@ -18,6 +18,8 @@ const ICON_PATHS = {
   ticket: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
   // Shift Closure: two block arrows passing each other, one shift handing over to the next (owner's picture, 2026-09-30).
   shift: '<path d="M4 9V6h11V2.5l6 5.5-6 5.5V10H9"/><path d="M20 15v3H9v3.5L3 16l6-5.5V14h6"/>',
+  // Download Month (Months & Totals, database): an arrow down into a tray.
+  download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
   // Ticket order (Slots, slot page, More): ↑ ascending, ↓ descending.
   arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   arrowDown: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',

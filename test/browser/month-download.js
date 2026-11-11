@@ -37,8 +37,14 @@ const workbook = { storeName: 'Route 66 Liquor', summary,
   assert.equal(await tab.$eval('#notYet', (e) => e.classList.contains('hidden')), true);
   assert.equal(await tab.$('a[target="_blank"]'), null);
   assert.match(await tab.$eval('#intro', (e) => e.textContent), /Download any month as an Excel file/);
-  assert.deepEqual(await tab.$$eval('button.download-month', (bs) => bs.map((b) => [b.textContent, b.dataset.month])),
-    [['Download Month', '2026-10'], ['Download Month', '2026-09']]);
+  // A round green arrow (owner 2026-11-10), named for screen readers; 44px to tap; the theme's green.
+  assert.deepEqual(await tab.$$eval('button.download-month', (bs) => bs.map((b) => [b.textContent.trim(), b.getAttribute('aria-label'),
+    b.dataset.month, Boolean(b.querySelector('svg'))])),
+    [['', 'Download October 2026', '2026-10', true], ['', 'Download September 2026', '2026-09', true]]);
+  const look = await tab.$eval('button.download-month', (b) => { const s = getComputedStyle(b); const r = b.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height), radius: s.borderRadius, color: s.color }; });
+  assert.deepEqual([look.w, look.h, look.radius], [44, 44, '50%'], JSON.stringify(look));
+  assert.equal(look.color, 'rgb(76, 197, 138)', 'the theme green (--accent-bright)');
   if (process.env.SHOTS) await tab.screenshot({ path: `${process.env.SHOTS}/month-download.png`, fullPage: true });
 
   // Download: the file goes to the share sheet; open it and check what's inside.
@@ -47,7 +53,11 @@ const workbook = { storeName: 'Route 66 Liquor', summary,
     navigator.share = async (d) => { window.shared = { name: d.files[0].name, type: d.files[0].type, bytes: [...new Uint8Array(await d.files[0].arrayBuffer())] }; };
   });
   await tab.click('button.download-month[data-month="2026-10"]');
+  assert.ok(await tab.$eval('button.download-month[data-month="2026-10"]', (b) => b.disabled && b.classList.contains('busy') && Boolean(b.querySelector('svg'))),
+    'pulses while the file is made, keeps its arrow, can\'t be tapped twice');
   await tab.waitForFunction(() => window.shared, { timeout: 30000 });
+  await tab.waitForFunction(() => !document.querySelector('button.download-month[data-month="2026-10"]').classList.contains('busy'));
+  assert.ok(await tab.$eval('button.download-month[data-month="2026-10"]', (b) => !b.disabled && Boolean(b.querySelector('svg'))), 'back to the arrow');
   assert.deepEqual(calls.filter((c) => c.action === 'monthWorkbook').map((c) => c.label), ['2026-10']);
   const opened = await tab.evaluate(() => {
     const book = XLSX.read(new Uint8Array(window.shared.bytes), { type: 'array', cellNF: true });

@@ -392,6 +392,16 @@ button.add-member svg { width: 20px; height: 20px; }
 .toast-wrap { position: fixed; left: 16px; right: 16px; bottom: calc(var(--tabbar-clear) + 8px); z-index: 25; pointer-events: none; }
 .toast-wrap .message { margin: 0; pointer-events: auto; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); animation: toast-in 0.18s ease-out; }
 body:not(.has-tabbar) .toast-wrap { bottom: calc(16px + env(safe-area-inset-bottom)); }
+/* Download Month (month.html, database): a round green download arrow, 44px to tap. Pulses while the file is made. */
+button.download-month {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px;
+  margin: 0; padding: 0; border-radius: 50%; border: 1px solid transparent; background: var(--accent-soft); color: var(--accent-bright);
+}
+button.download-month svg { width: 22px; height: 22px; }
+button.download-month:active { background: var(--accent); color: var(--accent-text); }
+button.download-month.busy { opacity: 1; animation: download-pulse 1s ease-in-out infinite; }
+@keyframes download-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { button.download-month.busy { animation: none; opacity: 0.6; } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .toast-wrap .message { animation: none; } }
 
