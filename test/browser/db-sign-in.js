@@ -63,13 +63,16 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
       await page.goto(base + 'login.html');
       await page.evaluate(() => localStorage.removeItem('smartScanSession'));
       await page.goto(base + 'login.html');
+      await page.$eval('#username', (e) => { e.value = ''; });   // the last email is filled in
       await page.type('#username', email);
       await page.type('#password', password);
       await page.click('#form button[type="submit"]');
     };
 
     // ---- Sign In page ----
+    await page.evaluate(() => localStorage.removeItem('smartScanLastEmail'));
     await page.goto(base + 'login.html');
+    assert.equal(await page.$eval('#username', (e) => e.value), '', 'no email filled in before anyone signed in');
     assert.equal(await text(page, 'label[for="username"]'), 'Email');
     assert.equal(await page.$eval('#username', (e) => e.type), 'email');
     assert.equal(await visible(page, '#forgot'), true);
@@ -95,6 +98,17 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     assert.equal(session.username, `owner${tag}`);
     assert.equal(session.role, 'owner');
     assert.equal(session.email, ownerEmail);
+    // The phone remembers the email (owner 2026-11-12): after signing out, Sign In has it filled in and the cursor in Password.
+    assert.equal(await page.evaluate(() => localStorage.getItem('smartScanLastEmail')), ownerEmail.toLowerCase());
+    {
+      const kept = await page.evaluate(() => localStorage.getItem('smartScanSession'));
+      await page.evaluate(() => localStorage.removeItem('smartScanSession'));
+      await page.goto(base + 'login.html');
+      assert.equal(await page.$eval('#username', (e) => e.value), ownerEmail.toLowerCase(), 'email filled in');
+      assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), 'password');
+      await page.evaluate((k) => localStorage.setItem('smartScanSession', k), kept);
+      await page.goto(base + 'index.html');
+    }
     await page.waitForFunction(() => !document.body.textContent.includes('Loading'), { timeout: 20000 });
     assert.equal(await text(page, '.user-pill .name'), `owner${tag}`);
 

@@ -89,7 +89,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   others), createUser / resetPassword (→ the **members Edge Function**), me, claimOwner (refused). The session keeps the
   access token (1 h) and refresh token; `freshToken` renews a minute early (one renewal at a time), a 401 is retried once,
   `unauthorized` → Sign In. Signed in 12 h, as on Sheets (`DB_SESSION_HOURS`).
-  `login.html` asks for Email and shows **Forgot Password?** (no owner setup link). `set-password.html` (new) is where invite
+  `login.html` asks for Email and shows **Forgot Password?** (no owner setup link). **The phone remembers the last email (owner 2026-11-12, sw v71):** `rememberEmail` / `lastEmail` in api.js (localStorage `smartScanLastEmail`, saved by Sign In and set-password.html, kept after sign-out); Sign In fills it in and puts the cursor in Password. The fields keep `autocomplete="username"` / `current-password`, so the phone's password manager can fill both (Face ID). Sign-in by username is planned after the cutover (multi-store design). `set-password.html` (new) is where invite
   and password emails land: the one-time sign-in in the `#` is taken out of the address, they choose a password and are
   signed in (a note says to sign in again in the home-screen app: iOS keeps its own storage). `users.html` adds an employee
   by **username + email** (no starting password; "Employee · Invited" until they first sign in, `store_members.signed_in_at`

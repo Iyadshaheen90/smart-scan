@@ -44,9 +44,9 @@ const FAQ = [
         id: 'sign-in', who: 'everyone', backend: 'supabase',
         q: { en: 'How do I sign in?', es: '¿Cómo inicio sesión?', ar: 'كيف أسجّل الدخول؟' },
         a: {
-          en: 'Type your email and password on Sign In. The owner adds you first, and you get an email to choose your password.',
-          es: 'Escribe tu correo y tu contraseña en Sign In. Primero el dueño te agrega y recibes un correo para elegir tu contraseña.',
-          ar: 'اكتب بريدك الإلكتروني وكلمة المرور في صفحة Sign In. يضيفك المالك أولاً، ثم تصلك رسالة لاختيار كلمة المرور.',
+          en: 'Type your email and password on Sign In. The owner adds you first, and you get an email to choose your password. After the first time, your phone fills in your email, so you only type the password. Tap Save Password when your phone offers it, and next time Face ID or one tap signs you in.',
+          es: 'Escribe tu correo y tu contraseña en Sign In. Primero el dueño te agrega y recibes un correo para elegir tu contraseña. Después de la primera vez, tu teléfono llena tu correo y solo escribes la contraseña. Toca Guardar contraseña cuando tu teléfono lo ofrezca, y la próxima vez entras con Face ID o un toque.',
+          ar: 'اكتب بريدك الإلكتروني وكلمة المرور في صفحة Sign In. يضيفك المالك أولاً، ثم تصلك رسالة لاختيار كلمة المرور. بعد المرة الأولى يملأ هاتفك بريدك تلقائياً، فتكتب كلمة المرور فقط. اضغط حفظ كلمة المرور عندما يعرض هاتفك ذلك، وفي المرة القادمة تدخل بـ Face ID أو بلمسة واحدة.',
         },
       },
       {
@@ -129,9 +129,9 @@ const FAQ = [
         id: 'signed-out', who: 'everyone',
         q: { en: 'Why was I signed out?', es: '¿Por qué se cerró mi sesión?', ar: 'لماذا تم تسجيل خروجي؟' },
         a: {
-          en: 'You stay signed in for 12 hours, then sign in again. You\'re also signed out if the owner turns your account off.',
-          es: 'La sesión dura 12 horas; después vuelves a iniciar sesión. También se cierra si el dueño desactiva tu cuenta.',
-          ar: 'يبقى تسجيل الدخول 12 ساعة، ثم تسجّل الدخول من جديد. ويتم تسجيل خروجك أيضاً إذا أوقف المالك حسابك.',
+          en: 'You stay signed in for 12 hours, then sign in again. You\'re also signed out if the owner turns your account off. On the database your email is already filled in, so only the password is needed.',
+          es: 'La sesión dura 12 horas; después vuelves a iniciar sesión. También se cierra si el dueño desactiva tu cuenta. Con la base de datos tu correo ya aparece escrito, así que solo necesitas la contraseña.',
+          ar: 'يبقى تسجيل الدخول 12 ساعة، ثم تسجّل الدخول من جديد. ويتم تسجيل خروجك أيضاً إذا أوقف المالك حسابك. مع قاعدة البيانات يكون بريدك مكتوباً مسبقاً، فتحتاج كلمة المرور فقط.',
         },
       },
     ],

@@ -70,6 +70,11 @@
       form.username.setAttribute('inputmode', 'email');
       document.getElementById('forgotLine').classList.remove('hidden');
       document.getElementById('setupLine').classList.add('hidden');
+      // The last email used on this phone is filled in, so only the password is needed.
+      if (lastEmail()) {
+        form.username.value = lastEmail();
+        form.password.focus();
+      }
     }
 
     if (PHONE_ON_DATABASE) {
@@ -108,6 +113,7 @@
           ? { email: form.username.value, password: form.password.value }
           : { username: form.username.value, password: form.password.value }));
         saveSession(session);
+        if (USE_DATABASE) rememberEmail(session.email || form.username.value);
         location.replace('index.html');
       } catch (err) {
         showMessage(messageEl, err.message);

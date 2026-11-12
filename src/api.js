@@ -89,6 +89,16 @@ function clearSession() {
   try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
 }
 
+// The email of the last person who signed in on this phone (owner 2026-11-12), so after the 12-hour sign-out Sign In
+// only needs the password. Kept when signing out on purpose; Sign In can be typed over for someone else.
+const LAST_EMAIL_KEY = 'smartScanLastEmail';
+function rememberEmail(email) {
+  try { if (email) localStorage.setItem(LAST_EMAIL_KEY, String(email).trim().toLowerCase()); } catch (e) {}
+}
+function lastEmail() {
+  try { return localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch (e) { return ''; }
+}
+
 // Each backend request takes about 2 seconds, so a page first shows its last answer saved on this phone,
 // then the fresh one. While the saved one shows, the body has class "showing-saved": elements marked
 // .saved-dim are dimmed and .saved-lock can't be tapped (their buttons would act on old numbers).
