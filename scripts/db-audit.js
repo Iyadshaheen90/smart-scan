@@ -9,7 +9,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const PROD_REF = 'ulxiphcgningbjgrvdui';
 const prod = process.argv.includes('--prod');
-const target = prod ? ['--project-ref', PROD_REF] : ['--linked'];
+const target = prod ? ['--linked', '--project-ref', PROD_REF] : ['--linked'];
 const out = execFileSync('npx', ['--yes', 'supabase@2.122.0', 'db', 'query', ...target, '-f', path.join(__dirname, 'db-audit.sql')],
   { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
 const a = JSON.parse(out.slice(out.indexOf('{'))).rows[0].audit;
