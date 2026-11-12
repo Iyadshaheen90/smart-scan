@@ -12,8 +12,8 @@ or before the next review. The cutover steps are in `docs/cutover.md`.
   only; postgres owns only the three plain helpers and the four Vault / password functions. Every table is in schema
   `app` with forced row security and policies for `smart_scan_api` only. `smart_scan_api` can't log in, bypass row
   security or create objects.
-- **Not run on prod:** the same audit on the live project was blocked for the assistant. The owner runs
-  `node scripts/db-audit.js --prod` (read only); it must print "Nothing out of place" with 26 migrations.
+- **Prod:** the owner ran `node scripts/db-audit.js --prod` on 2026-11-12 after migration 0027: 27 migrations, 1 real
+  store, nothing out of place.
 - **Storage / Vault / auth:** the screenshots bucket is private with no policies (service key only); Vault is reachable
   only through the three retailer-number functions; public sign-up and anonymous sign-ins are off.
 - **Edge Functions:** `members` checks the caller is the store's owner (with the caller's own token) before any service

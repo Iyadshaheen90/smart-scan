@@ -28,7 +28,8 @@ this before any cutover work. The review behind it: `docs/db-review-2026-11.md`.
 
 - [ ] Decide on the fixes in `docs/db-review-2026-11.md` (finding 1 is money; finding 2 starts to matter on Dec 1).
 - [x] Sheets "moved" lock (backend @42 + pages sw v68) and migration 0027 (dev + prod) deployed 2026-11-12.
-- [ ] Owner runs `node scripts/db-audit.js --prod`: "Nothing out of place", 27 migrations.
+- [x] Owner ran `node scripts/db-audit.js --prod` 2026-11-12: 27 migrations, 1 real store, "Nothing out of place".
+      Run it again after any new migration on prod.
 - [ ] Prod matches dev: same migrations, `members` + `support` functions deployed, the 3 function secrets and the
       status-link secret set, auth settings pushed (`docs/supabase.md`).
 - [ ] Nov 27–29: `node scripts/import-sheets.js invite --all` (owner types `send`). Each employee adds the store's
