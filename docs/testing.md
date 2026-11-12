@@ -34,6 +34,7 @@ node test/browser/try-again.js            # Try again on Slots, Back stock, Mont
 node test/browser/sw-offline.js           # real service worker: every file saved on install; offline Slots shows Try again
 node test/browser/sw-cache-first.js       # real service worker: opens with no answer from the server; a deploy downloads as one set (?v=), shows from the next page, old set deleted; back to the front checks
 node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
+                                          #   dev holds other test stores: after `reset role` every check must filter `store_id` (RLS is off then)
                                           #   incl. shipment_pack_numbers_test.sql: packs by number, pack_used / pack_twice refusals, all or nothing, activation by number
                                           #   incl. prod_import_test.sql: import, clear only with the store's name, import again keeping people
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
