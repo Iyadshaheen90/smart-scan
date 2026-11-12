@@ -285,9 +285,11 @@ max_frequency = "5s"
 # 14152127777 = "123456"
 
 # Configure logged in session timeouts.
-# [auth.sessions]
+# The app signs people out after 12 hours (api.js DB_SESSION_HOURS); the server ends the sign-in then too, so a copied
+# refresh token stops working (2026-11-12 review). Needs the Pro plan: set on prod; the Free dev project may refuse it.
+[auth.sessions]
 # Force log out after the specified duration.
-# timebox = "24h"
+timebox = "12h"
 # Force log out if the user has been inactive longer than the specified duration.
 # inactivity_timeout = "8h"
 

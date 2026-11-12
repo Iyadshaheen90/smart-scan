@@ -12,4 +12,12 @@ SMTP_PASS=$(sed -n 's/^SMTP_PASS=//p' "$ENV_FILE" | tr -d ' "\r')
 export SMTP_USER SMTP_PASS
 [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ] || { echo "SMTP_USER and SMTP_PASS must be filled in $ENV_FILE"; exit 1; }
 cd "$(dirname "$0")/.."
-npx --yes supabase@2.122.0 config push
+# Dev is on the Free plan, which refuses [auth.sessions] (the 12-hour sign-in limit, prod only) and with it the whole
+# auth push. So dev gets a copy of the settings without that section. For prod, push by hand with --project-ref
+# (docs/supabase.md); the full file applies there.
+COPY=$(mktemp -d)
+trap 'rm -rf "$COPY"' EXIT
+mkdir "$COPY/supabase"
+cp -R supabase/templates supabase/.temp "$COPY/supabase/"
+sed -e 's/^\[auth\.sessions\]$/# [auth.sessions]/' -e 's/^timebox = "12h"$/# timebox = "12h"/' supabase/config.toml > "$COPY/supabase/config.toml"
+npx --yes supabase@2.122.0 config push --workdir "$COPY"

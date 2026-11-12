@@ -70,6 +70,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   was taken out of back stock on … (reason)"; twice in one shipment → `pack_twice`; checked before anything is written, so
   nothing is saved. Count mode ignores them. Sheets ignores `packNumbers` (counts only; owner careful until Dec 1).
   Test: `supabase/tests/shipment_pack_numbers_test.sql`. **Status: LIVE on dev + prod 2026-11-11 (owner's OK; owner smart_scan_api, authenticated only).**
+- **Sign-ins end on the server after 12 hours (2026-11-12, prod only, owner's OK):** `[auth.sessions] timebox = "12h"` in config.toml, pushed to prod with `config push --project-ref …` (only that line differed). It matches the app's 12 hours, so a copied refresh token dies with the sign-in. The Free dev project refuses it (402), so `scripts/push-auth-config.sh` pushes dev a copy without that section.
 - **Review fixes (migration 0027, 2026-11-12; `docs/db-review-2026-11.md`):** `reopen_close` deletes and restores only close
   lines of packs still live (newest first); `app.counted_out(pack)` = removed with reason count / adjust: `activate_pack`
   (same row goes live; takes an unnumbered pack if there is one), `sell_full_pack` (needs an unnumbered pack) and

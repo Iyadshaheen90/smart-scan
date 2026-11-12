@@ -93,7 +93,6 @@ Fix: add `store_id = app.current_store_id()` to the member queries in `app.users
 - **Fixed (sw v70):** a rate-limited token renewal (429) signed the person out; it now counts as "try again".
 - **Open, small:** a database error without an app code (a bug, not a refusal) is treated like a server hiccup, so a
   waiting close would retry it forever; the person can still tap Stop Sending. Fix when it ever happens.
-- **Open, hardening:** the app signs people out after 12 hours, but the database's refresh token keeps working until
-  it is used or revoked. On prod (Pro plan) set `[auth.sessions] timebox = "12h"` in `supabase/config.toml` and push
-  the auth settings, so a copied token dies with the sign-in. Needs the owner's OK (live auth setting).
+- **Done 2026-11-12 (prod, owner's OK):** sign-ins now end on the server after 12 hours too (`[auth.sessions] timebox`),
+  so a copied refresh token dies with the app's sign-in. Dev (Free plan) can't have it.
 - **Note:** a close waiting on phone A is sent by whoever signs in next on that phone, under their name (same on Sheets).
