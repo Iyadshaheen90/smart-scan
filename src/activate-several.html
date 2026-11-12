@@ -29,6 +29,10 @@
       <div class="scan-guide"></div>
     </div>
     <label class="button hold-button" id="holdBtn">Press and Hold to Scan</label>
+    <div class="segmented" id="scanModeSwitch" style="margin-top: 10px;">
+      <button type="button" data-mode="hold">Press and Hold</button>
+      <button type="button" data-mode="auto">Auto Scan</button>
+    </div>
     <form id="typedForm">
       <label for="typed">Or Type the Number Printed on the Ticket</label>
       <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075">
@@ -78,7 +82,11 @@
   <script src="nav.js"></script>
   <script src="barcode.js"></script>
   <script type="module">
-    import { startScanner, afterLift, haptic } from './scanner.js';
+    import { startScanner, afterLift, haptic, scanModeSwitch } from './scanner.js';
+    // Press and Hold | Auto Scan: one choice for putting packs in (this page and the other activate page), kept on this phone.
+    const scanMode = scanModeSwitch(document.getElementById('scanModeSwitch'), 'smartScanActivateScanMode', document.getElementById('holdBtn'));
+    // No scans while a pop-up is open.
+    const popupOpen = () => Boolean(document.querySelector('.overlay:not(.hidden)'));
 
     // The owner, or an employee the owner gave Load packs (Returned on a row also needs Return packs).
     const session = requireLogin(['load_packs']);
@@ -517,9 +525,11 @@
         video: $('video'),
         viewport: $('viewport'),
         holdBtn: $('holdBtn'),
+        mode: scanMode.mode,
+        paused: popupOpen,
         onStatus: (text) => (text ? showMessage($('message'), text) : null),
         onScan: useTicket,
-      });
+      }).then((s) => scanMode.attach(s));
       changed();
       return true;
     }

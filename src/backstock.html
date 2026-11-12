@@ -18,14 +18,37 @@
   <!-- Why the page could not load, with Try again: at the top so it is seen without scrolling. -->
   <div id="loadMessage" class="message"></div>
 
-  <!-- Owner only (owner's choice 2026-09-26), like the list of what's in the back below. -->
-  <div id="searchSection" class="hidden">
-    <label for="search">Find a Game</label>
-    <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Game number, e.g. 1747">
-    <div id="searchResults"></div>
-    <div id="searchMessage" class="message" style="margin-bottom: 14px;"></div>
+  <!-- Owner: two views (owner 2026-11-11). Backstock (the list, opens first) and Scan (the camera and the three modes;
+       the camera only runs here). An employee has no list, so no switch: only Scan. -->
+  <div class="segmented view-switch hidden" id="viewSwitch">
+    <button type="button" data-view="stock">Backstock</button>
+    <button type="button" data-view="scan">Scan</button>
   </div>
 
+  <div id="stockView" class="hidden">
+    <p class="sub saved-dim" id="totals"></p>
+    <div class="search-field">
+      <input id="search" type="search" inputmode="numeric" autocomplete="off" placeholder="Find a game, e.g. 1747" aria-label="Find a game">
+    </div>
+    <div id="stockMessage" class="message"></div>
+    <!-- Games with packs in the back, grouped by price (highest first), one row each; a row opens Manage Packs. -->
+    <div id="stock" class="saved-dim saved-lock">Loading…</div>
+    <div id="searchNone" class="message error hidden"></div>
+    <!-- 0 packs in the back, folded. Still live in a slot = Order More (the reorder list). -->
+    <details id="emptyBox" class="fold-box hidden saved-dim saved-lock">
+      <summary><span id="emptyTitle"></span><span class="tag days hidden" id="orderCount"></span></summary>
+      <div class="stock-group" id="empty"></div>
+      <p class="sub fold-note">Order More: still live in a slot, with no packs left in the back.</p>
+    </details>
+    <!-- Games the lottery has stopped, hidden from the list above. -->
+    <details id="endedBox" class="fold-box hidden saved-dim saved-lock">
+      <summary><span id="endedTitle"></span></summary>
+      <p class="sub fold-note">Hidden from back stock. Receiving a pack of one, or putting one in a slot, brings it back by itself.</p>
+      <div class="stock-group" id="ended"></div>
+    </details>
+  </div>
+
+  <div id="scanView">
   <div class="segmented" id="modeSwitch">
     <button type="button" data-mode="shipment">Shipment Received</button>
     <button type="button" data-mode="count">Manage Stock</button>
@@ -38,6 +61,10 @@
     <div class="scan-guide"></div>
   </div>
   <label class="button hold-button" id="holdBtn">Press and Hold to Scan</label>
+  <div class="segmented" id="scanModeSwitch" style="margin-top: 10px;">
+    <button type="button" data-mode="hold">Press and Hold</button>
+    <button type="button" data-mode="auto">Auto Scan</button>
+  </div>
   <form id="typedForm">
     <label for="typed">Or Type a Ticket Number, or Just the 4-Digit Game Number</label>
     <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075 or 1747">
@@ -53,26 +80,15 @@
     <button type="button" id="clearBtn">Clear List</button>
   </div>
   <div id="saveMessage" class="message"></div>
-
-  <div id="stockSection" class="hidden">
-    <h2>In the Back Now</h2>
-    <p class="sub saved-dim" id="totals"></p>
-    <div id="stock" class="saved-dim saved-lock">Loading…</div>
   </div>
-  <div id="stockMessage" class="message"></div>
-
-  <!-- Games the lottery has stopped, hidden from the list above. -->
-  <details id="endedBox" class="hidden saved-dim saved-lock" style="margin-top: 18px;">
-    <summary id="endedTitle"></summary>
-    <p class="sub">Hidden from back stock. Receiving a pack of one, or putting one in a slot, brings it back by itself.</p>
-    <div id="ended"></div>
-  </details>
 
   <!-- Manage packs: + / − the packs of one game in the back, then Save. More packs are saved at once
        (as a shipment); fewer first asks why, and nothing changes until a reason is tapped. -->
   <div id="packDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="packTitle">
     <div class="dialog">
       <div class="dialog-title" id="packTitle"></div>
+      <div class="slot-detail" id="packInfo"></div>
+      <div class="pack-where" id="packWhere"></div>
       <div id="packCountStep">
         <div class="slot-detail">Packs in the Back</div>
         <div class="stepper">
@@ -85,6 +101,8 @@
           <button type="button" class="cancel" id="packCancel">Cancel</button>
           <button type="button" class="save" id="packSave">Save</button>
         </div>
+        <!-- Only when none of the game is left: no packs in the back and not in a slot. -->
+        <button type="button" class="text-action pack-end hidden" id="packEnd">Game Ended…</button>
       </div>
       <div id="packReasonStep" class="hidden">
         <div class="dialog-label" id="packReasonTitle"></div>
@@ -153,7 +171,7 @@
   <script src="nav.js"></script>
   <script src="barcode.js"></script>
   <script type="module">
-    import { startScanner } from './scanner.js';
+    import { startScanner, scanModeSwitch } from './scanner.js';
 
     // Scan one ticket from each game, type how many packs, and save the whole list at once.
     // The list is kept on this phone until saved.
@@ -329,151 +347,137 @@
       if (mode === 'shipment') $('saveBtn').textContent = `Save Shipment (${lines.length} Game${lines.length === 1 ? '' : 's'}, ${packs} Pack${packs === 1 ? '' : 's'})`;
     }
 
-    // Quick lookup: games whose number contains what's typed (a typed ticket number uses its game).
-    function renderSearch() {
-      const results = $('searchResults');
-      results.innerHTML = '';
-      let query = $('search').value.replace(/\D/g, '');
-      if (query.length > 4) query = query.slice(0, 4);
-      if (!query) return;
-      if (!stockLoaded) {
-        results.textContent = 'Loading…';
-        return;
-      }
-      const found = stock.filter((g) => g.gameNumber.includes(query));
-      if (found.length === 0) {
-        const none = document.createElement('div');
-        none.className = 'message error';
-        none.textContent = query.length === 4
-          ? `Game ${query}: none in the back. It isn't in back stock at all.`
-          : `No game number has ${query} in it.`;
-        results.append(none);
-        return;
-      }
-      for (const g of found) results.append(g.endedDate ? endedCard(g, $('searchMessage')) : stockCard(g, true));
+    // --- The Backstock list (owner, owner 2026-11-11) ---
+    // Games with packs in the back, grouped by price (highest first), one tappable row each. Games with none in the back
+    // fold into "None in the Back"; one still live in a slot there is tagged Order More. Find a Game filters all of it.
+
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    // The digits typed in Find a Game, up to a game number (a typed ticket number uses its game).
+    const searchQuery = () => $('search').value.replace(/\D/g, '').slice(0, 4);
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = text;
+      return node;
     }
 
-    function stockCard(g, withSlots) {
-      const card = document.createElement('div');
-      card.className = 'card' + (g.packsInBack === 0 ? ' inactive' : '');
-      const top = document.createElement('div');
-      top.className = 'row';
-      const name = document.createElement('strong');
-      name.textContent = `Game ${g.gameNumber} · $${g.price}`;
-      const tag = document.createElement('span');
-      tag.className = g.packsInBack === 0 ? 'tag warn' : 'tag live';
-      tag.textContent = g.packsInBack === 0 ? 'None in the Back' : `${g.packsInBack} Pack${g.packsInBack === 1 ? '' : 's'}`;
-      top.append(name, tag);
-      const detail = document.createElement('div');
-      detail.className = 'slot-detail';
-      detail.textContent = `${g.ticketsInBack} tickets · ${money(g.valueInBack)} · ${g.ticketsPerPack} per pack`
-        + (g.standardPackSize && g.ticketsPerPack !== g.standardPackSize ? ` (usually ${g.standardPackSize}!)` : '')
-        + (!withSlots && g.liveSlots ? ` · live in ${g.liveSlots} slot${g.liveSlots === 1 ? '' : 's'}` : '');
-      card.append(top, detail);
-      if (withSlots) {
-        const where = document.createElement('div');
-        where.className = 'slot-detail';
-        const slots = g.liveIn || [];
-        where.textContent = slots.length
-          ? `On display: ${slots.map((x) => `Box ${x.box} · Slot ${x.slot}`).join(', ')}`
-          : 'Not in any slot now';
-        card.append(where);
-      }
-      // Buttons on a search result report up here, next to it, not at the bottom of the page.
-      const messageEl = withSlots ? $('searchMessage') : $('stockMessage');
-      const buttons = [managePacksButton(g, messageEl)];
-      if (g.packsInBack === 0 && !g.liveSlots) buttons.push(endGameButton(g, messageEl));
-      card.append(actionRow(...buttons));
-      return card;
-    }
-
-    function endedCard(g, messageEl) {
-      const card = document.createElement('div');
-      card.className = 'card inactive';
-      const top = document.createElement('div');
-      top.className = 'row';
-      const name = document.createElement('strong');
-      name.textContent = `Game ${g.gameNumber} · $${g.price}`;
-      const tag = document.createElement('span');
-      tag.className = 'tag';
-      tag.textContent = `Ended ${g.endedDate}`;
-      top.append(name, tag);
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'small';
-      button.textContent = 'Bring Back';
-      button.addEventListener('click', () => changeGame(button, 'bringBackGame', g, messageEl, `Game ${g.gameNumber} is back in back stock.`));
-      card.append(top, actionRow(button));
-      return card;
-    }
-
-    // Only offered when none of the game is left: no packs in the back and not in a slot.
-    function endGameButton(g, messageEl) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'small';
-      button.textContent = 'Game Ended…';
-      button.addEventListener('click', () => {
-        if (!confirm(`Mark game ${g.gameNumber} as ended? Do this when the lottery has stopped the game. It disappears from back stock. Its sales history stays, and receiving a pack of it later brings it back.`)) return;
-        changeGame(button, 'endGame', g, messageEl, `Game ${g.gameNumber} marked ended and hidden. It's under "Ended Games" at the bottom if you need it back.`);
-      });
-      return button;
-    }
-
-    async function changeGame(button, action, g, messageEl, done) {
-      try {
-        stock = await whileBusy(button, '…', () => api(action, { gameNumber: g.gameNumber }));
-        renderStock();
-        showMessage(messageEl, done, 'ok');
-      } catch (err) {
-        showMessage(messageEl, err.message);
-      }
-    }
-
-    function actionRow(...buttons) {
-      const row = document.createElement('div');
-      row.className = 'row';
-      row.style.marginTop = '8px';
-      row.style.justifyContent = 'flex-start';
-      row.append(...buttons);
+    // Number, packs, slots it's live in, then its value (or Order More); tapping it opens Manage Packs.
+    function stockRow(g) {
+      const row = el('button', 'stock-row');
+      row.type = 'button';
+      row.dataset.game = g.gameNumber;
+      const orderMore = g.packsInBack === 0 && g.liveSlots > 0;
+      if (g.packsInBack === 0 && !orderMore) row.classList.add('dim');
+      const mid = el('span', 'stock-mid');
+      if (g.packsInBack > 0) mid.append(el('span', 'stock-packs', plural(g.packsInBack, 'Pack')));
+      mid.append(el('span', 'stock-live' + (g.liveSlots ? '' : ' none'), g.liveSlots ? `${g.liveSlots} Live` : 'Not Live'));
+      const end = orderMore ? el('span', 'tag days', 'Order More') : el('span', 'stock-value', g.packsInBack ? money(g.valueInBack) : '');
+      const chevron = el('span', 'stock-chevron');
+      chevron.innerHTML = icon('chevronRight');
+      row.append(el('span', 'stock-num mono', g.gameNumber), mid, end, chevron);
+      row.addEventListener('click', () => openPackDialog(g));
       return row;
     }
+
+    function endedRow(g) {
+      const row = el('div', 'stock-row ended-row');
+      const button = el('button', 'small', 'Bring Back');
+      button.type = 'button';
+      button.addEventListener('click', () => changeGame(button, 'bringBackGame', g, `Game ${g.gameNumber} is back in back stock.`));
+      row.append(el('span', 'stock-num mono', g.gameNumber), el('span', 'stock-mid', `$${g.price} · Ended ${g.endedDate}`), button);
+      return row;
+    }
+
+    // A folded list hides when it has nothing. While searching it opens to show what matches; otherwise it stays
+    // open or shut the way the owner left it.
+    const foldOpen = {};
+    function fold(box, list, rows, total, query) {
+      list.replaceChildren(...rows);
+      box.classList.toggle('hidden', total === 0 || (Boolean(query) && rows.length === 0));
+      box.open = query ? rows.length > 0 : Boolean(foldOpen[box.id]);
+    }
+    for (const id of ['emptyBox', 'endedBox']) $(id).addEventListener('toggle', () => { if (!searchQuery()) foldOpen[id] = $(id).open; });
 
     function renderStock() {
       if (!isOwner) return;
       const games = active();
       const total = games.reduce((sum, g) => sum + g.valueInBack, 0);
       const packs = games.reduce((sum, g) => sum + g.packsInBack, 0);
-      $('totals').textContent = `${packs} packs · ${money(total)} at ticket price`;
+      $('totals').textContent = `${plural(packs, 'pack')} · ${money(total)} at ticket price`;
+      const query = searchQuery();
+      const hit = (g) => !query || g.gameNumber.includes(query);
+      const newestFirst = (a, b) => b.gameNumber.localeCompare(a.gameNumber);
+
       const list = $('stock');
       list.innerHTML = '';
-      if (games.length === 0) list.textContent = 'No games yet.';
-      for (const g of games) list.append(stockCard(g, false));
+      const stocked = games.filter((g) => g.packsInBack > 0);
+      if (!query && games.length === 0) list.textContent = 'No games yet.';
+      else if (!query && stocked.length === 0) list.textContent = 'Nothing in the back now.';
+      let shown = 0;
+      for (const price of [...new Set(stocked.map((g) => g.price))].sort((a, b) => b - a)) {
+        const group = stocked.filter((g) => g.price === price);
+        const rows = group.filter(hit).sort(newestFirst);
+        if (!rows.length) continue;
+        shown += rows.length;
+        const groupPacks = group.reduce((sum, g) => sum + g.packsInBack, 0);
+        const groupValue = group.reduce((sum, g) => sum + g.valueInBack, 0);
+        const head = el('div', 'stock-price-head');
+        head.append(el('span', 'stock-price', `$${price}`), el('span', 'stock-price-sum', `${plural(groupPacks, 'pack')} · ${money(groupValue)}`));
+        const box = el('div', 'stock-group');
+        box.append(...rows.map(stockRow));
+        const section = el('section', 'stock-price-group');
+        section.append(head, box);
+        list.append(section);
+      }
+
+      // Order More first, then by price.
+      const empty = games.filter((g) => g.packsInBack === 0)
+        .sort((a, b) => (b.liveSlots > 0) - (a.liveSlots > 0) || b.price - a.price || newestFirst(a, b));
+      const emptyHits = empty.filter(hit);
+      fold($('emptyBox'), $('empty'), emptyHits.map(stockRow), empty.length, query);
+      $('emptyTitle').textContent = `None in the Back (${empty.length})`;
+      const toOrder = empty.filter((g) => g.liveSlots > 0).length;
+      $('orderCount').textContent = `${toOrder} to Order`;
+      $('orderCount').classList.toggle('hidden', toOrder === 0);
 
       const gone = ended();
-      $('endedBox').classList.toggle('hidden', gone.length === 0);
+      const goneHits = gone.filter(hit);
+      fold($('endedBox'), $('ended'), goneHits.map(endedRow), gone.length, query);
       $('endedTitle').textContent = `Ended Games (${gone.length})`;
-      $('ended').innerHTML = '';
-      for (const g of gone) $('ended').append(endedCard(g, $('stockMessage')));
-      renderSearch();
+
+      // Nothing has the number typed.
+      const none = Boolean(query) && shown + emptyHits.length + goneHits.length === 0;
+      $('searchNone').classList.toggle('hidden', !none);
+      $('searchNone').textContent = !none ? ''
+        : query.length === 4 ? `Game ${query} isn't in back stock at all.` : `No game number has ${query} in it.`;
+    }
+
+    async function changeGame(button, action, g, done) {
+      try {
+        stock = await whileBusy(button, '…', () => api(action, { gameNumber: g.gameNumber }));
+        renderStock();
+        showMessage($('stockMessage'), done, 'ok');
+      } catch (err) {
+        showMessage($('stockMessage'), err.message);
+      }
     }
 
     // --- Manage packs dialog ---
 
     let dialog = null;   // { g, count, messageEl } while open
 
-    function managePacksButton(g, messageEl) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'small';
-      button.textContent = 'Manage Packs';
-      button.addEventListener('click', () => openPackDialog(g, messageEl));
-      return button;
-    }
-
-    function openPackDialog(g, messageEl) {
-      dialog = { g, count: g.packsInBack, messageEl };
+    // What the row didn't have room for: tickets, value, pack size, and the slots it's on display in.
+    function openPackDialog(g) {
+      dialog = { g, count: g.packsInBack, messageEl: $('stockMessage') };
       $('packTitle').textContent = `Game ${g.gameNumber} · $${g.price}`;
+      $('packInfo').textContent = (g.packsInBack ? `${g.ticketsInBack} tickets · ${money(g.valueInBack)} · ` : '')
+        + `${g.ticketsPerPack} per pack`
+        + (g.standardPackSize && g.ticketsPerPack !== g.standardPackSize ? ` (usually ${g.standardPackSize}!)` : '');
+      const slots = g.liveIn || [];
+      $('packWhere').textContent = slots.length
+        ? `On display: ${slots.map((x) => `Box ${x.box} · Slot ${x.slot}`).join(', ')}`
+        : 'Not in any slot now';
+      $('packEnd').classList.toggle('hidden', !(g.packsInBack === 0 && !g.liveSlots));
       showCountStep();
       $('packDialog').classList.remove('hidden');
     }
@@ -538,6 +542,14 @@
       $('packReasonTitle').textContent = `Remove ${packs} Pack${packs === 1 ? '' : 's'} (${g.packsInBack} → ${count} in the Back). Why?`;
       $('packCountStep').classList.add('hidden');
       $('packReasonStep').classList.remove('hidden');
+    });
+
+    // Game Ended: only offered when none of the game is left (no packs in the back, not in a slot).
+    $('packEnd').addEventListener('click', () => {
+      const { g } = dialog;
+      if (!confirm(`Mark game ${g.gameNumber} as ended? Do this when the lottery has stopped the game. It disappears from back stock. Its sales history stays, and receiving a pack of it later brings it back.`)) return;
+      sendChange($('packEnd'), '…', 'endGame', {},
+        () => `Game ${g.gameNumber} marked ended and hidden. It's under "Ended Games" at the bottom if you need it back.`);
     });
 
     // Tapping a reason is what removes the packs.
@@ -707,9 +719,9 @@
 
     $('notes').addEventListener('input', saveDraft);
     $('search').addEventListener('input', () => {
-      $('searchMessage').className = 'message';
-      $('searchMessage').textContent = '';
-      renderSearch();
+      $('stockMessage').className = 'message';
+      $('stockMessage').textContent = '';
+      renderStock();
     });
 
     $('clearBtn').addEventListener('click', () => {
@@ -766,7 +778,8 @@
         // The camera starts once back stock has loaded, so Try again starts it too.
         showLoadError($('loadMessage'), err, async () => {
           if (!(await loadStock())) return false;
-          startCamera().catch(cameraError);
+          cameraAllowed = true;
+          startCamera();
           return true;
         });
         return false;
@@ -774,8 +787,7 @@
     }
 
     async function start() {
-      $('searchSection').classList.toggle('hidden', !isOwner);
-      $('stockSection').classList.toggle('hidden', !isOwner);
+      $('viewSwitch').classList.toggle('hidden', !isOwner);
       // Only the modes this person may use; one mode needs no switch.
       document.querySelectorAll('#modeSwitch button').forEach((b) => b.classList.toggle('hidden', !modes.includes(b.dataset.mode)));
       $('modeSwitch').classList.toggle('hidden', modes.length < 2);
@@ -784,21 +796,60 @@
       const asked = new URLSearchParams(location.search).get('mode');
       if (asked in MODE_PERMISSIONS) mode = asked;
       if (!modes.includes(mode)) mode = modes[0];
+      // The owner starts on the list, or on Scan when a mode was asked for (Home's links, Full pack sales) or a
+      // shipment/count list is waiting to be saved. An employee only has Scan.
+      showView(isOwner && !(asked in MODE_PERMISSIONS) && lines.length === 0 ? 'stock' : 'scan');
       render();
-      if (await loadStock()) await startCamera();
+      if (await loadStock()) {
+        cameraAllowed = true;
+        startCamera();
+      }
     }
 
+    // --- Views (owner): Backstock | Scan. The camera runs only while Scan shows. ---
+
+    let view = 'scan';
+    let scanner = null;           // once started
+    let cameraStarting = false;
+    let cameraAllowed = false;    // back stock has loaded (scans decide from it whether a game is new)
+    const scanMode = scanModeSwitch($('scanModeSwitch'), 'smartScanBackStockScanMode', document.getElementById('holdBtn'));
+    // No scans while a pop-up is open (Auto Scan would otherwise open the next game over it).
+    const popupOpen = () => ['packDialog', 'shipDialog', 'sellDialog'].some((id) => !$(id).classList.contains('hidden'));
+
+    function showView(next) {
+      view = next;
+      document.querySelectorAll('#viewSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
+      $('stockView').classList.toggle('hidden', view !== 'stock');
+      $('scanView').classList.toggle('hidden', view !== 'scan');
+      if (view === 'scan') startCamera();
+      else if (scanner) scanner.stop();
+    }
+    document.querySelectorAll('#viewSwitch button').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.view !== view) showView(b.dataset.view);
+    }));
+
     function startCamera() {
-      return startScanner({
+      if (view !== 'scan' || !cameraAllowed) return;
+      if (scanner) { scanner.resume(); return; }
+      if (cameraStarting) return;
+      cameraStarting = true;
+      startScanner({
         video: $('video'),
         viewport: $('viewport'),
         holdBtn: $('holdBtn'),
+        mode: scanMode.mode,
+        paused: popupOpen,
         onStatus: (text) => (text ? flash(text, 'error') : null),
         onScan: (ticket) => addTicket(ticket),
-      });
+      }).then((s) => {
+        scanner = s;
+        scanMode.attach(s);
+        // Switched back to the list while the camera was opening.
+        if (view !== 'scan') s.stop();
+      }).catch(cameraError);
     }
 
-    function cameraError(err) { showMessage($('stockMessage'), err.message); }
+    function cameraError(err) { showMessage($('loadMessage'), err.message); }
 
     if (session) start().catch(cameraError);
   </script>

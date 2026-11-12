@@ -124,4 +124,15 @@ async function tapUseThisNumber(page) {
   await page.click('#typedForm button');
 }
 
-module.exports = { openApp, backendInVm, removeInDialog, typeTop, tapUseThisNumber, ABORT, sleep };
+// Back Stock list (owner 2026-11-11): one row per game; tapping it opens Manage Packs. rowText is the row's words.
+const gameRow = (game) => `button.stock-row[data-game="${game}"]`;
+async function tapGameRow(page, game) {
+  // A row under a folded list (None in the Back): unfold it first, as a person would.
+  await page.$eval(gameRow(game), (b) => { const fold = b.closest('details'); if (fold) fold.open = true; b.scrollIntoView({ block: 'center' }); });
+  await page.click(gameRow(game));
+}
+const rowText = (page, game) => page.$eval(gameRow(game), (b) => b.innerText.replace(/\s+/g, ' ').trim());
+// Back Stock opens on the list for the owner; Scan shows the camera and the three modes.
+const showScan = (page) => page.click('#viewSwitch button[data-view="scan"]');
+
+module.exports = { openApp, backendInVm, removeInDialog, typeTop, tapUseThisNumber, tapGameRow, rowText, gameRow, showScan, ABORT, sleep };

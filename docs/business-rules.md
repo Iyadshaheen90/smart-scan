@@ -168,7 +168,10 @@ Moved out of CLAUDE.md on 2026-10-29. Read before changing how anything is count
 - `DailyCloseLog.previous_close_date` lets reopen/undo restore a pack's last close even when it was in an earlier month.
 
 **Scanning**
-- Press-and-hold is the default everywhere; Auto scan is an opt-in toggle (Close Day remembers it per phone).
+- Press-and-hold is the default everywhere; Auto scan is an opt-in toggle under the camera, remembered per phone: Close Day
+  (`smartScanCloseMode`), Back Stock Scan (`smartScanBackStockScanMode`), putting packs in — slot page + Activate Several share
+  `smartScanActivateScanMode` (owner 2026-11-11). `scanModeSwitch` in scanner.js; a page passes `paused` so Auto Scan reads
+  nothing while a pop-up is open (the ticket still in view isn't counted again after), and nothing is read while the camera is hidden.
 - Every scan screen also accepts the typed printed number (`parsePrintedTicket`), **except Close Day / Close Shift**
   (owner 2026-10-31): there the field takes only the 3-digit top ticket of the slot on the card (game-pack shown gray
   in front), saved with a tap on Use This Number, keyboard kept up for the next slot. Refused with a red note under the

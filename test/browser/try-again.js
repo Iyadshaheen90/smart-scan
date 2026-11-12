@@ -1,6 +1,6 @@
 // Try again (owner's request 2026-10-04): when Slots, Back stock or Months & totals can't load, the reason shows
 // with a Try again button. Tapping it loads again: still no connection → the reason and a fresh button come back;
-// connected → the page fills in and the message goes away. Back stock's camera starts once it has loaded.
+// connected → the page fills in and the message goes away. Back stock's camera starts (on Scan) once it has loaded.
 // The message sits at the top, under the header, so it's seen without scrolling (owner 2026-10-04), even when the
 // saved list from an earlier load fills the page.
 // Run: node test/browser/try-again.js   (SHOTS=dir also saves a screenshot)
@@ -20,7 +20,7 @@ const data = { listSlots: Array.from({ length: 24 }, (_, i) => live(i + 1)), lis
 
 const pages = [
   { url: 'slots.html', message: '#loadMessage', loaded: () => document.querySelectorAll('#list .slot-card, #list a').length > 0 },
-  { url: 'backstock.html', message: '#loadMessage', loaded: () => document.querySelectorAll('#stock .card').length === 1 },
+  { url: 'backstock.html', message: '#loadMessage', loaded: () => document.querySelectorAll('#stock .stock-row').length === 1 },
   { url: 'month.html', message: '#loadMessage', loaded: () => /\$700/.test(document.getElementById('current').innerText) },
 ];
 
@@ -60,8 +60,11 @@ const pages = [
     await sleep(200);
     assert.equal(await page.$eval(p.message, (m) => m.textContent), '', `${p.url} message cleared`);
     if (p.url === 'backstock.html') {
+      // The owner is on the list, so no camera yet; Scan starts it now that back stock has loaded.
       await sleep(500);
-      assert.ok(await page.$eval('#video', (v) => Boolean(v.srcObject)), 'camera started after Try Again');
+      assert.equal(await page.$eval('#video', (v) => Boolean(v.srcObject)), false, 'no camera on the list');
+      await page.click('#viewSwitch button[data-view="scan"]');
+      await page.waitForFunction(() => Boolean(document.getElementById('video').srcObject), { timeout: 5000 });
     }
   }
 

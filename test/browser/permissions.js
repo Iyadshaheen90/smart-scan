@@ -189,7 +189,8 @@ async function backStock() {
   await page.goto(app.base + 'backstock.html?mode=count');
   await page.waitForFunction(() => !document.body.classList.contains('showing-saved') && document.getElementById('modeHint').textContent);
   await sleep(200);
-  for (const sel of ['#searchSection', '#stockSection', '#modeSwitch']) assert.equal(await visible(page, sel), false, sel);
+  for (const sel of ['#viewSwitch', '#stockView', '#modeSwitch']) assert.equal(await visible(page, sel), false, sel);
+  assert.equal(await visible(page, '#scanView'), true, 'an employee only has Scan');
   assert.match(await text(page, '#modeHint'), /delivery/, 'a mode they lack falls back to theirs');
   await page.type('#typed', '1747'); await page.click('#typedForm button');
   await page.waitForFunction(() => !document.getElementById('shipDialog').classList.contains('hidden'));

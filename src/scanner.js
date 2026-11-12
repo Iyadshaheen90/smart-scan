@@ -5,9 +5,16 @@
 // so nothing is picked up by accident. 'auto': scans whatever comes into view, then pauses, and
 // won't count the same ticket again until it has left the view.
 //
-//   const scanner = await startScanner({ video, viewport, holdBtn, onStatus, onScan, mode })
+//   const scanner = await startScanner({ video, viewport, holdBtn, onStatus, onScan, mode, paused })
 //   scanner.setMode('auto' | 'hold')
+//   scanner.stop() / scanner.resume()  camera off while its view is hidden / on again once it shows
 //   onScan(ticket) gets the parsed ticket; a barcode that isn't a ticket goes to onStatus instead.
+//   paused() (optional): true while the page wants no scans (a pop-up is open). Nothing is reported then, and in
+//   auto mode the ticket still in view isn't counted again when the pop-up closes; it has to leave the view first.
+//   Nothing is read while the camera picture is hidden (another view of the page, or a later step).
+//
+// scanModeSwitch(el, storageKey, holdBtn): the Press and Hold | Auto Scan switch (buttons with data-mode="hold" / "auto");
+// the phone remembers the choice under storageKey. Call .attach(scanner) once the scanner has started.
 
 import { readBarcodes, prepareZXingModule } from 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/es/reader/index.js';
 
@@ -139,7 +146,7 @@ export function holdFeedback(holdBtn) {
   return hold;
 }
 
-export async function startScanner({ video, viewport, holdBtn, onStatus, onScan, mode = 'hold' }) {
+export async function startScanner({ video, viewport, holdBtn, onStatus, onScan, mode = 'hold', paused = () => false }) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   let holding = false;
@@ -158,6 +165,15 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
       holdBtn.classList.add('hidden');
       if (mode === 'hold') holdBtn.classList.remove('hidden');
     },
+    // The page hid the camera's view: the camera is shut (its light goes off). Hide the view first, so nothing
+    // reopens it.
+    stop() {
+      const stream = video.srcObject;
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      video.srcObject = null;
+    },
+    // The view shows again: the camera opens now rather than on the next check.
+    resume() { keepCameraRunning(); },
   };
   controller.setMode(mode);
 
@@ -175,10 +191,16 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   holdBtn.addEventListener('pointerup', release);
   holdBtn.addEventListener('pointercancel', release);
 
-  const decoding = () => (mode === 'hold' ? holding && !done : Date.now() >= pausedUntil);
+  const onScreen = () => Boolean(video.offsetParent);
+  const decoding = () => onScreen() && !paused() && (mode === 'hold' ? holding && !done : Date.now() >= pausedUntil);
 
   function handle(text, format) {
     const now = Date.now();
+    // A pop-up is open: only note that the last ticket is still in view, so it isn't counted again after.
+    if (paused()) {
+      if (text === lastText) lastSeenAt = now;
+      return;
+    }
     if (mode === 'hold') {
       if (!holding || done) return; // a decode can finish after release
       done = true;
@@ -204,7 +226,7 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
   async function loop() {
     viewport.classList.toggle('paused', !decoding());
     // In auto mode keep decoding during the pause, just to notice when the last ticket leaves view.
-    if ((decoding() || mode === 'auto') && video.readyState >= 2 && video.videoWidth > 0) {
+    if ((decoding() || (mode === 'auto' && onScreen())) && video.readyState >= 2 && video.videoWidth > 0) {
       // Decode only the middle band of the frame, around the on-screen guide box.
       const vw = video.videoWidth;
       const vh = video.videoHeight;
@@ -276,4 +298,28 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     onStatus('Camera not available (' + err + '). Type the ticket number instead.');
   }
   return controller;
+}
+
+// Press and Hold | Auto Scan, chosen per page and remembered on this phone. Press and hold stays the default.
+export function scanModeSwitch(switchEl, storageKey, holdBtn) {
+  let mode = 'hold';
+  try { if (localStorage.getItem(storageKey) === 'auto') mode = 'auto'; } catch (e) {}
+  let scanner = null;
+  const buttons = switchEl.querySelectorAll('button[data-mode]');
+  // The hold button follows at once, also before the camera has opened.
+  const show = () => {
+    buttons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    if (holdBtn) holdBtn.classList.toggle('hidden', mode === 'auto');
+  };
+  buttons.forEach((b) => b.addEventListener('click', () => {
+    mode = b.dataset.mode === 'auto' ? 'auto' : 'hold';
+    show();
+    if (scanner) scanner.setMode(mode);
+    try { localStorage.setItem(storageKey, mode); } catch (e) {}
+  }));
+  show();
+  return {
+    get mode() { return mode; },
+    attach(s) { scanner = s; if (s) s.setMode(mode); },
+  };
 }

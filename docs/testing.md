@@ -14,7 +14,8 @@ node test/password-rule.js                # the password rule: api.js, Auth.js a
 
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
 node test/browser/offline-close.js        # Close Day with no connection, lost answer, home resend, refusal
-node test/browser/backstock-search.js     # Find a game
+node test/browser/backstock-search.js     # Back Stock list: Backstock|Scan views, camera only on Scan, by price, rows, None in the Back / Order More, Ended, Find a Game filters
+node test/browser/auto-scan.js            # Press and Hold | Auto Scan on the slot page and Back Stock Scan: default, hides hold at once, remembered, separate choices
 node test/browser/backstock-remove.js     # Manage packs, removing: why step, Back, Cancel, reasons, refusal (real backend code, fake sheet)
 node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cancel, Save as shipment (real backend code, fake sheet)
 node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 1, 0 greys Save, new game, ended game, waits for scan release

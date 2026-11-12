@@ -204,8 +204,16 @@ Frontend (`src/`, plain HTML + JS, no build):
     it falls back to `window.print()` with `@media print` (white, only the report; `.no-print` hides the choice and buttons). Employees: no Value column, no $ (server
     strips them, `theftReportWithoutDollars`). Nothing is saved or written.
 - `backstock.html` (owner; an employee with Receive shipments / Manage Stock / Full pack sale gets only those modes — no
-  search, no list, no $; `?mode=shipment|count|fullpack` opens that mode) **Find a Game** search at the top (by game number as you type; packs in the back and the
-  slots it's on display in, from `listBackStock().liveIn`; its buttons report right under it). **Shipment Received**: a scanned/typed game opens a
+  list, no $; `?mode=shipment|count|fullpack` opens that mode). **Two views (owner 2026-11-11)**: `#viewSwitch` Backstock | Scan.
+  The owner opens on Backstock, or on Scan with `?mode=` or a shipment/count draft; an employee only has Scan. The camera starts
+  on the first Scan (after back stock loads) and `scanner.stop()`s on Backstock. **Backstock**: totals, **Find a Game** (filters
+  the list itself, ticket number → its game; "isn't in back stock" / "No game number has" when nothing matches), then games with
+  packs grouped by price highest first (`.stock-price-head` "$20 · 9 packs · $5,400"), one `button.stock-row` each (number, Packs,
+  "N Live", value, chevron; newest game first); 0-pack games folded in `#emptyBox` "None in the Back (N)" with an amber "K to
+  Order" — Order More = still live in a slot, listed first; `#endedBox` Ended Games (rows with Bring Back). Folds open while a
+  search matches inside, else stay as the owner left them. A row opens the Manage packs dialog, which also shows `#packInfo`
+  (tickets · $ · per pack, "usually N!") and `#packWhere` (On display: slots), and **Game Ended…** (`#packEnd`) only for 0 packs
+  and no slot. Messages go to `#stockMessage` under the search. **Scan**: the modes below, plus Press and Hold | Auto Scan. **Shipment Received**: a scanned/typed game opens a
   pop-up (owner 2026-09-28): "Packs Received" − count + starting at 1 (− stops at 0, Save greyed there), a new game also
   asks price + pack size; Save sends `saveBackStock` shipment for that one game at once (source "delivery", no notes).
   A scan opens it only after the finger leaves "Press and hold" (`whenHandsFree`): opened under the finger, iPhones

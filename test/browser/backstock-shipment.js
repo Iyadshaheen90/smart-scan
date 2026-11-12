@@ -3,7 +3,7 @@
 // Run: node test/browser/backstock-shipment.js   (SHOT=dir also saves screenshots of the pop-up)
 const assert = require('assert/strict');
 const path = require('path');
-const { openApp, backendInVm, tapUseThisNumber } = require('./harness');
+const { openApp, backendInVm, tapUseThisNumber, showScan } = require('./harness');
 
 const { ctx, sheets: S, addRow, call } = backendInVm('2026-09-28');
 addRow('ReserveInventory', { game_number: '1747', price_per_ticket: 20, tickets_per_pack: 30, packs_in_reserve: 2, tickets_in_reserve: 60 });
@@ -24,7 +24,8 @@ function handle(body) {
 (async () => {
   const app = await openApp({ role: 'owner', handle });
   const { page, base } = app;
-  await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length === 1);
+  await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length === 1);
+  await showScan(page);   // the owner opens on the list
   const text = (sel) => page.$eval(sel, (el) => el.innerText);
   const open = () => page.$eval('#shipDialog', (el) => !el.classList.contains('hidden'));
   const disabled = (sel) => page.$eval(sel, (b) => b.disabled);
@@ -113,8 +114,20 @@ function handle(body) {
   assert.equal(await open(), false);
   assert.equal(await page.$eval('#lines', (el) => el.children.length), 1);
 
-  // 8. Reload: the page shows what the sheet says.
-  await page.reload(); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length === 3);
+  // 8. Auto Scan: Press and Hold goes away; the phone remembers the choice.
+  const holdShown = () => page.$eval('#holdBtn', (b) => !b.classList.contains('hidden'));
+  await page.waitForFunction(() => Boolean(document.getElementById('video').srcObject));
+  assert.equal(await text('#scanModeSwitch .active'), 'Press and Hold'); assert.equal(await holdShown(), true);
+  await page.click('#scanModeSwitch button[data-mode="auto"]');
+  assert.equal(await text('#scanModeSwitch .active'), 'Auto Scan'); assert.equal(await holdShown(), false);
+
+  // 9. Reload: the page shows what the sheet says. A count list is waiting, so it opens on Scan, still on Auto Scan.
+  await page.reload(); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length === 3);
+  assert.equal(await text('#viewSwitch .active'), 'Scan');
   assert.equal(await text('#totals'), '7 packs · $3,800 at ticket price');   // 5×30×$20 + 50×$10 + 60×$5
+  await page.waitForFunction(() => Boolean(document.getElementById('video').srcObject));
+  assert.equal(await text('#scanModeSwitch .active'), 'Auto Scan'); assert.equal(await holdShown(), false);
+  await page.click('#scanModeSwitch button[data-mode="hold"]');
+  assert.equal(await holdShown(), true);
   console.log('SHIPMENT RECEIVED DIALOG CHECKS PASS'); await app.close();
 })().catch((e) => { console.error(e); process.exit(1); });

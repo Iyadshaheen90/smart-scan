@@ -28,7 +28,7 @@ const monthsPage = (dollars, canStart) => ({ status: { current: '2026-09', curre
   // Nothing saved yet: pages load as before. Months & totals makes one request.
   await page.goto(base + 'slots.html'); await page.waitForFunction(() => document.querySelectorAll('#list .slot-card, #list a, #list .card').length > 0);
   assert.ok(!(await saved()));
-  await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length === 1);
+  await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length === 1);
   calls.length = 0;
   await page.goto(base + 'month.html'); await page.waitForFunction(() => !document.getElementById('startBox').classList.contains('hidden'));
   assert.deepEqual(calls, ['monthsPage'], 'Months & Totals is one request');

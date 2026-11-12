@@ -30,8 +30,9 @@ function handle(body) {
   const shot = async (name) => { if (process.env.SHOT) await page.screenshot({ path: path.join(process.env.SHOT, name) }); };
 
   // 1. Opened from the Full pack sales page: already in Full pack sale mode.
-  await page.goto(base + 'backstock.html?mode=fullpack'); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length >= 1);
+  await page.goto(base + 'backstock.html?mode=fullpack'); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length >= 1);
   assert.equal(await text('#modeSwitch .active'), 'Full Pack Sale');
+  assert.equal(await text('#viewSwitch .active'), 'Scan');   // a mode asked for opens on Scan, not the list
   assert.match(await text('#modeHint'), /whole sealed pack/);
 
   // 2. A bare game number isn't enough.
@@ -79,8 +80,9 @@ function handle(body) {
   assert.equal(await page.$eval('#lines', (el) => el.children.length), 0);
   assert.equal(await page.$eval('#saveArea', (el) => el.classList.contains('hidden')), true);
   // and a reload (no ?mode) goes back to the saved count list, never to a full pack draft
-  await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .card').length >= 1);
+  await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length >= 1);
   assert.equal(await text('#modeSwitch .active'), 'Manage Stock');
+  assert.equal(await text('#viewSwitch .active'), 'Scan');   // a list waiting to be saved opens on Scan
   await shot('fullpack-modes.png');
 
   console.log('BACK STOCK FULL PACK CHECKS PASS');
