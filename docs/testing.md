@@ -18,7 +18,7 @@ node test/browser/backstock-search.js     # Back Stock list: Backstock|Scan view
 node test/browser/auto-scan.js            # Press and Hold | Auto Scan on the slot page and Back Stock Scan: default, hides hold at once, remembered, separate choices
 node test/browser/backstock-remove.js     # Manage packs, removing: why step, Back, Cancel, reasons, refusal (real backend code, fake sheet)
 node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cancel, Save as shipment (real backend code, fake sheet)
-node test/browser/backstock-shipment.js   # Shipment received pop-up: starts at 1, 0 greys Save, new game, ended game, waits for scan release
+node test/browser/backstock-shipment.js   # Shipment Received list: a pack per scan, 2nd pack, same pack caught, typed = no number, −, new game price chips, Receive bar above tabs, draft, Receive (packNumbers sent, real backend), done card, ended game, refused pack red + tap off, Clear, waits for the lift
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 node test/browser/home.js                 # home for both roles: one request, saved numbers first, tiles, chips, Start month, huge numbers fit
@@ -34,6 +34,7 @@ node test/browser/try-again.js            # Try again on Slots, Back stock, Mont
 node test/browser/sw-offline.js           # real service worker: every file saved on install; offline Slots shows Try again
 node test/browser/sw-cache-first.js       # real service worker: opens with no answer from the server; a deploy downloads as one set (?v=), shows from the next page, old set deleted; back to the front checks
 node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
+                                          #   incl. shipment_pack_numbers_test.sql: packs by number, pack_used / pack_twice refusals, all or nothing, activation by number
                                           #   incl. prod_import_test.sql: import, clear only with the store's name, import again keeping people
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
 node test/browser/retailer-number.js     # More → Retailer Number (owner only, pop-up, refusals) and the number on the Theft Report (screen, text, PDF; owner + employee)

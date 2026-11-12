@@ -168,6 +168,9 @@ Moved out of CLAUDE.md on 2026-10-29. Read before changing how anything is count
 - `DailyCloseLog.previous_close_date` lets reopen/undo restore a pack's last close even when it was in an earlier month.
 
 **Scanning**
+- Shipments are scanned one ticket per pack (owner 2026-11-11). The lottery never sends the same pack number of a game
+  twice: the same pack twice in one shipment is never counted (page), and on the database a pack number it already has
+  (in the back, live, or ended) is refused with why and the shipment isn't saved (migration 0026). Sheets counts packs only.
 - Press-and-hold is the default everywhere; Auto scan is an opt-in toggle under the camera, remembered per phone: Close Day
   (`smartScanCloseMode`), Back Stock Scan (`smartScanBackStockScanMode`), putting packs in — slot page + Activate Several share
   `smartScanActivateScanMode` (owner 2026-11-11). `scanModeSwitch` in scanner.js; a page passes `paused` so Auto Scan reads

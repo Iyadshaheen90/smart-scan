@@ -456,9 +456,18 @@ const FAQ = [
         id: 'shipment', who: ['owner', 'receive_shipments'], go: 'backstock.html?mode=shipment',
         q: { en: 'How do I enter a shipment?', es: '¿Cómo registro un envío?', ar: 'كيف أسجّل شحنة؟' },
         a: {
-          en: 'Stock → Scan → Shipment Received. Scan one ticket from each game (or type the game number), set Packs Received with − and +, and tap Save. A new game also asks its ticket price and pack size.',
-          es: 'Stock → Scan → Shipment Received. Escanea un boleto de cada juego (o escribe el número de juego), ajusta Packs Received con − y +, y toca Save. Un juego nuevo también pide el precio del boleto y el tamaño del paquete.',
-          ar: 'Stock ← Scan ← Shipment Received. امسح تذكرة واحدة من كل لعبة (أو اكتب رقم اللعبة)، واضبط Packs Received بـ − و+، ثم اضغط Save. اللعبة الجديدة تسأل أيضاً عن سعر التذكرة وحجم الرزمة.',
+          en: 'Stock → Scan → Shipment Received. Scan one ticket from every pack in the delivery (Auto Scan makes it quick). Each scan adds that pack to This Shipment. A second pack of a game adds to its line, and the same pack scanned twice isn\'t counted. A new game asks its ticket price on its line. When every pack is on the list, tap Receive at the bottom. Nothing is saved until then, and the list stays on the phone if you get interrupted. No barcode? Type the game number to add a pack.',
+          es: 'Stock → Scan → Shipment Received. Escanea un boleto de cada paquete del envío (Auto Scan lo hace rápido). Cada escaneo agrega ese paquete a This Shipment. Un segundo paquete de un juego se suma a su línea, y el mismo paquete escaneado dos veces no se cuenta. Un juego nuevo pide el precio del boleto en su línea. Cuando todos los paquetes estén en la lista, toca Receive abajo. Nada se guarda hasta entonces, y la lista se queda en el teléfono si te interrumpen. ¿Sin código de barras? Escribe el número de juego para agregar un paquete.',
+          ar: 'Stock ← Scan ← Shipment Received. امسح تذكرة واحدة من كل رزمة في الشحنة (Auto Scan يجعل ذلك سريعاً). كل مسح يضيف تلك الرزمة إلى This Shipment. الرزمة الثانية من نفس اللعبة تُضاف إلى سطرها، والرزمة نفسها إذا مُسحت مرتين لا تُحسب. اللعبة الجديدة تسأل عن سعر التذكرة في سطرها. عندما تصبح كل الرزم في القائمة اضغط Receive في الأسفل. لا يُحفظ شيء قبل ذلك، وتبقى القائمة على الهاتف إذا انقطعت. لا يوجد باركود؟ اكتب رقم اللعبة لإضافة رزمة.',
+        },
+      },
+      {
+        id: 'pack-refused', who: ['owner', 'receive_shipments'], backend: 'supabase', go: 'backstock.html?mode=shipment',
+        q: { en: 'Receive says a pack is already in the back.', es: 'Receive dice que un paquete ya está atrás.', ar: 'يقول Receive إن رزمة موجودة في المخزن.' },
+        a: {
+          en: 'Each pack number of a game comes only once, so the app refuses a pack it already has: in the back, live in a slot, or already sold out or returned. The message says which pack and where it is. Nothing in the shipment was saved. Tap the red pack to take it off the list, then tap Receive again.',
+          es: 'Cada número de paquete de un juego llega una sola vez, así que la app rechaza un paquete que ya tiene: atrás, a la venta en una casilla, o ya agotado o devuelto. El mensaje dice qué paquete y dónde está. No se guardó nada del envío. Toca el paquete en rojo para quitarlo de la lista y toca Receive otra vez.',
+          ar: 'كل رقم رزمة للعبة يأتي مرة واحدة فقط، لذلك يرفض التطبيق رزمة موجودة لديه: في المخزن، أو معروضة في خانة، أو نفدت أو أُرجعت. تقول الرسالة أي رزمة وأين هي. لم يُحفظ شيء من الشحنة. اضغط الرزمة الحمراء لإزالتها من القائمة ثم اضغط Receive مرة أخرى.',
         },
       },
       {

@@ -65,12 +65,25 @@
     <button type="button" data-mode="hold">Press and Hold</button>
     <button type="button" data-mode="auto">Auto Scan</button>
   </div>
-  <form id="typedForm">
-    <label for="typed">Or Type a Ticket Number, or Just the 4-Digit Game Number</label>
-    <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075 or 1747">
-    <button type="submit">Add Game</button>
-  </form>
   <div id="flash" class="message"></div>
+
+  <!-- Shipment Received (owner 2026-11-11): one scan per pack adds it to this list (a second pack of a game adds to its
+       line; the same pack twice is caught). One Receive saves the whole shipment; pack numbers go with it. -->
+  <div id="shipArea" class="hidden">
+    <div class="ship-head">
+      <h2>This Shipment</h2>
+      <span class="ship-sum" id="shipSum"></span>
+    </div>
+    <div id="shipList"></div>
+    <div id="shipMessage" class="message"></div>
+  </div>
+  <div id="shipDone" class="card ship-done hidden"></div>
+
+  <form id="typedForm">
+    <label for="typed" id="typedLabel">Or Type a Ticket Number, or Just the 4-Digit Game Number</label>
+    <input id="typed" inputmode="numeric" autocomplete="off" placeholder="1747-1263622-4-075 or 1747">
+    <button type="submit" id="typedBtn">Add Game</button>
+  </form>
 
   <div id="lines"></div>
   <div id="saveArea" class="hidden">
@@ -121,32 +134,6 @@
     </div>
   </div>
 
-  <!-- Shipment received: scanning (or typing) a game opens this. It starts at 1 pack received; Save adds
-       them to what's in the back at once (a delivery). A new game also needs its price and pack size. -->
-  <div id="shipDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shipTitle">
-    <div class="dialog">
-      <div class="dialog-title" id="shipTitle"></div>
-      <div class="slot-detail" id="shipInfo"></div>
-      <div id="shipNewGame" class="hidden" style="text-align: left;">
-        <label for="shipPrice">Price per Ticket ($)</label>
-        <input id="shipPrice" type="number" min="0" step="1" inputmode="decimal" autocomplete="off">
-        <label for="shipSize">Tickets per Pack</label>
-        <input id="shipSize" type="number" min="1" step="1" inputmode="numeric" autocomplete="off">
-      </div>
-      <div class="slot-detail">Packs Received</div>
-      <div class="stepper">
-        <button type="button" id="shipMinus" aria-label="One pack less">−</button>
-        <div class="stepper-count" id="shipCount"></div>
-        <button type="button" id="shipPlus" aria-label="One pack more">+</button>
-      </div>
-      <div class="slot-detail" id="shipChange"></div>
-      <div class="dialog-buttons">
-        <button type="button" class="cancel" id="shipCancel">Cancel</button>
-        <button type="button" class="save" id="shipSave">Save</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Full pack sale: scanning (or typing) a ticket of a sealed pack opens this. Sell takes that pack off
        back stock and counts it in today's sales (listed on the owner's Full pack sales page). -->
   <div id="sellDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sellTitle">
@@ -163,6 +150,11 @@
     </div>
   </div>
 
+  <!-- Receive: floats above the tab bar while a shipment list has packs. -->
+  <div class="bulk-bar above-tabbar hidden" id="receiveBar">
+    <button type="button" class="primary" id="receiveBtn">Receive</button>
+  </div>
+
   <nav class="tabbar" data-active="stock"></nav>
 
   <script src="config.js"></script>
@@ -171,7 +163,7 @@
   <script src="nav.js"></script>
   <script src="barcode.js"></script>
   <script type="module">
-    import { startScanner, scanModeSwitch } from './scanner.js';
+    import { startScanner, scanModeSwitch, afterLift, haptic } from './scanner.js';
 
     // Scan one ticket from each game, type how many packs, and save the whole list at once.
     // The list is kept on this phone until saved.
@@ -186,7 +178,7 @@
     const money = (n) => `$${Number(n).toLocaleString()}`;
     const DRAFT_KEY = 'smartScanBackStockDraft';
     const HINTS = {
-      shipment: 'Scan one ticket from each game in the delivery, then tap + for how many packs came and Save. They are added to what is in the back.',
+      shipment: 'Scan one ticket from every pack in the delivery. Each scan adds that pack to the list; tap Receive when they\'re all on it.',
       fullpack: 'A customer buys a whole sealed pack from the back: scan any ticket of that pack, check the pop-up and tap Sell. One pack comes off back stock and it counts in today\'s sales.',
       count: 'Scan one ticket from each game on the shelf and enter how many packs you counted. That becomes the number in the back; any difference is logged. Games you don\'t scan are left as they are.',
     };
@@ -199,7 +191,7 @@
 
     // --- Draft ---
     function saveDraft() {
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ mode, lines, notes: $('notes').value })); } catch (e) {}
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ mode, lines, ship: shipLines, notes: $('notes').value })); } catch (e) {}
     }
     function loadDraft() {
       try {
@@ -207,6 +199,9 @@
         if (draft) {
           mode = draft.mode === 'count' ? 'count' : 'shipment';   // a full pack sale is never left as a draft
           lines = Array.isArray(draft.lines) ? draft.lines : [];
+          // The shipment list (from 2026-11-11); one from before, with packs as a number, isn't kept.
+          shipLines = (Array.isArray(draft.ship) ? draft.ship : []).filter((l) => l && /^\d{4}$/.test(l.gameNumber)
+            && Array.isArray(l.packs) && l.packs.length);
           $('notes').value = draft.notes || '';
         }
       } catch (e) {}
@@ -220,6 +215,7 @@
 
     // A scanned or typed ticket: in Full pack sale mode the pack number is needed too.
     function addTicket(ticket) {
+      if (mode === 'shipment') { addShipPack(ticket.gameNumber, ticket.packNumber); return; }
       if (mode !== 'fullpack') { addGame(ticket.gameNumber); return; }
       if (!stockLoaded) { flash('Still loading back stock. Try again in a moment.', 'error'); return; }
       const game = known(ticket.gameNumber);
@@ -231,11 +227,8 @@
     }
 
     function addGame(gameNumber) {
-      if (mode === 'shipment') {
-        if (!stockLoaded) { flash('Still loading back stock. Try again in a moment.', 'error'); return; }
-        whenHandsFree(() => openShipDialog(gameNumber));
-        return;
-      }
+      // A typed game number: a pack without its number.
+      if (mode === 'shipment') { addShipPack(gameNumber, null); return; }
       const existing = lines.find((l) => l.gameNumber === gameNumber);
       if (existing) {
         flash(`Game ${gameNumber} is already on the list — change its number of packs below.`);
@@ -262,16 +255,21 @@
       document.querySelectorAll('#modeSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
       $('modeHint').textContent = HINTS[mode];
 
+      // Shipment: one pack per scan (a full ticket number, or a game number for a pack without its number).
+      $('typedLabel').textContent = mode === 'shipment' ? 'Or Type the Ticket Number, or Just the 4-Digit Game Number'
+        : mode === 'fullpack' ? 'Or Type the Ticket Number' : 'Or Type a Ticket Number, or Just the 4-Digit Game Number';
+      $('typedBtn').textContent = mode === 'shipment' ? 'Add Pack' : mode === 'fullpack' ? 'Use This Number' : 'Add Game';
+
+      // Each mode keeps its own list (shipment, count); neither shows while selling full packs.
       const list = $('lines');
       list.innerHTML = '';
-      // The shipment/count list stays out of the way while selling full packs.
-      if (mode !== 'fullpack') for (const line of lines) list.append(lineCard(line));
-      $('saveArea').classList.toggle('hidden', lines.length === 0 || mode === 'fullpack');
-      const packs = lines.reduce((sum, l) => sum + (Number(l.packs) || 0), 0);
-      const games = `${lines.length} Game${lines.length === 1 ? '' : 's'}`;
-      $('saveBtn').textContent = mode === 'shipment'
-        ? `Save Shipment (${games}, ${packs} Pack${packs === 1 ? '' : 's'})`
-        : `Save Count (${games})`;
+      if (mode === 'count') for (const line of lines) list.append(lineCard(line));
+      renderShip();
+      const listed = mode === 'count' ? lines.length : mode === 'shipment' ? shipLines.length : 0;
+      $('saveArea').classList.toggle('hidden', listed === 0);
+      // A shipment is received from the bar at the bottom; a count is saved here.
+      $('saveBtn').classList.toggle('hidden', mode !== 'count');
+      $('saveBtn').textContent = `Save Count (${plural(lines.length, 'Game')})`;
     }
 
     function lineCard(line) {
@@ -561,10 +559,6 @@
         () => `Removed ${packs} pack${packs === 1 ? '' : 's'} of game ${g.gameNumber} (${reason}): ${g.packsInBack} → ${count} in the back.`);
     }));
 
-    // --- Shipment received dialog ---
-
-    let ship = null;   // { gameNumber, game, count } while open
-
     // A scan lands while the finger is still on "Press and hold to scan". Opening the pop-up under that
     // finger made iPhones swallow the first tap on +, so wait until it's lifted. A typed game closes the
     // keyboard first, so the pop-up doesn't jump when it goes away.
@@ -584,71 +578,197 @@
       hold.addEventListener('pointercancel', go);
     }
 
-    function openShipDialog(gameNumber) {
+    // --- Shipment Received: one scan per pack (owner 2026-11-11) ---
+    // Each scanned ticket adds its pack to this shipment's list; a second pack of a game adds to that game's line, and the
+    // same pack twice is caught. A typed game number adds a pack without a number. One Receive saves it all, with the
+    // pack numbers (the database keeps them and refuses a pack it already has; Sheets counts packs). Kept on the phone
+    // (the draft) until then. Newest game first.
+    let shipLines = [];        // { gameNumber, packs: ['1263622' | null (typed), …], gamePrice, ticketsPerPack }
+    let refusedPack = null;    // "1747-0000003": the pack the server refused, marked red on its line
+
+    const clearShipMessage = () => { $('shipMessage').className = 'message'; $('shipMessage').textContent = ''; };
+    const shipPacks = () => shipLines.reduce((sum, l) => sum + l.packs.length, 0);
+    const linePrice = (l) => { const g = known(l.gameNumber); return g ? g.price : Number(l.gamePrice) || 0; };
+    const lineSize = (l) => { const g = known(l.gameNumber); return g ? g.ticketsPerPack : Number(l.ticketsPerPack) || 0; };
+    const needsPrice = (l) => !known(l.gameNumber) && !(Number(l.gamePrice) > 0 && Number(l.ticketsPerPack) > 0);
+    const shipValue = (list) => list.reduce((sum, l) => sum + l.packs.length * linePrice(l) * lineSize(l), 0);
+
+    function addShipPack(gameNumber, packNumber) {
+      if (!stockLoaded) { haptic('error'); flash('Still loading back stock. Try again in a moment.', 'error'); return; }
+      let line = shipLines.find((l) => l.gameNumber === gameNumber);
+      if (packNumber && line && line.packs.includes(packNumber)) {
+        haptic('error');
+        afterLift($('holdBtn'), () => flash(`Pack ${gameNumber}-${packNumber} is already on this shipment.`, 'error'));
+        return;
+      }
+      if (!line) line = { gameNumber, packs: [], gamePrice: '', ticketsPerPack: '' };
+      shipLines = [line, ...shipLines.filter((l) => l !== line)];
+      line.packs.push(packNumber || null);
+      $('shipDone').classList.add('hidden');
+      clearShipMessage();
+      saveDraft();
       const game = known(gameNumber);
-      ship = { gameNumber, game, count: 1 };
-      $('shipTitle').textContent = game ? `Game ${gameNumber} · $${game.price}` : `Game ${gameNumber} · New`;
-      $('shipInfo').textContent = !game ? 'Not in back stock yet. Enter its price; the pack size fills in.'
-        : game.endedDate ? `Marked ended on ${game.endedDate}. Saving brings it back.` : '';
-      $('shipNewGame').classList.toggle('hidden', !!game);
-      $('shipPrice').value = '';
-      $('shipSize').value = '';
-      renderShipDialog();
-      $('shipDialog').classList.remove('hidden');
+      const count = line.packs.length;
+      afterLift($('holdBtn'), () => {
+        flash(`${packNumber ? `Pack ${gameNumber}-${packNumber}` : `Game ${gameNumber}`} added${count > 1 ? ` · ${count} packs of this game` : ''}.`
+          + (!game ? ' New game: pick its price below.' : game.endedDate ? ' It was marked ended; receiving it brings it back.' : ''), 'ok');
+        render();
+      });
     }
 
-    function renderShipDialog() {
-      const before = ship.game ? ship.game.packsInBack : 0;
-      $('shipCount').textContent = ship.count;
-      $('shipMinus').disabled = ship.count === 0;
-      $('shipChange').textContent = ship.count === 0 ? 'No Packs Received'
-        : `Back will have ${before + ship.count} (now ${before})`;
-      const priced = ship.game || (Number($('shipPrice').value) > 0 && Number($('shipSize').value) > 0);
-      $('shipSave').disabled = ship.count === 0 || !priced;
+    function takeOffPack(line, index) {
+      line.packs.splice(index, 1);
+      if (!line.packs.length) shipLines = shipLines.filter((l) => l !== line);
+      refusedPack = null;
+      clearShipMessage();
+      saveDraft();
+      render();
     }
 
-    function closeShipDialog() {
-      ship = null;
-      $('shipDialog').classList.add('hidden');
+    function shipRow(line) {
+      const game = known(line.gameNumber);
+      const row = el('div', 'ship-line');
+      row.dataset.game = line.gameNumber;
+      const top = el('div', 'ship-top');
+      top.append(el('span', 'stock-num mono', line.gameNumber));
+      if (game) top.append(el('span', 'ship-price', `$${game.price} · ${game.ticketsPerPack} per pack`));
+      else top.append(el('span', 'tag days', 'New Game'));
+      if (game && game.endedDate) top.append(el('span', 'tag', 'Was Ended'));
+      // − takes off the last pack added to this game.
+      const minus = el('button', 'ship-minus', '−');
+      minus.type = 'button';
+      minus.setAttribute('aria-label', `One pack less of game ${line.gameNumber}`);
+      minus.addEventListener('click', () => takeOffPack(line, line.packs.length - 1));
+      const packs = el('div', 'ship-packs');
+      packs.append(el('span', 'ship-count' + (line.packs.length > 1 ? ' many' : ''), plural(line.packs.length, 'Pack')));
+      line.packs.forEach((pack, i) => {
+        // The pack the server refused is red, and tapping it takes it off.
+        if (pack && refusedPack === `${line.gameNumber}-${pack}`) {
+          const chip = el('button', 'ship-pk mono refused', `${pack} ×`);
+          chip.type = 'button';
+          chip.setAttribute('aria-label', `Take pack ${line.gameNumber}-${pack} off the list`);
+          chip.addEventListener('click', () => takeOffPack(line, i));
+          packs.append(chip);
+        } else {
+          packs.append(el('span', 'ship-pk mono', pack || 'Typed'));
+        }
+      });
+      row.append(top, minus, packs);
+      if (!game) row.append(newGameFields(line));
+      if (refusedPack && refusedPack.startsWith(`${line.gameNumber}-`)) row.classList.add('refused');
+      return row;
     }
 
-    $('shipPlus').addEventListener('click', () => { if (ship.count < 999) ship.count += 1; renderShipDialog(); });
-    $('shipMinus').addEventListener('click', () => { if (ship.count > 0) ship.count -= 1; renderShipDialog(); });
-    $('shipCancel').addEventListener('click', closeShipDialog);
-    $('shipPrice').addEventListener('input', () => {
-      const standard = STANDARD_PACK_SIZES[Number($('shipPrice').value)];
-      if (standard) $('shipSize').value = standard;
-      renderShipDialog();
-    });
-    $('shipSize').addEventListener('input', renderShipDialog);
-
-    // Save: the packs are added to the back now, as a delivery.
-    $('shipSave').addEventListener('click', async () => {
-      const { gameNumber, game, count } = ship;
-      const line = { gameNumber, packs: count };
-      if (!game) {
-        line.gamePrice = $('shipPrice').value;
-        line.ticketsPerPack = $('shipSize').value;
-        const standard = STANDARD_PACK_SIZES[Number(line.gamePrice)];
-        if (standard && Number(line.ticketsPerPack) !== standard
-          && !confirm(`Game ${gameNumber}: $${line.gamePrice} packs usually have ${standard} tickets, not ${line.ticketsPerPack}. Save anyway?`)) return;
+    // A game the store has never had: its ticket price (chips; the usual pack size fills in) and the pack size.
+    function newGameFields(line) {
+      const box = el('div', 'ship-new');
+      box.append(el('div', 'ship-new-label', Number(line.gamePrice) > 0 ? 'Ticket Price' : 'Pick the Ticket Price'));
+      const chips = el('div', 'choice-chips');
+      for (const price of Object.keys(STANDARD_PACK_SIZES).map(Number).sort((a, b) => a - b)) {
+        const chip = el('button', Number(line.gamePrice) === price ? 'active' : '', `$${price}`);
+        chip.type = 'button';
+        chip.addEventListener('click', () => {
+          line.gamePrice = String(price);
+          line.ticketsPerPack = String(STANDARD_PACK_SIZES[price]);
+          saveDraft();
+          render();
+        });
+        chips.append(chip);
       }
-      $('shipCancel').disabled = true;
+      box.append(chips);
+      if (Number(line.gamePrice) > 0) {
+        const label = el('label', 'bulk-field', 'Tickets per Pack');
+        const input = el('input');
+        input.type = 'number';
+        input.inputMode = 'numeric';
+        input.min = '1';
+        input.value = line.ticketsPerPack;
+        input.addEventListener('input', () => { line.ticketsPerPack = input.value; saveDraft(); renderShipBar(); });
+        label.append(input);
+        box.append(label);
+      }
+      return box;
+    }
+
+    function renderShip() {
+      const showing = mode === 'shipment' && shipLines.length > 0;
+      $('shipArea').classList.toggle('hidden', !showing);
+      const list = el('div', 'stock-group');
+      list.append(...shipLines.map(shipRow));
+      $('shipList').replaceChildren(...(shipLines.length ? [list] : []));
+      renderShipBar();
+    }
+
+    // The totals line and the Receive bar (also redrawn while a new game's pack size is typed).
+    function renderShipBar() {
+      const packs = shipPacks();
+      const missing = shipLines.filter(needsPrice).length;
+      $('shipSum').textContent = `${plural(packs, 'Pack')} · ${plural(shipLines.length, 'Game')}`
+        + (isOwner && !missing ? ` · ${money(shipValue(shipLines))}` : '');
+      const bar = mode === 'shipment' && view === 'scan' && packs > 0 && $('shipDone').classList.contains('hidden');
+      $('receiveBar').classList.toggle('hidden', !bar);
+      document.body.classList.toggle('has-bulk-bar', bar);
+      $('receiveBtn').disabled = missing > 0;
+      $('receiveBtn').textContent = missing ? `Pick a Price for ${plural(missing, 'New Game')}` : `Receive ${plural(packs, 'Pack')}`;
+    }
+
+    // Receive: the whole shipment at once. Refused (a pack the database already has): nothing is saved, the pack is
+    // marked red and the reason shows under the list.
+    $('receiveBtn').addEventListener('click', async () => {
+      const odd = shipLines.find((l) => !known(l.gameNumber) && STANDARD_PACK_SIZES[Number(l.gamePrice)]
+        && Number(l.ticketsPerPack) !== STANDARD_PACK_SIZES[Number(l.gamePrice)]);
+      if (odd && !confirm(`Game ${odd.gameNumber}: $${odd.gamePrice} packs usually have ${STANDARD_PACK_SIZES[Number(odd.gamePrice)]} tickets, not ${odd.ticketsPerPack}. Receive anyway?`)) return;
+      const lines = shipLines.map((l) => {
+        const line = { gameNumber: l.gameNumber, packs: l.packs.length, packNumbers: l.packs.filter(Boolean) };
+        if (!known(l.gameNumber)) Object.assign(line, { gamePrice: l.gamePrice, ticketsPerPack: l.ticketsPerPack });
+        return line;
+      });
+      clearShipMessage();
       try {
-        const result = await whileBusy($('shipSave'), 'Saving…', () =>
-          api('saveBackStock', { mode: 'shipment', lines: [line] }));
+        const received = shipLines;
+        const packs = shipPacks();
+        const value = shipValue(received);
+        const result = await whileBusy($('receiveBtn'), 'Receiving…', () =>
+          api('saveBackStock', { mode: 'shipment', lines, notes: $('notes').value }));
         stock = result.backStock;
-        const r = result.results[0];
-        closeShipDialog();
+        shipLines = [];
+        refusedPack = null;
+        $('notes').value = '';
+        saveDraft();
+        showShipDone(received, result.results, packs, value);
+        render();
         renderStock();
-        flash(`Game ${gameNumber}: ${count} pack${count === 1 ? '' : 's'} received, ${r.before} → ${r.after} in the back.`);
       } catch (err) {
-        closeShipDialog();
-        flash(err.message, 'error');
-      } finally {
-        $('shipCancel').disabled = false;
+        const found = /Pack (\d{4}-\d{7})/.exec(err.message);
+        refusedPack = found ? found[1] : null;
+        render();
+        showMessage($('shipMessage'), err.message + (refusedPack ? ' Tap the red pack to take it off, then Receive again.' : ''));
+        $('shipMessage').scrollIntoView({ block: 'center' });
       }
     });
+
+    // What was received; the list is empty again for the next shipment.
+    function showShipDone(received, results, packs, value) {
+      const done = $('shipDone');
+      const head = el('div', 'ship-done-head');
+      const check = el('span', 'ship-done-check');
+      check.innerHTML = icon('check');
+      head.append(check, el('h2', '', 'Shipment Received'));
+      const sub = el('p', 'sub', `${plural(packs, 'pack')} · ${plural(received.length, 'game')}${isOwner ? ` · ${money(value)}` : ''} added to back stock.`);
+      const rows = el('div', 'ship-done-rows');
+      for (const r of results) {
+        const row = el('div', 'ship-done-row');
+        row.append(el('span', 'stock-num mono', r.gameNumber), el('span', 'ship-count', `+${r.after - r.before}`),
+          el('span', 'ship-price', `${r.before} → ${r.after} in the back`));
+        rows.append(row);
+      }
+      const again = el('button', 'small', 'Scan Another Shipment');
+      again.type = 'button';
+      again.addEventListener('click', () => { done.classList.add('hidden'); renderShipBar(); });
+      done.replaceChildren(head, sub, rows, again);
+      done.classList.remove('hidden');
+      done.scrollIntoView({ block: 'nearest' });
+    }
 
     // --- Full pack sale dialog ---
 
@@ -694,9 +814,9 @@
 
     document.querySelectorAll('#modeSwitch button').forEach((b) => b.addEventListener('click', () => {
       if (b.dataset.mode === mode) return;
-      if (lines.length && mode !== 'fullpack' && b.dataset.mode !== 'fullpack' && !confirm('Switch? The games on the list stay, but check the numbers — a shipment adds packs, a count replaces them.')) return;
       mode = b.dataset.mode;
-      // The draft keeps the shipment/count list and its mode, so a reload returns to it, not to Full pack sale.
+      $('flash').className = 'message';
+      // Each mode keeps its own list, so switching loses nothing. The draft keeps the mode too (never Full pack sale).
       if (mode !== 'fullpack') saveDraft();
       render();
     }));
@@ -725,8 +845,8 @@
     });
 
     $('clearBtn').addEventListener('click', () => {
-      if (!confirm('Clear the list without saving?')) return;
-      lines = [];
+      if (!confirm(mode === 'shipment' ? 'Clear this shipment without receiving it?' : 'Clear the list without saving?')) return;
+      if (mode === 'shipment') { shipLines = []; refusedPack = null; clearShipMessage(); } else lines = [];
       $('notes').value = '';
       saveDraft();
       render();
@@ -798,7 +918,7 @@
       if (!modes.includes(mode)) mode = modes[0];
       // The owner starts on the list, or on Scan when a mode was asked for (Home's links, Full pack sales) or a
       // shipment/count list is waiting to be saved. An employee only has Scan.
-      showView(isOwner && !(asked in MODE_PERMISSIONS) && lines.length === 0 ? 'stock' : 'scan');
+      showView(isOwner && !(asked in MODE_PERMISSIONS) && lines.length === 0 && shipLines.length === 0 ? 'stock' : 'scan');
       render();
       if (await loadStock()) {
         cameraAllowed = true;
@@ -814,13 +934,14 @@
     let cameraAllowed = false;    // back stock has loaded (scans decide from it whether a game is new)
     const scanMode = scanModeSwitch($('scanModeSwitch'), 'smartScanBackStockScanMode', document.getElementById('holdBtn'));
     // No scans while a pop-up is open (Auto Scan would otherwise open the next game over it).
-    const popupOpen = () => ['packDialog', 'shipDialog', 'sellDialog'].some((id) => !$(id).classList.contains('hidden'));
+    const popupOpen = () => ['packDialog', 'sellDialog'].some((id) => !$(id).classList.contains('hidden'));
 
     function showView(next) {
       view = next;
       document.querySelectorAll('#viewSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
       $('stockView').classList.toggle('hidden', view !== 'stock');
       $('scanView').classList.toggle('hidden', view !== 'scan');
+      renderShipBar();
       if (view === 'scan') startCamera();
       else if (scanner) scanner.stop();
     }

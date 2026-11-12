@@ -1,22 +1,24 @@
-// Shipment received: a scanned (here: typed) game opens a pop-up starting at 1 pack received; + / − (stops at 0,
-// Save greyed out there); Save adds the packs to the back at once as a delivery. Also a new game and an ended game.
-// Run: node test/browser/backstock-shipment.js   (SHOT=dir also saves screenshots of the pop-up)
+// Shipment Received (owner 2026-11-11): one scan per pack adds it to "This Shipment" (here typed ticket numbers, the
+// same path as a scan). A second pack of a game adds to its line; the same pack twice is caught; a typed game number
+// adds a pack without a number; − takes the last one off; a new game picks its price on the line; one Receive saves it
+// all (real backend code on a fake sheet), with the pack numbers sent along. The list is kept on the phone until then,
+// and Manage Stock keeps its own list. A refused pack (the database already has it) is marked red; tapping it takes it off.
+// Run: node test/browser/backstock-shipment.js   (SHOT=dir also saves screenshots)
 const assert = require('assert/strict');
 const path = require('path');
-const { openApp, backendInVm, tapUseThisNumber, showScan } = require('./harness');
+const { openApp, backendInVm, tapUseThisNumber, showScan, sleep } = require('./harness');
 
 const { ctx, sheets: S, addRow, call } = backendInVm('2026-09-28');
 addRow('ReserveInventory', { game_number: '1747', price_per_ticket: 20, tickets_per_pack: 30, packs_in_reserve: 2, tickets_in_reserve: 60 });
 addRow('ReserveInventory', { game_number: '1650', price_per_ticket: 5, tickets_per_pack: 60, packs_in_reserve: 0, tickets_in_reserve: 0, ended_date: '2026-09-20' });
 const reserve = (g) => { const [h, ...rows] = S.ReserveInventory.rows; const r = rows.find((x) => x[0] === g); return r && Object.fromEntries(h.map((k, i) => [k, r[i]])); };
-const shipment = (i) => { const [h, ...rows] = S.Shipments.rows; return Object.fromEntries(h.map((k, j) => [k, rows[i][j]])); };
 const owner = { username: 'o', role: 'owner' };
-let calls = 0;
+const sent = [];
 
 function handle(body) {
   const fn = {
     listBackStock: () => ctx.listBackStock(),
-    saveBackStock: () => { calls += 1; return ctx.saveBackStock(owner, body.mode, body.lines, body.notes); },
+    saveBackStock: () => { sent.push(body); return ctx.saveBackStock(owner, body.mode, body.lines, body.notes); },
   }[body.action];
   return fn ? call(fn) : {};
 }
@@ -25,109 +27,121 @@ function handle(body) {
   const app = await openApp({ role: 'owner', handle });
   const { page, base } = app;
   await page.goto(base + 'backstock.html'); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length === 1);
-  await showScan(page);   // the owner opens on the list
-  const text = (sel) => page.$eval(sel, (el) => el.innerText);
-  const open = () => page.$eval('#shipDialog', (el) => !el.classList.contains('hidden'));
-  const disabled = (sel) => page.$eval(sel, (b) => b.disabled);
-  const enter = async (game) => { await page.type('#typed', game); await tapUseThisNumber(page); };
-  const shot = async (name) => { if (process.env.SHOT) await page.screenshot({ path: path.join(process.env.SHOT, name) }); };
+  await showScan(page);
+  const text = (sel) => page.$eval(sel, (el) => el.innerText.replace(/\s+/g, ' ').trim());
+  const shown = (sel) => page.$eval(sel, (el) => !el.classList.contains('hidden'));
+  const enter = async (t) => { await page.$eval('#typed', (el) => { el.value = ''; }); await page.type('#typed', t); await tapUseThisNumber(page); };
+  const lineText = (g) => page.$eval(`.ship-line[data-game="${g}"]`, (el) => el.innerText.replace(/\s+/g, ' ').trim());
+  const games = () => page.$$eval('.ship-line', (r) => r.map((x) => x.dataset.game));
+  const shot = async (name) => { if (process.env.SHOT) await page.screenshot({ path: path.join(process.env.SHOT, name), fullPage: true }); };
 
-  assert.match(await page.$eval('#modeSwitch .active', (b) => b.textContent), /Shipment Received/);
+  assert.equal(await text('#modeSwitch .active'), 'Shipment Received');
+  assert.equal(await text('#typedBtn'), 'Add Pack');
+  assert.equal(await shown('#shipArea'), false); assert.equal(await shown('#receiveBar'), false);
 
-  // 1. A known game: pop-up starts at 1, − left and + right, red Cancel left of green Save.
+  // 1. One ticket per pack: each adds a pack, no pop-up. Newest game first.
+  await enter('1747-1263622-4-075');
+  assert.match(await text('#flash'), /Pack 1747-1263622 added\./);
+  assert.equal(await lineText('1747'), '1747 $20 · 30 per pack − 1 Pack 1263622');
+  await enter('1801-0000101-1-010');
+  assert.match(await text('#flash'), /New game: pick its price below/);
+  await enter('1747-1263699-4-075');
+  assert.match(await text('#flash'), /Pack 1747-1263699 added · 2 packs of this game\./);
+  assert.deepEqual(await games(), ['1747', '1801']);
+  assert.equal(await lineText('1747'), '1747 $20 · 30 per pack − 2 Packs 1263622 1263699');
+
+  // 2. The same pack again is caught and not counted.
+  await enter('1747-1263622-4-070');
+  assert.match(await text('#flash'), /Pack 1747-1263622 is already on this shipment\./);
+  assert.equal(await page.$eval('#flash', (e) => e.className), 'message error');
+  assert.match(await lineText('1747'), /2 Packs/);
+
+  // 3. A typed game number: a pack without a number. − takes the last pack off.
   await enter('1747');
-  assert.equal(await open(), true);
-  assert.equal(await text('#shipTitle'), 'Game 1747 · $20');
-  assert.equal(await text('#shipCount'), '1');
-  assert.equal(await text('#shipChange'), 'Back will have 3 (now 2)');
-  assert.equal(await page.$eval('#shipNewGame', (el) => el.classList.contains('hidden')), true);
-  const x = (sel) => page.$eval(sel, (el) => el.getBoundingClientRect().left);
-  assert.ok(await x('#shipMinus') < await x('#shipCount') && await x('#shipCount') < await x('#shipPlus'));
-  assert.ok(await x('#shipCancel') < await x('#shipSave'));
-  const bg = (sel) => page.$eval(sel, (el) => getComputedStyle(el).backgroundColor);
-  assert.equal(await bg('#shipCancel'), 'rgb(198, 40, 40)');
-  assert.equal(await bg('#shipSave'), 'rgb(47, 158, 103)');
-  assert.equal(await page.$eval('#lines', (el) => el.children.length), 0);   // nothing goes on a list
+  assert.equal(await lineText('1747'), '1747 $20 · 30 per pack − 3 Packs 1263622 1263699 Typed');
+  await page.click('.ship-line[data-game="1747"] .ship-minus');
+  assert.match(await lineText('1747'), /2 Packs 1263622 1263699$/);
 
-  // 2. − stops at 0 and greys out Save; Cancel saves nothing.
-  await page.click('#shipMinus');
-  assert.equal(await text('#shipCount'), '0'); assert.equal(await text('#shipChange'), 'No Packs Received');
-  assert.equal(await disabled('#shipMinus'), true); assert.equal(await disabled('#shipSave'), true);
-  await page.click('#shipMinus'); assert.equal(await text('#shipCount'), '0');
-  await page.click('#shipCancel');
-  assert.equal(await open(), false); assert.equal(calls, 0); assert.equal(reserve('1747').packs_in_reserve, 2);
+  // 4. The new game waits for its price; Receive waits too. A price chip fills the usual pack size.
+  assert.equal(await text('#shipSum'), '3 Packs · 2 Games');
+  assert.equal(await text('#receiveBtn'), 'Pick a Price for 1 New Game');
+  assert.equal(await page.$eval('#receiveBtn', (b) => b.disabled), true);
+  await page.evaluate(() => [...document.querySelectorAll('.ship-line[data-game="1801"] .choice-chips button')].find((b) => b.textContent === '$10').click());
+  assert.equal(await page.$eval('.ship-line[data-game="1801"] input', (i) => i.value), '50');
+  assert.equal(await text('#receiveBtn'), 'Receive 3 Packs');
+  assert.equal(await text('#shipSum'), '3 Packs · 2 Games · $1,700');   // 2×30×$20 + 50×$10
+  // The receive bar sits above the tab bar, not over it.
+  const bar = await page.$eval('#receiveBar', (b) => b.getBoundingClientRect().bottom);
+  const tabs = await page.$eval('.tabbar', (t) => t.getBoundingClientRect().top);
+  assert.ok(bar <= tabs, `bar ${bar} above tab bar ${tabs}`);
+  await shot('shipment-list.png');
 
-  // 3. Again: starts at 1 again; + + → 3, Save adds 3 to the 2 in the back, as a delivery.
-  await enter('1747');
-  assert.equal(await text('#shipCount'), '1');
-  await page.click('#shipPlus'); await page.click('#shipPlus');
-  assert.equal(await text('#shipCount'), '3'); assert.equal(await text('#shipChange'), 'Back will have 5 (now 2)');
-  await shot('shipment-dialog.png');
-  await page.click('#shipSave');
-  await page.waitForFunction(() => document.querySelector('#shipDialog').classList.contains('hidden'));
-  assert.match(await text('#flash'), /Game 1747: 3 packs received, 2 → 5 in the back/);
-  assert.deepEqual([reserve('1747').packs_in_reserve, reserve('1747').tickets_in_reserve], [5, 150]);
-  const s = shipment(0);
-  assert.deepEqual([s.game_number, s.packs_received, s.tickets_received, s.source, s.performed_by], ['1747', 3, 90, 'delivery', 'o']);
-  assert.equal(await text('#totals'), '5 packs · $3,000 at ticket price');
-
-  // 4. A new game: price and pack size first (Save greyed until then); $10 fills in 50 per pack.
-  await enter('1900');
-  assert.equal(await text('#shipTitle'), 'Game 1900 · New');
-  assert.equal(await page.$eval('#shipNewGame', (el) => el.classList.contains('hidden')), false);
-  assert.equal(await disabled('#shipSave'), true);
-  await page.type('#shipPrice', '10');
-  assert.equal(await page.$eval('#shipSize', (el) => el.value), '50');
-  assert.equal(await disabled('#shipSave'), false);
-  await shot('shipment-new-game.png');
-  await page.click('#shipSave');
-  await page.waitForFunction(() => /Game 1900/.test(document.querySelector('#flash').textContent));
-  assert.match(await text('#flash'), /1 pack received, 0 → 1 in the back/);
-  assert.deepEqual([reserve('1900').price_per_ticket, reserve('1900').tickets_per_pack, reserve('1900').packs_in_reserve].map(Number), [10, 50, 1]);
-
-  // 5. An ended game: the pop-up says so, and receiving it brings it back.
-  await enter('1650');
-  assert.match(await text('#shipInfo'), /Marked ended on 2026-09-20\. Saving brings it back/);
-  await page.click('#shipSave');
-  await page.waitForFunction(() => /Game 1650/.test(document.querySelector('#flash').textContent));
-  assert.equal(reserve('1650').ended_date, '');
-  assert.equal(reserve('1650').packs_in_reserve, 1);
-  assert.equal(await page.$eval('#endedBox', (el) => el.classList.contains('hidden')), true);
-
-  // 6. A scan while the finger is still on "Press and hold": the pop-up waits until it's lifted,
-  //    and the first + then counts (iPhones swallowed that tap when it opened under the finger).
-  await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, bubbles: true })));
-  assert.equal(await page.$eval('#holdBtn', (b) => b.classList.contains('holding')), true);
-  await page.$eval('#typed', (el) => { el.value = '1747'; });
-  await page.$eval('#typedForm', (f) => f.requestSubmit());
-  await new Promise((r) => setTimeout(r, 300));
-  assert.equal(await open(), false);
-  await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true })));
-  await page.waitForFunction(() => !document.querySelector('#shipDialog').classList.contains('hidden'));
-  await page.click('#shipPlus');
-  assert.equal(await text('#shipCount'), '2');
-  await page.click('#shipCancel');
-
-  // 7. Manage Stock still uses the list.
-  await page.click('#modeSwitch button[data-mode="count"]');
-  await enter('1747');
-  assert.equal(await open(), false);
-  assert.equal(await page.$eval('#lines', (el) => el.children.length), 1);
-
-  // 8. Auto Scan: Press and Hold goes away; the phone remembers the choice.
-  const holdShown = () => page.$eval('#holdBtn', (b) => !b.classList.contains('hidden'));
-  await page.waitForFunction(() => Boolean(document.getElementById('video').srcObject));
-  assert.equal(await text('#scanModeSwitch .active'), 'Press and Hold'); assert.equal(await holdShown(), true);
-  await page.click('#scanModeSwitch button[data-mode="auto"]');
-  assert.equal(await text('#scanModeSwitch .active'), 'Auto Scan'); assert.equal(await holdShown(), false);
-
-  // 9. Reload: the page shows what the sheet says. A count list is waiting, so it opens on Scan, still on Auto Scan.
-  await page.reload(); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length === 3);
+  // 5. Kept on the phone: a reload opens on Scan with the list as it was. Manage Stock keeps its own list.
+  await page.reload(); await page.waitForFunction(() => document.querySelectorAll('.ship-line').length === 2);
   assert.equal(await text('#viewSwitch .active'), 'Scan');
-  assert.equal(await text('#totals'), '7 packs · $3,800 at ticket price');   // 5×30×$20 + 50×$10 + 60×$5
-  await page.waitForFunction(() => Boolean(document.getElementById('video').srcObject));
-  assert.equal(await text('#scanModeSwitch .active'), 'Auto Scan'); assert.equal(await holdShown(), false);
-  await page.click('#scanModeSwitch button[data-mode="hold"]');
-  assert.equal(await holdShown(), true);
-  console.log('SHIPMENT RECEIVED DIALOG CHECKS PASS'); await app.close();
+  await page.click('#modeSwitch button[data-mode="count"]');
+  assert.equal(await shown('#shipArea'), false); assert.equal(await shown('#receiveBar'), false);
+  await enter('1747');
+  assert.equal(await page.$eval('#lines', (el) => el.children.length), 1);
+  await page.click('#modeSwitch button[data-mode="shipment"]');
+  assert.deepEqual(await games(), ['1747', '1801']);
+  assert.equal(await page.$eval('#lines', (el) => el.children.length), 0);
+
+  // 6. Receive: one request with the pack numbers; the sheet counts the packs; a done card; the list is empty again.
+  await page.type('#notes', 'inv 77');
+  await page.click('#receiveBtn');
+  await page.waitForFunction(() => !document.getElementById('shipDone').classList.contains('hidden'));
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0].lines, [
+    { gameNumber: '1747', packs: 2, packNumbers: ['1263622', '1263699'] },
+    { gameNumber: '1801', packs: 1, packNumbers: ['0000101'], gamePrice: '10', ticketsPerPack: '50' }]);
+  assert.equal(sent[0].notes, 'inv 77');
+  assert.equal(reserve('1747').packs_in_reserve, 4);
+  assert.deepEqual([reserve('1801').price_per_ticket, reserve('1801').tickets_per_pack, reserve('1801').packs_in_reserve].map(Number), [10, 50, 1]);
+  assert.match(await text('#shipDone'), /^Shipment Received 3 packs · 2 games · \$1,700 added to back stock\./);
+  assert.match(await text('#shipDone'), /1747 \+2 2 → 4 in the back/);
+  assert.equal(await shown('#shipArea'), false); assert.equal(await shown('#receiveBar'), false);
+  assert.equal(await page.$eval('#notes', (n) => n.value), '');
+  assert.equal(await text('#totals'), '5 packs · $2,900 at ticket price');
+  await shot('shipment-done.png');
+  await page.reload(); await page.waitForFunction(() => document.querySelectorAll('#stock .stock-row').length === 2);
+  assert.equal(await page.$$eval('.ship-line', (r) => r.length), 0, 'the received list is gone from the phone');
+
+  // 7. An ended game: receiving it brings it back.
+  await showScan(page);
+  await enter('1650-0000007-1-010');
+  assert.match(await text('#flash'), /marked ended; receiving it brings it back/);
+  await page.click('#receiveBtn');
+  await page.waitForFunction(() => !document.getElementById('shipDone').classList.contains('hidden'));
+  assert.equal(reserve('1650').ended_date, ''); assert.equal(reserve('1650').packs_in_reserve, 1);
+  await page.click('#shipDone button');
+  assert.equal(await shown('#shipDone'), false);
+
+  // 8. Refused (the database already has a pack): nothing saved, the pack is red; tapping it takes it off.
+  app.setHandle((b) => {
+    if (b.action !== 'saveBackStock') return handle(b);
+    throw Object.assign(new Error('Pack 1747-1263622 is already in the back (received Sep 28).'), { code: 'pack_used' });
+  });
+  await enter('1747-1263622-4-075'); await enter('1747-1263700-4-075');
+  await page.click('#receiveBtn');
+  await page.waitForFunction(() => document.getElementById('shipMessage').textContent !== '');
+  assert.equal(await text('#shipMessage'), 'Pack 1747-1263622 is already in the back (received Sep 28). Tap the red pack to take it off, then Receive again.');
+  assert.equal(await page.$eval('.ship-line[data-game="1747"]', (l) => l.classList.contains('refused')), true);
+  await page.click('button.ship-pk.refused');
+  assert.equal(await lineText('1747'), '1747 $20 · 30 per pack − 1 Pack 1263700');
+  assert.equal(await text('#shipMessage'), '');
+
+  // 9. Clear List asks first, then empties the shipment.
+  await page.click('#clearBtn');
+  assert.equal(await shown('#shipArea'), false); assert.equal(await shown('#receiveBar'), false);
+
+  // 10. A scan while the finger is still on Press and Hold: the list changes after the lift.
+  await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, bubbles: true })));
+  await page.$eval('#typed', (el) => { el.value = '1747-1263701-4-075'; });
+  await page.$eval('#typedForm', (f) => f.requestSubmit());
+  await sleep(300);
+  assert.equal(await page.$$eval('.ship-line', (r) => r.length), 0, 'waits for the lift');
+  await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true })));
+  await page.waitForFunction(() => document.querySelectorAll('.ship-line').length === 1);
+  console.log('SHIPMENT RECEIVED CHECKS PASS'); await app.close();
 })().catch((e) => { console.error(e); process.exit(1); });

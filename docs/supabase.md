@@ -62,6 +62,14 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   row → everything thrown away (custom SQLSTATE SS001), `saved: false`; max 48 rows. `undo_activate_several { slots:
   [{ box, slot, oldPack }] }`: last first, undo_activation then undo_end_pack when oldPack; all or nothing, a refusal is
   prefixed "Box b, slot s:". Both need load_packs. Test: `supabase/tests/activate_several_test.sql`.
+- **Shipment pack numbers (migration 0026, 2026-11-11; owner's rule: a pack number of a game is never entered twice,
+  and a live pack never goes into back stock):** `save_back_stock` shipment lines take `packNumbers` (7 digits, at most
+  `packs`); those go in `app.packs` as `in_back` with `received_on` + `shipment_id`, the rest add to `unnumbered_in_back`.
+  A number the database already has (any status; the table's unique game+pack) → `pack_used` "Pack g-p is already in the
+  back (received …) / is live in box b, slot s / already sold out on … / was returned on … / was sold as a full pack on … /
+  was taken out of back stock on … (reason)"; twice in one shipment → `pack_twice`; checked before anything is written, so
+  nothing is saved. Count mode ignores them. Sheets ignores `packNumbers` (counts only; owner careful until Dec 1).
+  Test: `supabase/tests/shipment_pack_numbers_test.sql`. **Status: written 2026-11-11, not yet on dev or prod.**
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

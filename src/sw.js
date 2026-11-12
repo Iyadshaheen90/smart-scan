@@ -9,7 +9,7 @@
 // test/sw-version.js fails until CACHE is bumped after any change.
 // The scanner library (a pinned version on the CDN) is kept after its first download. Backend requests (POSTs)
 // are never touched.
-const CACHE = 'smart-scan-v63';
+const CACHE = 'smart-scan-v64';
 const SHELL = [
   'index.html', 'login.html', 'close.html', 'slots.html', 'activate.html', 'activate-several.html', 'backstock.html', 'month.html',
   'users.html', 'account.html', 'more.html', 'help.html', 'settling.html', 'full-packs.html', 'shifts.html', 'reports.html', 'shipments.html', 'returns.html', 'theft-report.html', 'set-password.html', 'raw-scanner.html', 'report.html', 'store.html', 'report-status.html', 'style.css', 'config.js', 'api.js', 'barcode.js', 'scanner.js', 'icons.js', 'nav.js', 'pdf.js', 'splash.js', 'faq.js',

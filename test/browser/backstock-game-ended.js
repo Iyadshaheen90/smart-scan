@@ -67,9 +67,10 @@ function handle(body) {
   await tapGameRow(page, '1718'); await page.click('#packEnd'); await msg(/marked ended/);
   await showScan(page);
   await page.type('#typed', '1718'); await tapUseThisNumber(page);
-  assert.match(await text('#shipInfo'), /Marked ended on 2026-09-26\. Saving brings it back/);
-  await page.click('#shipPlus'); await page.click('#shipSave');
-  await page.waitForFunction(() => /2 packs received/.test(document.querySelector('#flash').textContent));
+  assert.match(await text('#flash'), /marked ended; receiving it brings it back/);
+  await page.$eval('#typed', (el) => { el.value = ''; }); await page.type('#typed', '1718'); await tapUseThisNumber(page);
+  await page.click('#receiveBtn');
+  await page.waitForFunction(() => !document.getElementById('shipDone').classList.contains('hidden'));
   await page.click('#viewSwitch button[data-view="stock"]');
   assert.equal(ended('1718'), ''); assert.deepEqual(await listGames(), ['1747', '1718', '1801']);
   assert.equal(await rowText(page, '1718'), '1718 2 Packs Not Live $1,200');

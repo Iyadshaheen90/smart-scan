@@ -4,7 +4,7 @@
 // and never sees dollar amounts. Without any, nothing changes for them.
 // Run: node test/browser/permissions.js   (SHOTS=dir also saves screenshots)
 const assert = require('assert/strict');
-const { openApp, sleep } = require('./harness');
+const { openApp, sleep, tapUseThisNumber } = require('./harness');
 
 const ALL = ['load_packs', 'return_packs', 'receive_shipments', 'count_stock', 'full_pack_sale', 'ticket_order', 'theft_report'];
 const slot = { box: 1, slot: 7, slotPrice: 5, endedToday: null, lastGame: null,
@@ -20,7 +20,9 @@ const visible = (page, sel) => page.$eval(sel, (el) => !el.classList.contains('h
 const text = (page, sel) => page.$eval(sel, (el) => el.textContent);
 const noDollars = async (page, where) => {
   const body = await page.evaluate(() => document.body.innerText);
-  assert.ok(!/\$\d/.test(body.replace(/\$\d+ [Ss]lot/g, '').replace(/Game \d+ · \$\d+/g, '')), `${where}: no dollar amounts\n${body}`);
+  // A ticket price ("Game 1747 · $20", "$20 · 30 per pack", a $20 slot) is fine; totals and values are not.
+  assert.ok(!/\$\d/.test(body.replace(/\$\d+ [Ss]lot/g, '').replace(/Game \d+ · \$\d+/g, '').replace(/\$\d+ · \d+ per pack/g, '')),
+    `${where}: no dollar amounts\n${body}`);
 };
 
 async function manageEmployees() {
@@ -192,11 +194,15 @@ async function backStock() {
   for (const sel of ['#viewSwitch', '#stockView', '#modeSwitch']) assert.equal(await visible(page, sel), false, sel);
   assert.equal(await visible(page, '#scanView'), true, 'an employee only has Scan');
   assert.match(await text(page, '#modeHint'), /delivery/, 'a mode they lack falls back to theirs');
-  await page.type('#typed', '1747'); await page.click('#typedForm button');
-  await page.waitForFunction(() => !document.getElementById('shipDialog').classList.contains('hidden'));
-  await page.click('#shipSave'); await sleep(200);
-  assert.equal(saves[0].mode, 'shipment');
-  await noDollars(page, 'back stock (shipments)');
+  await page.type('#typed', '1747-1263622-4-075'); await tapUseThisNumber(page);
+  await page.waitForFunction(() => document.querySelectorAll('.ship-line').length === 1);
+  assert.equal(await text(page, '#shipSum'), '1 Pack · 1 Game');   // no $ total
+  await noDollars(page, 'back stock (shipment list)');
+  await page.click('#receiveBtn');
+  await page.waitForFunction(() => !document.getElementById('shipDone').classList.contains('hidden'));
+  assert.equal(saves[0].mode, 'shipment'); assert.deepEqual(saves[0].lines[0].packNumbers, ['1263622']);
+  assert.match(await text(page, '#shipDone'), /1 pack · 1 game added to back stock\./);
+  await noDollars(page, 'back stock (shipment received)');
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/permissions-backstock.png`, fullPage: true });
   await app.close();
 

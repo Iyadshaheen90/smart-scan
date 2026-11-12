@@ -213,11 +213,15 @@ Frontend (`src/`, plain HTML + JS, no build):
   Order" — Order More = still live in a slot, listed first; `#endedBox` Ended Games (rows with Bring Back). Folds open while a
   search matches inside, else stay as the owner left them. A row opens the Manage packs dialog, which also shows `#packInfo`
   (tickets · $ · per pack, "usually N!") and `#packWhere` (On display: slots), and **Game Ended…** (`#packEnd`) only for 0 packs
-  and no slot. Messages go to `#stockMessage` under the search. **Scan**: the modes below, plus Press and Hold | Auto Scan. **Shipment Received**: a scanned/typed game opens a
-  pop-up (owner 2026-09-28): "Packs Received" − count + starting at 1 (− stops at 0, Save greyed there), a new game also
-  asks price + pack size; Save sends `saveBackStock` shipment for that one game at once (source "delivery", no notes).
-  A scan opens it only after the finger leaves "Press and hold" (`whenHandsFree`): opened under the finger, iPhones
-  swallowed the first tap on +.
+  and no slot. Messages go to `#stockMessage` under the search. **Scan**: the modes below, plus Press and Hold | Auto Scan. **Shipment Received** (one scan per pack, owner 2026-11-11;
+  replaced the per-game pop-up): each scanned/typed full ticket adds its pack to `shipLines` ("This Shipment", `#shipArea`,
+  newest game first; `packs: [packNumber | null]`); a 2nd pack of a game adds to its line, the same pack twice → red flash
+  (haptic error), a typed 4-digit game = a pack with no number ("Typed" chip), − takes the last off. A new game picks its
+  price with chips (`STANDARD_PACK_SIZES`, size filled in, editable). `#receiveBar` (`.bulk-bar.above-tabbar`) "Receive N
+  Packs" (gray "Pick a Price for N New Games" until set) sends one `saveBackStock` shipment with `packNumbers` per line +
+  notes; then `#shipDone` (per game +N, before → after; $ for the owner only). A refusal naming "Pack gggg-ppppppp" marks
+  that chip red (tap = take it off) + `#shipMessage`. Draft `{ mode, lines (count), ship, notes }`: each mode keeps its own
+  list (no switch confirm); list changes wait for the hold to lift (`afterLift`).
   **Manage Stock** (count mode, renamed from "Count the back" 2026-10-02; sets) still uses the list: scan one ticket per game, enter packs, Save count; one **Manage packs** dialog on every game (owner
   2026-09-27: replaced Add pack + Remove packs): − count + with red Cancel / green Save. Save with more packs sends
   them as a shipment; with fewer it shows "Remove N packs (a → b). Why?" with reason buttons (returned, game expired,
