@@ -14,6 +14,7 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
 - Designs for after the cutover (same folder, private on purpose: prices and business rules):
   `smart-scan-subscriptions-design.md` (plans, trial, read-only) and `smart-scan-multi-store-design.md` (setup wizard,
   several stores, sign-in by username, other states' tickets). All owner decisions in both are made.
+  `smart-scan-startup-readiness.md`: running it as a business, with a checklist per stage (read when planning one).
 
 ## Details live in docs/ (read only the one the task needs)
 
