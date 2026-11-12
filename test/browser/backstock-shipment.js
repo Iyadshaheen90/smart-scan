@@ -37,7 +37,11 @@ function handle(body) {
 
   assert.equal(await text('#modeSwitch .active'), 'Shipment Received');
   assert.equal(await text('#typedBtn'), 'Add Pack');
-  assert.equal(await shown('#shipArea'), false); assert.equal(await shown('#receiveBar'), false);
+  // Before the first scan: This Shipment says what to do; no Receive yet.
+  assert.equal(await shown('#shipArea'), true); assert.equal(await shown('#receiveBar'), false);
+  assert.equal(await text('#shipList'), 'Scan a ticket from every pack in the box. Each pack shows up here as you scan. Tap Receive when they\'re all on the list.');
+  assert.equal(await text('#shipSum'), '');
+  await shot('shipment-empty.png');
 
   // 1. One ticket per pack: each adds a pack, no pop-up. Newest game first.
   await enter('1747-1263622-4-075');
@@ -116,6 +120,7 @@ function handle(body) {
   assert.equal(reserve('1650').ended_date, ''); assert.equal(reserve('1650').packs_in_reserve, 1);
   await page.click('#shipDone button');
   assert.equal(await shown('#shipDone'), false);
+  assert.equal(await shown('#shipArea'), true); assert.match(await text('#shipList'), /^Scan a ticket from every pack/);
 
   // 8. Refused (the database already has a pack): nothing saved, the pack is red; tapping it takes it off.
   app.setHandle((b) => {
@@ -133,7 +138,7 @@ function handle(body) {
 
   // 9. Clear List asks first, then empties the shipment.
   await page.click('#clearBtn');
-  assert.equal(await shown('#shipArea'), false); assert.equal(await shown('#receiveBar'), false);
+  assert.match(await text('#shipList'), /^Scan a ticket from every pack/); assert.equal(await shown('#receiveBar'), false);
 
   // 10. A scan while the finger is still on Press and Hold: the list changes after the lift.
   await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, bubbles: true })));
@@ -141,6 +146,7 @@ function handle(body) {
   await page.$eval('#typedForm', (f) => f.requestSubmit());
   await sleep(300);
   assert.equal(await page.$$eval('.ship-line', (r) => r.length), 0, 'waits for the lift');
+  assert.equal(await shown('#shipArea'), true);
   await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true })));
   await page.waitForFunction(() => document.querySelectorAll('.ship-line').length === 1);
   console.log('SHIPMENT RECEIVED CHECKS PASS'); await app.close();

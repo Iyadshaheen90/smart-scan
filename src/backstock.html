@@ -254,6 +254,8 @@
     function render() {
       document.querySelectorAll('#modeSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
       $('modeHint').textContent = HINTS[mode];
+      // Shipment Received says it in its This Shipment box instead.
+      $('modeHint').classList.toggle('hidden', mode === 'shipment');
 
       // Shipment: one pack per scan (a full ticket number, or a game number for a pack without its number).
       $('typedLabel').textContent = mode === 'shipment' ? 'Or Type the Ticket Number, or Just the 4-Digit Game Number'
@@ -690,12 +692,21 @@
       return box;
     }
 
+    // Shown in Shipment Received from the start (owner 2026-11-11): empty, it says what to do; the done card takes its
+    // place right after a Receive.
     function renderShip() {
-      const showing = mode === 'shipment' && shipLines.length > 0;
-      $('shipArea').classList.toggle('hidden', !showing);
-      const list = el('div', 'stock-group');
-      list.append(...shipLines.map(shipRow));
-      $('shipList').replaceChildren(...(shipLines.length ? [list] : []));
+      const done = !$('shipDone').classList.contains('hidden');
+      $('shipArea').classList.toggle('hidden', mode !== 'shipment' || (done && !shipLines.length));
+      if (!shipLines.length) {
+        const empty = el('div', 'ship-empty');
+        empty.append(el('strong', '', 'Scan a ticket from every pack in the box.'),
+          el('span', '', 'Each pack shows up here as you scan. Tap Receive when they\'re all on the list.'));
+        $('shipList').replaceChildren(empty);
+      } else {
+        const list = el('div', 'stock-group');
+        list.append(...shipLines.map(shipRow));
+        $('shipList').replaceChildren(list);
+      }
       renderShipBar();
     }
 
@@ -703,7 +714,7 @@
     function renderShipBar() {
       const packs = shipPacks();
       const missing = shipLines.filter(needsPrice).length;
-      $('shipSum').textContent = `${plural(packs, 'Pack')} · ${plural(shipLines.length, 'Game')}`
+      $('shipSum').textContent = !packs ? '' : `${plural(packs, 'Pack')} · ${plural(shipLines.length, 'Game')}`
         + (isOwner && !missing ? ` · ${money(shipValue(shipLines))}` : '');
       const bar = mode === 'shipment' && view === 'scan' && packs > 0 && $('shipDone').classList.contains('hidden');
       $('receiveBar').classList.toggle('hidden', !bar);
@@ -764,7 +775,7 @@
       }
       const again = el('button', 'small', 'Scan Another Shipment');
       again.type = 'button';
-      again.addEventListener('click', () => { done.classList.add('hidden'); renderShipBar(); });
+      again.addEventListener('click', () => { done.classList.add('hidden'); render(); });
       done.replaceChildren(head, sub, rows, again);
       done.classList.remove('hidden');
       done.scrollIntoView({ block: 'nearest' });

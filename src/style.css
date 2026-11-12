@@ -942,3 +942,9 @@ button.ship-pk.refused {
 body.has-tabbar.has-bulk-bar { padding-bottom: calc(var(--tabbar-clear) + 100px); scroll-padding-bottom: calc(var(--tabbar-clear) + 100px); }
 /* Waiting on something (a new game's price): plainly not tappable yet. */
 .bulk-bar button.primary:disabled { opacity: 1; background: var(--card-2); border-color: var(--border); color: var(--amber); }
+/* This Shipment before the first scan: what to do, in a dashed box where the packs will appear. */
+.ship-empty {
+  display: flex; flex-direction: column; gap: 4px; padding: 20px 16px; text-align: center;
+  border: 1px dashed var(--border); border-radius: 16px; color: var(--muted); font-size: 14px; line-height: 1.45;
+}
+.ship-empty strong { color: var(--text); font-size: 15px; }
