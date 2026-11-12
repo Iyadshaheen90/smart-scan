@@ -12,5 +12,6 @@ select jsonb_build_object(
  'schemas', (select jsonb_agg(jsonb_build_object('s', nspname, 'owner', nspowner::regrole::text, 'acl', nspacl::text)) from pg_namespace where nspname in ('app','public')),
  'defaults', (select jsonb_agg(jsonb_build_object('role', defaclrole::regrole::text, 'schema', defaclnamespace::regnamespace::text, 'type', defaclobjtype, 'acl', defaclacl::text)) from pg_default_acl),
  'role', (select jsonb_agg(jsonb_build_object('r', rolname, 'super', rolsuper, 'bypass', rolbypassrls, 'login', rolcanlogin, 'memberof', (select jsonb_agg(b.rolname) from pg_auth_members m join pg_roles b on b.oid=m.roleid where m.member=pg_roles.oid))) from pg_roles where rolname in ('smart_scan_api','authenticated','anon','service_role','authenticator','postgres')),
+ 'real_stores', (select count(*) from app.stores where not is_test),
  'migrations', (select jsonb_agg(version order by version) from supabase_migrations.schema_migrations)
 ) as audit;

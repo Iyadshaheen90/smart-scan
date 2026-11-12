@@ -52,7 +52,7 @@ for (const r of a.role) {
 }
 console.log(`${prod ? 'PROD' : 'dev'}: ${a.migrations.length} migrations (last ${a.migrations[a.migrations.length - 1]}), `
   + `${a.functions.length} functions (${counts.signedIn} for signed-in people, ${counts.serviceOnly} service only, ${counts.internal} inside), `
-  + `${a.tables.filter((x) => x.kind === 'r').length} tables.`);
+  + `${a.tables.filter((x) => x.kind === 'r').length} tables, ${a.real_stores} real store(s) (dev has none, prod has the store).`);
 if (problems.length) {
   console.log(`${problems.length} problem(s):`);
   for (const p of problems) console.log(`  - ${p}`);
