@@ -74,7 +74,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   lines of packs still live (newest first); `app.counted_out(pack)` = removed with reason count / adjust: `activate_pack`
   (same row goes live; takes an unnumbered pack if there is one), `sell_full_pack` (needs an unnumbered pack) and
   `save_back_stock` shipments (`on conflict` → in_back again) accept such a pack. Tests: `test/parity/reopen-ended.js`,
-  `supabase/tests/counted_out_packs_test.sql`. **Status: on dev 2026-11-12 (all db + parity tests pass); not on prod yet.**
+  `supabase/tests/counted_out_packs_test.sql`. **Status: LIVE on dev + prod 2026-11-12 (owner OK; all db + parity tests pass on dev); Sheets backend @42.**
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

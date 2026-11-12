@@ -8,9 +8,9 @@ this before any cutover work. The review behind it: `docs/db-review-2026-11.md`.
 1. **Phones can keep writing to Sheets after the switch.** A new deploy shows "from the 2nd page", and a page left open
    keeps its old code. A phone with a Sheets sign-in that is still good (12 h; the owner signs in around the 11 pm
    close) can save a shift close, an activation or a shipment to Sheets on Dec 1, and the database never sees it.
-   **Built 2026-11-12 (not deployed yet): a "moved" lock on the Sheets backend** (`node scripts/import-sheets.js lock`;
+   **Built and deployed 2026-11-12 (backend @42, pages sw v68; the lock is off): a "moved" lock on the Sheets backend** (`node scripts/import-sheets.js lock`;
    every action except sign-in, the export and the lock answers "Smart Scan was updated. Close the app and open it
-   again."), turned on right after the export; `unlock` is for a rollback. Needs the backend deployed (owner's OK).
+   again."), turned on right after the export; `unlock` is for a rollback.
 2. **Nothing checks that the Nov 30 close is in the export.** If that close is still waiting on a phone (no
    connection), the export misses it; after the switch the phone sends it to the database, which refuses it as the
    wrong day, and those sales land in Dec 1. **Built 2026-11-12:** `check` prints the newest close in the export; `prod` stops when
@@ -27,8 +27,8 @@ this before any cutover work. The review behind it: `docs/db-review-2026-11.md`.
 ## Before Nov 30
 
 - [ ] Decide on the fixes in `docs/db-review-2026-11.md` (finding 1 is money; finding 2 starts to matter on Dec 1).
-- [ ] Deploy the Sheets "moved" lock (backend + pages sw v68) and migration 0027 (dev, then prod), each with the owner's OK.
-- [ ] Owner runs `node scripts/db-audit.js --prod`: "Nothing out of place", 26 migrations (more if fixes were added).
+- [x] Sheets "moved" lock (backend @42 + pages sw v68) and migration 0027 (dev + prod) deployed 2026-11-12.
+- [ ] Owner runs `node scripts/db-audit.js --prod`: "Nothing out of place", 27 migrations.
 - [ ] Prod matches dev: same migrations, `members` + `support` functions deployed, the 3 function secrets and the
       status-link secret set, auth settings pushed (`docs/supabase.md`).
 - [ ] Nov 27–29: `node scripts/import-sheets.js invite --all` (owner types `send`). Each employee adds the store's
