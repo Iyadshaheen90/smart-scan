@@ -69,7 +69,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   back (received …) / is live in box b, slot s / already sold out on … / was returned on … / was sold as a full pack on … /
   was taken out of back stock on … (reason)"; twice in one shipment → `pack_twice`; checked before anything is written, so
   nothing is saved. Count mode ignores them. Sheets ignores `packNumbers` (counts only; owner careful until Dec 1).
-  Test: `supabase/tests/shipment_pack_numbers_test.sql`. **Status: written 2026-11-11, not yet on dev or prod.**
+  Test: `supabase/tests/shipment_pack_numbers_test.sql`. **Status: on dev 2026-11-11 (db + parity pass); prod waits for the owner's OK.**
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

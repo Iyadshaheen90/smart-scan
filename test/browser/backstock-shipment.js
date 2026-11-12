@@ -120,12 +120,12 @@ function handle(body) {
   // 8. Refused (the database already has a pack): nothing saved, the pack is red; tapping it takes it off.
   app.setHandle((b) => {
     if (b.action !== 'saveBackStock') return handle(b);
-    throw Object.assign(new Error('Pack 1747-1263622 is already in the back (received Sep 28).'), { code: 'pack_used' });
+    throw Object.assign(new Error('Pack 1747-1263622 is already in the back (received 2026-09-28).'), { code: 'pack_used' });
   });
   await enter('1747-1263622-4-075'); await enter('1747-1263700-4-075');
   await page.click('#receiveBtn');
   await page.waitForFunction(() => document.getElementById('shipMessage').textContent !== '');
-  assert.equal(await text('#shipMessage'), 'Pack 1747-1263622 is already in the back (received Sep 28). Tap the red pack to take it off, then Receive again.');
+  assert.equal(await text('#shipMessage'), 'Pack 1747-1263622 is already in the back (received 2026-09-28). Tap the red pack to take it off, then Receive again.');
   assert.equal(await page.$eval('.ship-line[data-game="1747"]', (l) => l.classList.contains('refused')), true);
   await page.click('button.ship-pk.refused');
   assert.equal(await lineText('1747'), '1747 $20 · 30 per pack − 1 Pack 1263700');

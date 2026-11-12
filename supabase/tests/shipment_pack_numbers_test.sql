@@ -48,9 +48,9 @@ begin
     end;
   end loop;
   reset role;
-  assert (select count(*) from app.shipments) = 0, 'a refused shipment saves nothing';
-  assert not exists (select 1 from app.games where game_number = '9000'), 'not even the new game on the good line';
-  assert (select count(*) from app.packs) = 3;
+  assert (select count(*) from app.shipments where store_id = '00000000-0000-4000-8000-00000000000a') = 0, 'a refused shipment saves nothing';
+  assert not exists (select 1 from app.games where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '9000'), 'not even the new game on the good line';
+  assert (select count(*) from app.packs where store_id = '00000000-0000-4000-8000-00000000000a') = 3, 'line 53';
   set local role authenticated;
 end $$;
 
@@ -60,28 +60,28 @@ declare s uuid := '00000000-0000-4000-8000-00000000000a'; h text; msg text;
 begin
   begin
     perform public.save_back_stock(s, '{"mode": "shipment", "lines": [{"gameNumber": "1747", "packs": 1, "packNumbers": ["0000001"]}]}');
-    assert false;
+    assert false, 'line 63';
   exception when sqlstate 'P0001' then
     get stacked diagnostics h = pg_exception_hint, msg = message_text;
     assert h = 'pack_used' and msg = 'Pack 1747-0000001 is live in box 1, slot 1.', msg;
   end;
   begin
     perform public.save_back_stock(s, '{"mode": "shipment", "lines": [{"gameNumber": "1747", "packs": 1, "packNumbers": ["0000002"]}]}');
-    assert false;
+    assert false, 'line 70';
   exception when sqlstate 'P0001' then
     get stacked diagnostics h = pg_exception_hint, msg = message_text;
-    assert h = 'pack_used' and msg like 'Pack 1747-0000002 already sold out on %Oct%28%.', msg;
+    assert h = 'pack_used' and msg like 'Pack 1747-0000002 already sold out on 2026-10-28.', msg;
   end;
   begin
     perform public.save_back_stock(s, '{"mode": "shipment", "lines": [{"gameNumber": "1747", "packs": 1, "packNumbers": ["0000003"]}]}');
-    assert false;
+    assert false, 'line 77';
   exception when sqlstate 'P0001' then
     get stacked diagnostics h = pg_exception_hint, msg = message_text;
-    assert h = 'pack_used' and msg like 'Pack 1747-0000003 is already in the back (received %Nov%3%).', msg;
+    assert h = 'pack_used' and msg like 'Pack 1747-0000003 is already in the back (received 2026-11-03).', msg;
   end;
   begin
     perform public.save_back_stock(s, '{"mode": "shipment", "lines": [{"gameNumber": "1747", "packs": 2, "packNumbers": ["0000010", "0000010"]}]}');
-    assert false;
+    assert false, 'line 84';
   exception when sqlstate 'P0001' then
     get stacked diagnostics h = pg_exception_hint, msg = message_text;
     assert h = 'pack_twice' and msg = 'Pack 1747-0000010 is on the list twice.', msg;
@@ -98,12 +98,12 @@ begin
   assert r -> 'results' -> 0 ->> 'before' = '3' and r -> 'results' -> 0 ->> 'after' = '6', r::text;
   assert r -> 'results' -> 1 ->> 'after' = '1', r::text;
   reset role;
-  assert (select unnumbered_in_back from app.games where game_number = '1747') = 3, 'only the typed pack is unnumbered';
-  assert (select count(*) from app.packs where game_number = '1747' and status = 'in_back' and received_on = app.today()
-    and shipment_id is not null and performed_by = 'ownera') = 2;
-  assert (select unnumbered_in_back from app.games where game_number = '9000') = 0;
-  assert exists (select 1 from app.packs where game_number = '9000' and pack_number = '0000001' and status = 'in_back');
-  assert (select count(*) from app.shipments where notes = 'inv 55') = 2;
+  assert (select unnumbered_in_back from app.games where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '1747') = 3, 'only the typed pack is unnumbered';
+  assert (select count(*) from app.packs where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '1747' and status = 'in_back' and received_on = app.today()
+    and shipment_id is not null and performed_by = 'ownera') = 2, 'line 102: 2 numbered packs in';
+  assert (select unnumbered_in_back from app.games where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '9000') = 0, 'line 104';
+  assert exists (select 1 from app.packs where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '9000' and pack_number = '0000001' and status = 'in_back'), 'line 105';
+  assert (select count(*) from app.shipments where store_id = '00000000-0000-4000-8000-00000000000a' and notes = 'inv 55') = 2, 'line 106';
   set local role authenticated;
 
   -- Received once, never again.
@@ -125,8 +125,8 @@ begin
   r := public.activate_pack(s, '{"box": 1, "slot": 2, "gameNumber": "1747", "packNumber": "0000010", "ticketNumber": 29}');
   assert (r ->> 'packsInBack')::int = 6, r::text;
   reset role;
-  assert (select status from app.packs where game_number = '1747' and pack_number = '0000010') = 'live';
-  assert (select unnumbered_in_back from app.games where game_number = '1747') = 4;
+  assert (select status from app.packs where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '1747' and pack_number = '0000010') = 'live', 'line 128';
+  assert (select unnumbered_in_back from app.games where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '1747') = 4, 'line 129';
   set local role authenticated;
 end $$;
 
