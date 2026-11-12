@@ -216,7 +216,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   and no slot. Messages go to `#stockMessage` under the search. **Scan**: the modes below, plus Press and Hold | Auto Scan. **Shipment Received** (one scan per pack, owner 2026-11-11;
   replaced the per-game pop-up): each scanned/typed full ticket adds its pack to `shipLines` ("This Shipment", `#shipArea`,
   newest game first; `packs: [packNumber | null]`); a 2nd pack of a game adds to its line, the same pack twice → red flash
-  (haptic error), a typed 4-digit game = a pack with no number ("Typed" chip), − takes the last off. A new game picks its
+  (haptic error), a typed 4-digit game = a pack with no number ("Typed" chip), a red − (`.ship-minus`, error colors) takes the last off. A new game picks its
   price with chips (`STANDARD_PACK_SIZES`, size filled in, editable). `#receiveBar` (`.bulk-bar.above-tabbar`) "Receive N
   Packs" (gray "Pick a Price for N New Games" until set) sends one `saveBackStock` shipment with `packNumbers` per line +
   notes; then `#shipDone` (per game +N, before → after; $ for the owner only). A refusal naming "Pack gggg-ppppppp" marks
