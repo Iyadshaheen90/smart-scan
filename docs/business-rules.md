@@ -148,7 +148,12 @@ Moved out of CLAUDE.md on 2026-10-29. Read before changing how anything is count
 - Wrong activation date → set it again on the slot page (`setActivationDate`).
 - Close Yesterday done wrong → the owner reopens it on Close Yesterday (before noon, today not closed).
 - Wrong pack size → `setPackSize` (refused if a live pack's top ticket wouldn't fit). Wrong slot price → `setSlotPrice`.
-- Wrong close → `reopenClose` restores every top ticket (found by pack, so moves after the close are fine).
+- Wrong close → `reopenClose` restores the top ticket of every pack still in a slot (found by pack, so moves after the close
+  are fine). A pack that ended after the close (sold out, returned, replaced) stays ended and **keeps its close line**, so
+  its sales count again at the re-close instead of being lost (fixed 2026-11-12, both backends; `test/parity/reopen-ended.js`).
+- A numbered pack the database took out for a count or Manage Packs − (it only knows how many) can come back: scanning it
+  to activate, sell whole or receive it works like a pack the database doesn't know (database only, migration 0027).
+  Packs taken out as returned, damaged, stolen, game expired or other stay refused.
 - Close submitted by mistake while still unsent → "Stop sending and change scans" on Close Day.
 - Shift close made by mistake → Delete on the Shift Closure page (`deleteShiftClose`): later shift closes that day start
   from the one before it, and that employee can close their shift again. Several at once: Select on that page (`shiftIds`,

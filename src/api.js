@@ -129,6 +129,11 @@ async function api(action, params = {}) {
       clearSession();
       location.href = 'login.html';
     }
+    // The cutover's lock (WebApp.js): this page is from before the move. Fetch the new version now, so the next page
+    // opened uses the database.
+    if (body.code === 'moved' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+    }
     throw new ApiError(body.code, body.error);
   }
   return body.data;

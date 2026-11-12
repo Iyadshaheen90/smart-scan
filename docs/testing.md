@@ -9,7 +9,8 @@ node test/ticket-order-scenarios.js       # ascending/descending per slot: count
 node test/theft-report-scenarios.js       # Theft Report backend: ranges (desc/asc/put in since close/after shift closes, sold out at a shift close, today closed), back stock, no $ for employees, last close
 node test/reports-scenarios.js            # Reports tab backend: shipments/returns lines (combined, tags, left out), totals = Months "Shipments in"
 node test/new-month-scenarios.js          # Start New Month against fake Drive/Sheets (fakes in test/fakes.js), incl. moveMonthsToFolder + folder fallback
-node test/export-scenarios.js             # exportMonth: month list, tabs as rows, dates as text, no Sessions/passwords, owner only
+node test/export-scenarios.js             # exportMonth: month list, tabs as rows, dates as text, no Sessions/passwords, owner only; the cutover's lock (setMoved)
+node scripts/db-audit.js [--prod]         # who can reach what in the database (owners, search_path, grants, forced row security); after every migration
 node test/password-rule.js                # the password rule: api.js, Auth.js and the members Edge Function give the same answer for every sample; Sheets refuses the same password again
 
 npm install                               # once: puppeteer-core, only for the browser tests (needs Google Chrome)
@@ -36,6 +37,7 @@ node test/browser/sw-cache-first.js       # real service worker: opens with no a
 node test/db/run.js                       # database: store separation, sign-in and permission checks (dev project, rolled back)
                                           #   dev holds other test stores: after `reset role` every check must filter `store_id` (RLS is off then)
                                           #   incl. shipment_pack_numbers_test.sql: packs by number, pack_used / pack_twice refusals, all or nothing, activation by number
+                                          #   counted_out_packs_test.sql: a pack taken out by a count / Manage Packs − can be activated, sold whole, received again; returned stays refused
                                           #   incl. prod_import_test.sql: import, clear only with the store's name, import again keeping people
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
 node test/browser/retailer-number.js     # More → Retailer Number (owner only, pop-up, refusals) and the number on the Theft Report (screen, text, PDF; owner + employee)
@@ -54,6 +56,7 @@ node test/browser/month-download.js       # Months on the database backend: Down
 node test/browser/theft-fab.js            # Home's red Theft Report button: owner + employees with the permission, above the tab bar, never hides the last row, opens the report
 node test/browser/close-yesterday.js      # Close Yesterday: Home button (employee/owner), Close Day banner, late close + summary, owner reopen, blocked reason, gone at noon (real backend code)
 node test/parity/missed-day.js            # missed day + Close Yesterday on Sheets vs Supabase: offered/blocked/refused, totals incl. the missed day's sold outs, reopen, full pack undo
+node test/parity/reopen-ended.js          # reopen after a counted pack ended: it keeps its close line (no lost sales); ended, reopened, un-ended, closed twice, reopened
 node test/browser/activation-date.js      # slot page Activation Date: owner only, under Pack Size, days follow, year typo refused, none for an empty slot (real backend code)
 node test/parity/activation-date.js       # setActivationDate on Sheets vs Supabase: owner only, date checks, days, that night's close unchanged
 node test/import-check.js                 # the import end to end: 2 made-up months on Sheets → export → rebuilt months answer the same → rows → dev test store → 23 reads the same

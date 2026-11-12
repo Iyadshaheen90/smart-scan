@@ -247,6 +247,9 @@ Frontend (`src/`, plain HTML + JS, no build):
 
 Backend (`src/apps-script/`, pushed with clasp; all files share one global scope):
 - `WebApp.js` `doPost` router: `PUBLIC_ACTIONS`, `SIGNED_IN_ACTIONS` (`owner: true` = owner only); `doGet` health check
+  The cutover's lock (2026-11-12): `setMoved { on }` (owner; `node scripts/import-sheets.js lock | unlock`) sets Script
+  Property `SMART_SCAN_MOVED`; while on, every action except login, logout, exportMonth and setMoved answers code `moved`
+  "Smart Scan was updated. Close the app and open it again." api.js then asks the service worker for the new version.
 - `Schema.js` tabs/headers, `CARRIED_FORWARD_TABS`, `STANDARD_PACK_SIZES`, `INITIAL_SLOT_PRICES`
 - `Sheets.js` `readTable`, `appendObject`, `updateRowsWhere`, `deleteRowsWhere`, `ensureHeaders`, `withLock`, `setCell`
 - `Months.js` active month lookup (Control → Months tab), `monthStatus`, `startNewMonth`, `listMonths`, `monthSummary`,

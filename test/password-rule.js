@@ -7,7 +7,8 @@ const crypto = require('crypto');
 const { fakeSheet, fakeSpreadsheet } = require('./fakes');
 const src = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
-const pages = vm.createContext({ console });
+// api.js notes the page it's on as it loads (Report a Problem), so it needs a location.
+const pages = vm.createContext({ console, location: { pathname: '/src/account.html' } });
 vm.runInContext(src('src/api.js').replace(/^if \('serviceWorker'[\s\S]*?\n}\n/m, ''), pages);
 const sheets = vm.createContext({ console });
 vm.runInContext(`class ApiError extends Error { constructor(code, message) { super(message); this.code = code; } }

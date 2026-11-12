@@ -312,14 +312,19 @@ function reopenClose(req) {
       throw new ApiError('not_closed', "Today hasn't been closed.");
     }
     const logSheet = closeLogSheet();
-    const isTodaysClose = (r) => r.close_type === 'close' && dateLabel(r.close_date) === today;
+    const stateSheet = slotStateSheet();
+    // Only packs still in a slot go back to before the close. A pack that ended after the close (sold out, returned,
+    // replaced) stays ended and keeps its close line: its later line starts from the closed ticket, so taking the
+    // close line away would leave those sales in no close (found 2026-11-12). The kept line counts again at the re-close.
+    const live = new Set(readTable(stateSheet).map((s) => s.pack_key).filter(Boolean));
+    const isTodaysClose = (r) => r.close_type === 'close' && dateLabel(r.close_date) === today && live.has(r.pack_key);
     const closes = readTable(logSheet).filter(isTodaysClose);
     deleteRowsWhere(logSheet, isTodaysClose);
 
     const log = readTable(logSheet);
-    const stateSheet = slotStateSheet();
-    for (const row of closes) {
-      // Found by pack, since it may have been moved since the close. An ended pack stays ended.
+    // Newest line first, so a pack with two close lines that day ends on its earliest ticket.
+    for (const row of closes.slice().reverse()) {
+      // Found by pack, since it may have been moved since the close.
       const state = readTable(stateSheet).find((s) => s.pack_key === row.pack_key);
       if (!state) continue;
       updateRowsWhere(stateSheet, isSlot(state.box, state.slot_number), {

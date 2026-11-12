@@ -12,6 +12,11 @@
 //                                           real email but NO email is sent (owner 2026-11-10: invites wait). A store that
 //                                           already has data (the side-by-side copy) is emptied first, only after the
 //                                           store's name is typed; its people, Store Info and retailer number stay.
+//   node scripts/import-sheets.js lock | unlock
+//                                           The cutover's lock on the Sheets backend (docs/cutover.md): after the last
+//                                           export, "lock" makes every action except signing in and the export answer
+//                                           "Smart Scan was updated…", so a phone on an old page can't save to Sheets.
+//                                           "unlock" is for a rollback. Signs in as the owner (password typed).
 //   node scripts/import-sheets.js invite <username…> | --all
 //                                           Sends the invite email (choose a password) on prod to those people, only
 //                                           after "send" is typed. Someone who already set a password is skipped.
@@ -78,6 +83,32 @@ async function exportAll() {
   }
 }
 
+// Locks or unlocks the Sheets backend (WebApp.js setMoved).
+async function setLock(on) {
+  const username = await ask('Owner username: ');
+  const password = await ask('Password: ', true);
+  const session = await sheetsApi({ action: 'login', username, password });
+  try {
+    const r = await sheetsApi({ action: 'setMoved', token: session.token, on });
+    console.log(r.moved ? 'The Sheets backend is LOCKED: nothing can be saved there now.' : 'The Sheets backend is unlocked.');
+  } finally {
+    await sheetsApi({ action: 'logout', token: session.token }).catch(() => {});
+  }
+}
+
+// The day before a "YYYY-MM-DD" day.
+function dayBefore(day) {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// The newest Close Day in the export. A close still waiting on a phone (no connection) isn't in the sheets, so it
+// isn't in the export either; after the switch the database would refuse it and its sales would land in the next day.
+function newestClose(rows) {
+  return rows.dailyCloses.slice().sort((a, b) => (a.date < b.date ? -1 : 1)).pop() || null;
+}
+
 function loadExport() {
   const files = fs.existsSync(EXPORT_DIR) ? fs.readdirSync(EXPORT_DIR).filter((f) => /^\d{4}-\d{2}\.json$/.test(f)).sort() : [];
   if (!files.length) throw new Error(`No months in ${EXPORT_DIR}: run "node scripts/import-sheets.js export" first.`);
@@ -106,6 +137,9 @@ async function check() {
   const { checked, counts } = await compareOnDev(rows, sheets, `${day} ${time.slice(0, 5)}:00`);
   console.log(`Imported into a dev test store: ${JSON.stringify(counts)}`);
   console.log(`${checked} reads the same as the sheets at ${exportedAt}. The test store is deleted again.`);
+  const last = newestClose(rows);
+  console.log(last ? `Newest Close Day in the export: ${last.date} (by ${last.closedBy || '?'}, ${last.closedAt || 'time not kept'}).`
+    : 'There is no Close Day in the export.');
   return { rows, exportedAt };
 }
 
@@ -155,6 +189,17 @@ async function prodAccounts() {
 
 async function prod() {
   const { rows, exportedAt } = await check();
+  // The last close must be in the export (see newestClose): refused when it's older than yesterday, asked otherwise.
+  const last = newestClose(rows);
+  const exportDay = exportedAt.split(' ')[0];
+  if (!last || (last.date !== exportDay && last.date !== dayBefore(exportDay))) {
+    throw new Error(`The newest Close Day in the export is ${last ? last.date : 'missing'}, but it was exported on ${exportDay}. `
+      + 'A close is missing (still waiting on a phone?). Send it, export again, then run this again. Nothing was imported.');
+  }
+  console.log(`\nThe newest Close Day in this export is ${last.date}. Anything saved on Sheets after ${exportedAt} is NOT in it.`);
+  if ((await ask(`Is ${last.date} the last close before the switch (or is this a practice import)? Type "yes": `)) !== 'yes') {
+    throw new Error('Stopped: nothing was imported.');
+  }
   console.log(`\nNow the real store on smart-scan-prod (${PROD_REF}).`);
 
   // The store: made once, its id kept in ~/.smart-scan/prod-store.json.
@@ -231,9 +276,9 @@ async function invite() {
 }
 
 const command = process.argv[2];
-const run = { export: exportAll, check, prod, invite }[command];
+const run = { export: exportAll, check, prod, invite, lock: () => setLock(true), unlock: () => setLock(false) }[command];
 if (!run) {
-  console.log('Use: node scripts/import-sheets.js export | check | prod | invite <username…>|--all');
+  console.log('Use: node scripts/import-sheets.js export | check | prod | lock | unlock | invite <username…>|--all');
   process.exit(1);
 }
 run().catch((e) => { console.error(e.message || e); process.exit(1); });

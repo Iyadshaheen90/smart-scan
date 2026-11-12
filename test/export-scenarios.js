@@ -70,4 +70,20 @@ const post = (body) => JSON.parse(run(`doPost({ postData: { contents: ${JSON.str
 assert.equal(post({ action: 'exportMonth', token: 'owner' }).ok, true);
 assert.equal(post({ action: 'exportMonth', token: 'employee', label: '2026-09' }).code, 'forbidden');
 
+// The cutover's lock (docs/cutover.md): only the owner turns it on; then every action is refused with "moved" except
+// signing in, the export and the lock itself; turning it off is the rollback.
+assert.equal(post({ action: 'setMoved', token: 'employee', on: true }).code, 'forbidden');
+assert.equal(post({ action: 'listSlots', token: 'owner' }).code !== 'moved', true);
+assert.deepEqual(post({ action: 'setMoved', token: 'owner', on: true }), { ok: true, data: { moved: true } });
+for (const action of ['listSlots', 'submitClose', 'activatePack', 'saveBackStock', 'submitShiftClose', 'me', 'claimOwner', 'noSuchAction']) {
+  const r = post({ action, token: 'owner' });
+  assert.equal(r.code, 'moved', action);
+  assert.equal(r.error, 'Smart Scan was updated. Close the app and open it again.');
+}
+assert.equal(post({ action: 'exportMonth', token: 'owner' }).ok, true);
+assert.notEqual(post({ action: 'login', username: 'o', password: 'x' }).code, 'moved');
+assert.notEqual(post({ action: 'logout', token: 'owner' }).code, 'moved');
+assert.deepEqual(post({ action: 'setMoved', token: 'owner', on: false }), { ok: true, data: { moved: false } });
+assert.notEqual(post({ action: 'listSlots', token: 'owner' }).code, 'moved');
+
 console.log('EXPORT CHECKS PASS');

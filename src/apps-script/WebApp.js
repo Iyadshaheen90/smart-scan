@@ -60,7 +60,25 @@ const SIGNED_IN_ACTIONS = {
   setRetailerNumber: { owner: true, run: (req) => setRetailerNumber(req.retailerNumber) },
   // The move to the database (scripts/import-sheets.js): read only, no page calls it.
   exportMonth: { owner: true, run: (req) => exportMonth(req.label) },
+  // The cutover's lock (scripts/import-sheets.js lock | unlock; no page calls it).
+  setMoved: { owner: true, run: (req) => setMoved(req.on === true) },
 };
+
+// The cutover to the database (docs/cutover.md): once the last export is taken, this backend is locked so a phone
+// still showing an old page can't save anything here that the database would never see. Signing in, the export and
+// the lock itself keep working (the import script needs them; unlocking is the rollback).
+const MOVED_PROPERTY = 'SMART_SCAN_MOVED';
+const MOVED_ALLOWED = ['login', 'logout', 'exportMonth', 'setMoved'];
+const MOVED_MESSAGE = 'Smart Scan was updated. Close the app and open it again.';
+
+function movedToDatabase() {
+  return PropertiesService.getScriptProperties().getProperty(MOVED_PROPERTY) === 'yes';
+}
+
+function setMoved(on) {
+  PropertiesService.getScriptProperties().setProperty(MOVED_PROPERTY, on ? 'yes' : 'no');
+  return { moved: movedToDatabase() };
+}
 
 function doPost(e) {
   // Nothing kept from an earlier request (the month may have been started since).
@@ -74,6 +92,7 @@ function doPost(e) {
       throw new ApiError('bad_request', 'Request body must be JSON.');
     }
 
+    if (!MOVED_ALLOWED.includes(req.action) && movedToDatabase()) throw new ApiError('moved', MOVED_MESSAGE);
     if (PUBLIC_ACTIONS[req.action]) {
       return json({ ok: true, data: PUBLIC_ACTIONS[req.action](req) });
     }

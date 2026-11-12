@@ -20,6 +20,8 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
 | `docs/code-map.md` | changing a page or backend file: what each one does, UI look, saved answers, Help & FAQ, back pills, conventions |
 | `docs/supabase.md` | database, sign-in, emails, the import, or porting a backend action to the database |
 | `docs/testing.md` | choosing which tests to run (full list with what each covers) |
+| `docs/cutover.md` | any Dec 1 cutover work: the checklist, the gaps found, go / no-go and rollback |
+| `docs/db-review-2026-11.md` | fixing a finding from the 2026-11-12 database review, or reviewing the database again |
 
 **Keep this file small (under ~10 KB).** New details go in the matching docs file, not here. Only a new standing rule
 that applies to almost every change belongs below.

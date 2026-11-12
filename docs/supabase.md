@@ -70,6 +70,11 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   was taken out of back stock on … (reason)"; twice in one shipment → `pack_twice`; checked before anything is written, so
   nothing is saved. Count mode ignores them. Sheets ignores `packNumbers` (counts only; owner careful until Dec 1).
   Test: `supabase/tests/shipment_pack_numbers_test.sql`. **Status: LIVE on dev + prod 2026-11-11 (owner's OK; owner smart_scan_api, authenticated only).**
+- **Review fixes (migration 0027, 2026-11-12; `docs/db-review-2026-11.md`):** `reopen_close` deletes and restores only close
+  lines of packs still live (newest first); `app.counted_out(pack)` = removed with reason count / adjust: `activate_pack`
+  (same row goes live; takes an unnumbered pack if there is one), `sell_full_pack` (needs an unnumbered pack) and
+  `save_back_stock` shipments (`on conflict` → in_back again) accept such a pack. Tests: `test/parity/reopen-ended.js`,
+  `supabase/tests/counted_out_packs_test.sql`. **Status: written, not on dev or prod yet.**
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

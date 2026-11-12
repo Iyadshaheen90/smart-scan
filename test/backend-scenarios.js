@@ -526,7 +526,7 @@ console.log('game ended scenarios pass');
   const users = { o: owner, e: emp, ship: { username: 'ship', role: 'employee', permissions: ['receive_shipments'] },
     count: { username: 'count', role: 'employee', permissions: ['count_stock'] },
     sell: { username: 'sell', role: 'employee', permissions: ['full_pack_sale'] } };
-  Object.assign(ctx, { users, ContentService: { MimeType: {}, createTextOutput: (t) => ({ setMimeType() { return JSON.parse(t); } }) } });
+  Object.assign(ctx, { users, PropertiesService: { getScriptProperties: () => ({ getProperty: () => null }) }, ContentService: { MimeType: {}, createTextOutput: (t) => ({ setMimeType() { return JSON.parse(t); } }) } });
   vm.runInContext(`requireSession = (token, role) => { const u = users[token]; if (role === 'owner' && u.role !== 'owner') throw new ApiError('forbidden', 'Only the owner can do that.'); return u; };
     currentMonthMemo = null; openedMonth = null;`, ctx);
   const post = (token, action, params = {}) => run(`doPost({ postData: { contents: ${JSON.stringify(JSON.stringify({ action, token, ...params }))} } })`);
