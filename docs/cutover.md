@@ -32,7 +32,7 @@ this before any cutover work. The review behind it: `docs/db-review-2026-11.md`.
       Run it again after any new migration on prod.
 - [ ] Prod matches dev: same migrations, `members` + `support` functions deployed, the 3 function secrets and the
       status-link secret set, auth settings pushed (`docs/supabase.md`).
-- [ ] Nov 27–29 (needs pages sw v69 or newer, so opening the invite doesn't move a phone to the database):
+- [ ] Nov 27–29 (needs pages sw v70 or newer, so opening the invite doesn't move a phone to the database):
       `node scripts/import-sheets.js invite --all` (owner types `send`). Each employee adds the store's
       Gmail to contacts, checks Spam, and chooses a password. Run `invite --all` again the next day: everyone should
       be "skipped: already has a password". Anyone left: the owner uses Reset Password on Dec 1 (database).

@@ -84,13 +84,13 @@ Fix: add `store_id = app.current_store_id()` to the member queries in `app.users
 `login.html`, `set-password.html`, `sw.js`. The close queue is sound: a close is saved on the phone before it is sent,
 `closeId` / `shiftId` make a resend safe, a refusal drops it and keeps the scans, and signing out keeps it.
 
-- **Fixed (sw v69): an email link opened before the cutover left the browser on the database.** `set-password.html`
+- **Fixed (sw v70): an email link opened before the cutover left the browser on the database.** `set-password.html`
   switched a Sheets browser to the database to use the link and left it there. On Android the home-screen app shares
   storage with the browser, so an employee opening their invite early would then do real shift closes and activations
   on the database's practice data, not the sheets. Now the switch lasts for that page only: the password is saved, no
   database sign-in is kept, the Sheets sign-in is untouched and the message says to keep signing in as today.
   Test: `test/browser/phone-switch.js`.
-- **Fixed (sw v69):** a rate-limited token renewal (429) signed the person out; it now counts as "try again".
+- **Fixed (sw v70):** a rate-limited token renewal (429) signed the person out; it now counts as "try again".
 - **Open, small:** a database error without an app code (a bug, not a refusal) is treated like a server hiccup, so a
   waiting close would retry it forever; the person can still tap Stop Sending. Fix when it ever happens.
 - **Open, hardening:** the app signs people out after 12 hours, but the database's refresh token keeps working until
