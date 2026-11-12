@@ -11,6 +11,9 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
 - Progress and what's next: the plan file `~/.claude/plans/smart-scan-plan-sorted-nebula.md`, section
   "▶ PROGRESS — pick up here". Read it first. Older history: `smart-scan-plan-archive.md`; original design and the
   multi-store FUTURE plan: `smart-scan-plan-reference.md` (same folder). Open those only when needed.
+- Designs for after the cutover (same folder, private on purpose: prices and business rules):
+  `smart-scan-subscriptions-design.md` (plans, trial, read-only) and `smart-scan-multi-store-design.md` (setup wizard,
+  several stores, sign-in by username, other states' tickets). All owner decisions in both are made.
 
 ## Details live in docs/ (read only the one the task needs)
 
@@ -77,6 +80,7 @@ npx @google/clasp push -f                 # push backend (clasp isn't installed 
 npx @google/clasp update-deployment AKfycbynoVRwuSj_n5VLMy4R3ZtfaPY4PMIzV0yrjCW-UU8hSlpfBmXhKu4Dy-SzcQ9pXtGJ -d "<what changed>"
 git push origin main                      # publishes the pages (GitHub Pages, ~1 min)
 ```
+After any migration: `node scripts/db-audit.js` (dev; `--prod` for the live one) must print "Nothing out of place".
 Supabase: this folder stays linked to the **dev** project; every **prod** command names `--project-ref` (see
 docs/supabase.md), and prod changes need the owner's OK like any live deploy.
 Deploy the backend before the pages when a page needs a new action. Pages: bump `CACHE` in sw.js +
