@@ -258,7 +258,8 @@ async function freshToken(force = false) {
   if (!refreshingToken) {
     refreshingToken = (async () => {
       const r = await dbFetch('/auth/v1/token?grant_type=refresh_token', { body: { refresh_token: session.refreshToken } });
-      if (r.status >= 500) throw serverError();
+      // Busy or rate-limited isn't signed out: try again later, keep the sign-in.
+      if (r.status >= 500 || r.status === 429) throw serverError();
       if (r.status >= 300) throw signedOut();
       saveSession({ ...getSession(), accessToken: r.data.access_token, refreshToken: r.data.refresh_token,
         accessExpiresAt: Date.now() + r.data.expires_in * 1000 });

@@ -2,7 +2,7 @@
 // (owner on Sheets; anyone on a switched phone sees Use Sheets Again), the confirm pop-up, Sign In by email with the
 // way back, the amber Database chip in every header and on the version line, the pages' saved answers cleared (drafts
 // kept), refused while a close waits to be sent, gone at the cutover or without a database, and an invite link opened
-// in a browser still on Sheets switching it first. Database requests are answered here: nothing reaches the real one.
+// in a browser still on Sheets using the database for that page only. Database requests are answered here: nothing reaches the real one.
 // Run: node test/browser/phone-switch.js
 const assert = require('assert/strict');
 const fs = require('fs'); const path = require('path');
@@ -127,8 +127,24 @@ const dbSession = (role, username) => ({ backend: 'supabase', accessToken: 'a', 
   // An invite link opened in a browser still on Sheets: switches it, then shows the form with the link's tokens.
   await go(page, `${base}set-password.html#access_token=at&refresh_token=rt&expires_in=3600&type=invite`);
   await page.waitForFunction(() => !document.getElementById('form').classList.contains('hidden'), { timeout: 4000 });
-  assert.equal(await stored(page, KEY), 'database', 'the link switched this browser');
   assert.match(await text(page, '#intro'), /Welcome to Smart Scan/);
+  // Only for this page (2026-11-12): the browser is back on Sheets already, so an employee who opens their invite
+  // before the cutover keeps working on Sheets, with their Sheets sign-in untouched.
+  assert.equal(await stored(page, KEY), null, 'the switch was taken back');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('smartScanLinkSwitch')), null);
+  assert.equal(await page.evaluate(() => USE_DATABASE), true, 'this page still saves the password on the database');
+  const sheetsSession = await stored(page, 'smartScanSession');
+  await page.evaluate(() => {
+    api = async (action) => { if (action !== 'setNewPassword') throw new Error(action); return { backend: 'supabase', username: 'sam', storeId: 's' }; };
+    const f = document.getElementById('form'); f.password.value = 'Abcdef1!'; f.confirm.value = 'Abcdef1!';
+    f.querySelector('button[type="submit"]').click();
+  });
+  await page.waitForFunction(() => /Password saved for sam/.test(document.getElementById('message').textContent), { timeout: 4000 });
+  assert.match(await text(page, '#message'), /Keep signing in to Smart Scan the way you do today/);
+  assert.equal(await stored(page, 'smartScanSession'), sheetsSession, 'no database sign-in replaced the Sheets one');
+  assert.ok(!(await visible(page, '#continue')), 'no Continue into the database');
+  await go(page, `${base}login.html`);
+  assert.equal(await text(page, 'label[for="username"]'), 'Username', 'the next page is on Sheets');
   // Without a link it doesn't switch anything.
   await page.evaluate((k) => localStorage.removeItem(k), KEY);
   await go(page, `${base}set-password.html`);
