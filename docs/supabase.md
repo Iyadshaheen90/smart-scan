@@ -92,7 +92,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   (end of a box, or the next box number), `remove_slot { box, slot }` (last slot of its box, empty), `remove_box { box }`
   (last box, all empty); never renumbered; a store keeps one slot. `test_claim_store(store)` (service key): a store
   under an hour old whose people all have `@test.invalid` emails becomes a test store, so `test_drop_store` can remove
-  what a wizard test made. Not built yet: the subscription row, Store Settings / Edit Layout pages, the store
+  what a wizard test made. **Status: LIVE on dev + prod 2026-11-12 (owner OK; prod audit clean).** Not built yet: the subscription row, Store Settings / Edit Layout pages, the store
   chooser, inviting an existing account, deletion. Test: `supabase/tests/many_stores_test.sql`.
   **Pages:** `config.js` `SIGN_UP_OPEN` (false: nothing changes); with it true on the database, Sign In shows Create
   Account (`signup.html` → Supabase Auth sign-up, the confirm link opens `setup.html`), and a session without a store
