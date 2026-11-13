@@ -15,6 +15,9 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
   `smart-scan-subscriptions-design.md` (plans, trial, read-only) and `smart-scan-multi-store-design.md` (setup wizard,
   several stores, sign-in by username, other states' tickets). All owner decisions in both are made.
   `smart-scan-startup-readiness.md`: running it as a business, with a checklist per stage (read when planning one).
+- Many stores, build steps 1-3 are live but closed: `create_store`, store settings and layout functions (migration
+  0028), `setup.html` (setup wizard), `signup.html`, all behind `SIGN_UP_OPEN = false` in `config.js`. Try the wizard
+  on dev with `node scripts/preview-wizard.js`. What's built and what's left: `docs/supabase.md` ("Many stores").
 
 ## Details live in docs/ (read only the one the task needs)
 
@@ -37,7 +40,9 @@ that applies to almost every change belongs below.
 - `src/apps-script/` backend (one global scope, pushed with clasp). `WebApp.js` router (`owner: true` / `allow: [...]`).
 - `supabase/` migrations, functions and tests for the database version. `test/` backend scenarios, `test/browser/`
   headless Chrome page tests, `test/parity/` Sheets vs Supabase.
-- 2 boxes × 24 slots. Ticket order per slot (descending/ascending): all math goes through `Tickets.js` and api.js's
+- Route 66 Liquor has 2 boxes × 24 slots, but pages never assume a layout or a store name: box buttons come from the
+  store's slots (`drawBoxSwitch`), the name from the session (`storeName()`), the day from `storeToday()`.
+  Ticket order per slot (descending/ascending): all math goes through `Tickets.js` and api.js's
   copy, never a hard-coded "+ 1".
 
 ## Standing rules (owner's)
