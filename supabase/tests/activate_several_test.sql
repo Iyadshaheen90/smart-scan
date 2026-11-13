@@ -18,7 +18,10 @@ insert into app.store_members (store_id, user_id, username, role, permissions, a
 insert into app.slots (store_id, box, slot_number, price, last_game_number) values
   ('00000000-0000-4000-8000-00000000000a', 1, 1, 20, '1747'),
   ('00000000-0000-4000-8000-00000000000a', 1, 2, 20, null),
-  ('00000000-0000-4000-8000-00000000000a', 1, 3, 10, null);
+  ('00000000-0000-4000-8000-00000000000a', 1, 3, 10, null),
+  -- Two more empty slots, so a list of five packs fits (the cap is the store's slot count, migration 0028).
+  ('00000000-0000-4000-8000-00000000000a', 1, 4, 5, null),
+  ('00000000-0000-4000-8000-00000000000a', 1, 5, 5, null);
 insert into app.games (store_id, game_number, price, tickets_per_pack) values
   ('00000000-0000-4000-8000-00000000000a', '1747', 20, 30),
   ('00000000-0000-4000-8000-00000000000a', '2222', 10, 50);

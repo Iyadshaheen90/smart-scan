@@ -48,6 +48,8 @@
   <!-- A phone switched to the database before the cutover (More → Try the Database): the way back, even before anyone
        can sign in there. -->
   <p id="switchLine" class="auth-note hidden"><span class="chip amber">Database</span><br>This phone is trying the database. <a href="#" id="useSheets">Use Sheets Again</a></p>
+  <!-- Self sign-up (config.js SIGN_UP_OPEN, database only): a new owner makes an account, then sets up the store. -->
+  <p id="signUpLine" class="auth-note hidden">New to Smart Scan? <a href="signup.html">Create Account</a></p>
   <p id="setupLine" class="auth-note">Setting up for the first time? <a href="setup-owner.html">Create the owner account</a>.</p>
   <p class="fine-print auth-fine" id="disclaimer"></p>
 
@@ -56,7 +58,7 @@
   <script src="icons.js"></script>
   <script src="nav.js"></script>
   <script>
-    if (getSession()) location.replace('index.html');
+    if (getSession()) location.replace(needsStore(getSession()) ? 'setup.html' : 'index.html');
     document.getElementById('disclaimer').textContent = APP_DISCLAIMER;
 
     const form = document.getElementById('form');
@@ -70,6 +72,7 @@
       form.username.setAttribute('inputmode', 'email');
       document.getElementById('forgotLine').classList.remove('hidden');
       document.getElementById('setupLine').classList.add('hidden');
+      document.getElementById('signUpLine').classList.toggle('hidden', !SIGN_UP_IS_OPEN);
       // The last email used on this phone is filled in, so only the password is needed.
       if (lastEmail()) {
         form.username.value = lastEmail();
@@ -114,7 +117,7 @@
           : { username: form.username.value, password: form.password.value }));
         saveSession(session);
         if (USE_DATABASE) rememberEmail(session.email || form.username.value);
-        location.replace('index.html');
+        location.replace(needsStore(session) ? 'setup.html' : 'index.html');
       } catch (err) {
         showMessage(messageEl, err.message);
       }

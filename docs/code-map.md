@@ -94,6 +94,13 @@ Frontend (`src/`, plain HTML + JS, no build):
   permission the owner turned on (Load / Return Packs → Slots; Ticket Order → More; Receive a Shipment, Manage Stock, Sell a Full Pack →
   `backstock.html?mode=…`; Theft Report → `theft-report.html`); no dollars. · `more.html` (**redesigned 2026-10-29**, owner: "looked generic"): a profile card (`.profile-card`: big initials, name, Owner/Employee chip, the sign-in email on the database), then grouped inset lists (`.group-block` > `.group-label` + `.group` of `.group-row`s: icon tile — green `accent` for Store —, title, one-line `.row-sub` hint, chevron, hairline dividers between visible rows only): **Store** (owner; an employee sees it only with Ticket Order), **Support** (Help & FAQ, Scanner Test, About), **Account** (Change My Password), then a quiet centered red **Sign Out** row and `Smart Scan · Version N` (newest `smart-scan-vN` in `caches.keys()`); test/browser/more.js. Rows: **Retailer Number** (owner only: a pop-up that asks for the number only when
   opened, Cancel / Save; `getRetailerNumber` / `setRetailerNumber`; icon `store`), Ticket order (owner / `ticket_order`: pop-up All descending / All ascending, Cancel / Save), Scanner test, Change my password, Sign out ·
+  `signup.html` Create Account and `setup.html` the setup wizard (many stores; database only, behind `config.js`
+  `SIGN_UP_OPEN`): 8 steps (store, state, hours, boxes, prices, ticket order, retailer number, review), one question a
+  screen, Back = the header's pill, a draft on the phone (`smartScanSetupDraft:<email>`) until Create Store
+  (`createStore`); then Home shows What to Do First (`#firstSteps`, localStorage `smartScanFirstSteps` = the store's id,
+  until Done). Styles `.wiz-*` in style.css. Box buttons everywhere come from the store's own slots (`drawBoxSwitch`
+  in nav.js: none for one box, a scrolling row past four); headers show `storeName()` (the session's store); the
+  store's business day before the server answers is `storeToday()` (api.js).
   `login.html` (Email + Forgot Password? on the database) · `set-password.html` (database: invite / password email links) ·
   `setup-owner.html` · `account.html` · `users.html` (owner; on the database an employee is added by username + email; each employee card has a switch per permission,
   `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn All On/Off; folded under a

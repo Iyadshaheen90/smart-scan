@@ -67,6 +67,10 @@ people's rows never leak. Not reachable today (one store, one account per store)
 Fix: add `store_id = app.current_store_id()` to the member queries in `app.users_json`, `member_admin_check`,
 `set_user_permissions` (and any new one), plus a db test with one person in two stores.
 
+**Fixed in migration 0028 (2026-11-12; see `docs/supabase.md` for whether it is deployed):** those three queries name
+the store, and the two policies themselves now apply only before a store is entered, so a future query that forgets
+the filter can't see the other store either. Test: `supabase/tests/many_stores_test.sql`.
+
 ### 4. Smaller notes
 
 - `clear_reports` / `restore_reports` / `my_reports` answer a raw cast error for a non-numeric `numbers` item or a

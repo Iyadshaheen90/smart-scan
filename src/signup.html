@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1010">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Create Account</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Create Account (many stores; database only, config.js SIGN_UP_OPEN): a new store owner makes an account with
+       their email and a password. Supabase Auth emails a link to confirm the address; the link opens the setup wizard
+       (setup.html) signed in. Employees don't use this page: their owner adds them by email. -->
+  <div class="auth-brand">
+    <img src="icons/icon-192.png" alt="" width="72" height="72">
+    <h1>Create Account</h1>
+    <p class="sub">For store owners. Then you set up your store.</p>
+  </div>
+
+  <form id="form" class="auth-card" novalidate>
+    <label for="email">Email</label>
+    <input id="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="new-password" minlength="8" required>
+    <ul class="password-rule"></ul>
+    <label for="confirm">Type the Password Again</label>
+    <input id="confirm" type="password" autocomplete="new-password" minlength="8" required>
+    <button class="primary" type="submit">Create Account</button>
+  </form>
+  <div id="message" class="message"></div>
+
+  <!-- After Create Account: what to do next. -->
+  <div id="sent" class="auth-card hidden" style="padding-top: 16px;">
+    <h2 style="margin-top: 0;">Check Your Email</h2>
+    <p class="sub" style="margin-bottom: 0;">We sent a link to <strong id="sentTo"></strong>. Open it on this phone to confirm your email and start setting up your store. The link works for 24 hours. If it isn't in your inbox, look in Spam.</p>
+  </div>
+
+  <p class="auth-note" id="employeeNote">Work at a store that uses Smart Scan? Ask the owner to add you. You'll get an email with a link.</p>
+  <p class="auth-note">Already have an account? <a href="login.html">Sign In</a></p>
+  <p class="fine-print auth-fine" id="disclaimer"></p>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    // Only where creating an account is open; otherwise Sign In.
+    if (!SIGN_UP_IS_OPEN) location.replace('login.html');
+    else if (getSession()) location.replace(needsStore(getSession()) ? 'setup.html' : 'index.html');
+    document.getElementById('disclaimer').textContent = APP_DISCLAIMER;
+    document.querySelectorAll('.password-rule').forEach((el) => showPasswordRule(el));
+
+    const form = document.getElementById('form');
+    const messageEl = document.getElementById('message');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      messageEl.className = 'message';
+      messageEl.textContent = '';
+      const email = form.email.value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showMessage(messageEl, 'Enter your email address.'); return; }
+      if (passwordProblem(form.password.value)) { showMessage(messageEl, passwordProblem(form.password.value)); return; }
+      if (form.password.value !== form.confirm.value) { showMessage(messageEl, "The two passwords don't match."); return; }
+      try {
+        await whileBusy(form.querySelector('button[type="submit"]'), 'Creating…', () => api('signUp', { email, password: form.password.value }));
+        rememberEmail(email);
+        form.classList.add('hidden');
+        document.getElementById('employeeNote').classList.add('hidden');
+        document.getElementById('sentTo').textContent = email;
+        document.getElementById('sent').classList.remove('hidden');
+      } catch (err) {
+        showMessage(messageEl, err.message);
+      }
+    });
+  </script>
+</body>
+</html>

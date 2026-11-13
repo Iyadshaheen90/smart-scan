@@ -133,7 +133,7 @@
     const RETRY_EVERY_MS = 30000;
 
     let status = null;
-    let live = [];          // slots with a pack, box 1 slots 1-24 then box 2 slots 1-24
+    let live = [];          // slots with a pack, in the server's order (box by box, slot by slot)
     let entries = {};       // slot key -> { packKey, type, ticketNumber?, sold }
     let currentKey = null;
     let scanner = null;

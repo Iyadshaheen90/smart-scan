@@ -177,7 +177,7 @@
     <div class="dialog-title">Move or Swap</div>
     <p class="sub">The pack, its top ticket and this slot's price go to the other slot, and whatever is there comes here. Swap the same two slots again to undo.</p>
     <div class="choices">
-      <select id="swapBox" aria-label="Box"><option value="1">Box 1</option><option value="2">Box 2</option></select>
+      <select id="swapBox" aria-label="Box"></select>
       <select id="swapSlot" aria-label="Slot"></select>
     </div>
     <p class="slot-detail" id="swapPreview"></p>
@@ -280,7 +280,7 @@
             + ' If the lottery activated this pack before it went in the slot (a slow pack left in the back can activate on its own),'
             + ' set that day so its days and Settling are right. Sales still count from the tickets scanned.';
           if (document.activeElement !== $('activatedOn')) $('activatedOn').value = pack.activationDate || '';
-          $('activatedOn').max = phoneToday();
+          $('activatedOn').max = storeToday();
         }
         show('swapForm', true);
         renderSwapPreview();
@@ -515,7 +515,23 @@
     const describeSlot = (s) => `$${s.slotPrice} · ` + (s.pack ? `pack ${s.pack.gameNumber}-${s.pack.packNumber}, top ticket ${pad3(s.pack.exposedTicket)}` : 'empty');
     const swapTarget = () => allSlots.find((s) => s.box === Number($('swapBox').value) && s.slot === Number($('swapSlot').value));
 
+    // The Box list holds the store's boxes (a one-box store doesn't show it); it keeps what was picked.
+    function fillSwapBoxes() {
+      const boxes = [...new Set(allSlots.map((s) => s.box))].sort((a, b) => a - b);
+      const chosen = Number($('swapBox').value) || box;
+      $('swapBox').innerHTML = '';
+      for (const n of boxes) {
+        const option = document.createElement('option');
+        option.value = n;
+        option.textContent = `Box ${n}`;
+        $('swapBox').append(option);
+      }
+      $('swapBox').value = String(boxes.includes(chosen) ? chosen : box);
+      $('swapBox').classList.toggle('hidden', boxes.length < 2);
+    }
+
     function fillSwapSlots() {
+      fillSwapBoxes();
       const chosenBox = Number($('swapBox').value);
       const current = $('swapSlot').value;
       $('swapSlot').innerHTML = '';
@@ -576,14 +592,10 @@
       }
     });
 
-    // "Sep 12, 2026" for a yyyy-MM-dd label; today's date on this phone as a label (the date picker's latest day).
+    // "Sep 12, 2026" for a yyyy-MM-dd label. (The date picker's latest day is the store's today: storeToday in api.js.)
     function longDate(label) {
       const [y, m, d] = label.split('-').map(Number);
       return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-    function phoneToday() {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
     function activeDaysText(n) { return n === 0 ? 'activated today' : `${n} ${n === 1 ? 'day' : 'days'} ago`; }
 
@@ -706,7 +718,6 @@
     }
 
     if (session) {
-      $('swapBox').value = String(box);
       loadSlots().catch((err) => { $('heroMain').textContent = ''; showMessage(messageEl, err.message); });
     }
   </script>

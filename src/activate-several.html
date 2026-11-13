@@ -63,14 +63,11 @@
     <button type="button" class="primary" id="activateAllBtn" disabled>Activate All</button>
   </div>
 
-  <!-- Pick a slot for one pack: both boxes, the slots its game was last in outlined, slots already on the list greyed. -->
+  <!-- Pick a slot for one pack: every box (drawBoxSwitch), the slots its game was last in outlined, slots already on the list greyed. -->
   <div class="overlay hidden" id="slotDialog" role="dialog" aria-modal="true">
     <div class="dialog">
       <div class="dialog-title" id="slotDialogTitle">Pick a Slot</div>
-      <div class="segmented" id="pickBox" style="margin-top: 12px;">
-        <button type="button" data-box="1">Box 1</button>
-        <button type="button" data-box="2">Box 2</button>
-      </div>
+      <div class="segmented hidden" id="pickBox" style="margin-top: 12px;"></div>
       <div class="slot-pick-grid" id="pickGrid"></div>
       <div class="dialog-buttons"><button type="button" class="cancel" id="pickCancel">Cancel</button></div>
     </div>
@@ -383,7 +380,7 @@
     // ---- Picking a slot ----
     function openPicker(r) {
       pickingRow = r;
-      pickBox = r.box || (r.choices ? Number(r.choices[0].split('-')[0]) : 1);
+      pickBox = r.box || (r.choices ? Number(r.choices[0].split('-')[0]) : slots.length ? Math.min(...slots.map((s) => s.box)) : 1);
       $('slotDialogTitle').textContent = `Slot for ${keyOf(r)}`;
       drawPicker();
       $('slotDialog').classList.remove('hidden');
@@ -391,7 +388,7 @@
     function drawPicker() {
       const r = pickingRow;
       const taken = takenSlots(r);
-      document.querySelectorAll('#pickBox button').forEach((b) => b.classList.toggle('active', Number(b.dataset.box) === pickBox));
+      drawBoxSwitch($('pickBox'), slots, pickBox, (n) => { pickBox = n; drawPicker(); });
       const grid = $('pickGrid');
       grid.innerHTML = '';
       for (const s of slots.filter((x) => x.box === pickBox)) {
@@ -414,7 +411,6 @@
         grid.append(b);
       }
     }
-    document.querySelectorAll('#pickBox button').forEach((b) => b.addEventListener('click', () => { pickBox = Number(b.dataset.box); drawPicker(); }));
     $('pickCancel').addEventListener('click', () => $('slotDialog').classList.add('hidden'));
     $('slotDialog').addEventListener('click', (e) => { if (e.target === $('slotDialog')) $('slotDialog').classList.add('hidden'); });
 

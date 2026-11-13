@@ -89,6 +89,30 @@ function clearSession() {
   try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
 }
 
+// The signed-in store's name (every header, the Theft Report). On Sheets the session has none: config.js's name.
+// On the database with nobody signed in (an invite or password link), no store is known yet: the app's name.
+function storeName() {
+  const session = getSession();
+  if (session && session.storeName) return session.storeName;
+  return USE_DATABASE ? 'Smart Scan' : STORE_NAME;
+}
+
+// The store's business day as yyyy-MM-dd, before the server has answered: the store's own time zone and day-end hour
+// (a store open past midnight counts those hours to the day before), not the phone's. Without them (Sheets, or a
+// sign-in from before they were sent) it's the phone's date, as before.
+function storeToday() {
+  const session = getSession() || {};
+  const now = new Date(Date.now() - (Number(session.dayEndHour) || 0) * 3600 * 1000);
+  if (session.timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: session.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+        .formatToParts(now).reduce((o, p) => ({ ...o, [p.type]: p.value }), {});
+      return `${parts.year}-${parts.month}-${parts.day}`;
+    } catch (e) {}
+  }
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 // The email of the last person who signed in on this phone (owner 2026-11-12), so after the 12-hour sign-out Sign In
 // only needs the password. Kept when signing out on purpose; Sign In can be typed over for someone else.
 const LAST_EMAIL_KEY = 'smartScanLastEmail';
@@ -199,6 +223,8 @@ async function switchPhoneBackend(toDatabase) {
 }
 
 const USE_DATABASE = (typeof BACKEND !== 'undefined' && BACKEND === 'supabase') || PHONE_ON_DATABASE;
+// Self sign-up and the setup wizard (config.js SIGN_UP_OPEN): database only.
+const SIGN_UP_IS_OPEN = USE_DATABASE && typeof SIGN_UP_OPEN !== 'undefined' && Boolean(SIGN_UP_OPEN);
 // Signed in for this long, as on the Apps Script backend (Auth.js SESSION_HOURS).
 const DB_SESSION_HOURS = 12;
 
@@ -232,20 +258,37 @@ async function dbSessionFor(tokens) {
   const r = await dbFetch('/rest/v1/rpc/my_stores', { body: {}, token: tokens.access_token });
   if (r.status >= 300) throw (r.data && r.data.hint ? new ApiError(r.data.hint, r.data.message) : serverError());
   const store = r.data[0];
-  if (!store) throw new ApiError('bad_login', 'This account is no longer active.');
+  // An account without a store: with self sign-up open it sets one up (setup.html); otherwise it was turned off.
+  if (!store && !SIGN_UP_IS_OPEN) throw new ApiError('bad_login', 'This account is no longer active.');
   return {
     backend: 'supabase',
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
     accessExpiresAt: Date.now() + tokens.expires_in * 1000,
     email: tokens.user && tokens.user.email,
+    ...storeFields(store),
+    expiresAt: new Date(Date.now() + DB_SESSION_HOURS * 3600 * 1000).toISOString(),
+  };
+}
+
+// What the session keeps about the person's store (a my_stores row, or create_store's answer); no store: none of it.
+function storeFields(store) {
+  if (!store) return { storeId: null };
+  return {
     storeId: store.storeId,
     storeName: store.storeName,
+    storeNumber: store.storeNumber,
+    timeZone: store.timeZone,
+    dayEndHour: store.dayEndHour,
     username: store.username,
     role: store.role,
     permissions: store.permissions,
-    expiresAt: new Date(Date.now() + DB_SESSION_HOURS * 3600 * 1000).toISOString(),
   };
+}
+
+// Signed in on the database but not on any store yet (a new account before the setup wizard is finished).
+function needsStore(session) {
+  return Boolean(session) && session.backend === 'supabase' && !session.storeId;
 }
 
 async function dbSignIn(email, password) {
@@ -361,6 +404,31 @@ const DB_ACTIONS = {
   // A new invite email for someone who hasn't signed in yet (database only; the sheets have no emails).
   resendInvite: ({ username }) => dbMembers('resendInvite', { username, redirectTo: setPasswordUrl() }),
   me: () => dbRpc('me', { p_store: getSession().storeId }),
+  // Create Account (self sign-up): Supabase Auth emails a link to confirm the address; it opens setup.html signed in.
+  // Says the same for an email that already has an account (the server doesn't tell which).
+  signUp: async ({ email, password }) => {
+    checkNewPassword(password);
+    const to = new URL('setup.html', location.href).href;
+    const r = await dbFetch(`/auth/v1/signup?redirect_to=${encodeURIComponent(to)}`, { body: { email: String(email || '').trim(), password } });
+    if (r.status === 429) throw new ApiError('too_many_emails', 'Too many tries just now. Wait a few minutes and try again.');
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
+    if (authErrorCode(r) === 'signup_disabled') throw new ApiError('sign_up_closed', 'Creating an account isn\'t open yet.');
+    if (r.status === 400 || r.status === 422) throw new ApiError('bad_email', 'Enter your email address.');
+    if (r.status >= 300) throw serverError();
+    return {};
+  },
+  // The sign-in a confirmation email's link carries (setup.html): returns the session, without a store yet.
+  sessionFromLink: async ({ tokens }) => {
+    const r = await dbFetch('/auth/v1/user', { method: 'GET', token: tokens.access_token });
+    if (r.status >= 300) throw new ApiError('expired_link', 'This link has expired or was already used. Sign in with your email and password.');
+    return dbSessionFor({ ...tokens, user: r.data });
+  },
+  // The setup wizard's one call: makes the store with this account as its owner, and the session moves into it.
+  createStore: async (params) => {
+    const store = await dbRpc('create_store', { req: params });
+    saveSession({ ...getSession(), ...storeFields(store) });
+    return store;
+  },
   // Report a Problem (database only): the support Edge Function saves it, keeps the screenshots and emails support.
   reportProblem: (params) => dbEdge('support', 'report', params),
   claimOwner: async () => { throw new ApiError('bad_request', 'With the database, a store and its owner are set up by Smart Scan.'); },
@@ -439,6 +507,11 @@ function requireLogin(role) {
   const session = getSession();
   if (!session) {
     location.replace('login.html');
+    return null;
+  }
+  // A new account without a store yet: the setup wizard.
+  if (needsStore(session)) {
+    location.replace('setup.html');
     return null;
   }
   const allowed = Array.isArray(role) ? role.some((p) => can(session, p)) : role !== 'owner' || session.role === 'owner';

@@ -38,8 +38,9 @@ function renderHeader(el, session) {
   const id = (name) => (name ? ` id="${navEscape(name)}"` : '');
   const top = back
     ? `<a class="back"${id(el.dataset.backId)} href="${navEscape(back)}">${icon('chevronLeft')}<span class="back-label">${navEscape(el.dataset.backLabel || 'Back')}</span></a>`
-    : `<div class="eyebrow">${navEscape(STORE_NAME)}</div>`;
-  const pill = session
+    : `<div class="eyebrow">${navEscape(storeName())}</div>`;
+  // No name pill before the person is on a store (the setup wizard).
+  const pill = session && session.username
     ? `<a class="user-pill" href="more.html"><span class="name">${navEscape(session.username)}</span><span class="avatar">${navEscape(initials(session.username))}</span></a>`
     : '';
   const h1 = `<h1${id(el.dataset.titleId)}>${navEscape(el.dataset.title || 'Smart Scan')}</h1>`;
@@ -56,6 +57,27 @@ function renderHeader(el, session) {
   // With a back pill, it and the name pill share the top row (level with each other) and the title goes under them.
   el.classList.toggle('with-back', Boolean(back));
   el.innerHTML = back ? `${top}${pill}${title}` : `<div>${top}${title}</div>${pill}`;
+}
+
+// The box buttons (Slots, Activate Several's slot picker): one per box the store has, from its slots. A store with
+// one box shows none; with many, the row scrolls sideways. Returns the box numbers.
+function drawBoxSwitch(el, slots, current, pick) {
+  const boxes = [...new Set(slots.map((s) => s.box))].sort((a, b) => a - b);
+  el.classList.toggle('hidden', boxes.length < 2);
+  el.classList.toggle('many', boxes.length > 4);
+  el.innerHTML = '';
+  for (const n of boxes) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.box = n;
+    b.textContent = `Box ${n}`;
+    b.classList.toggle('active', n === current);
+    b.addEventListener('click', () => pick(n));
+    el.append(b);
+  }
+  const active = el.querySelector('.active');
+  if (active && boxes.length > 4 && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', inline: 'center' });
+  return boxes;
 }
 
 function renderTabBar(el, session) {
@@ -111,7 +133,7 @@ function addPasswordEyes() {
   const session = getSession();
   document.querySelectorAll('header.app-header').forEach((el) => renderHeader(el, session));
   fitBackLabels();
-  if (session) document.querySelectorAll('nav.tabbar').forEach((el) => renderTabBar(el, session));
+  if (session && session.username) document.querySelectorAll('nav.tabbar').forEach((el) => renderTabBar(el, session));
   addPasswordEyes();
   fillIcons();
 })();

@@ -132,6 +132,10 @@ details summary { cursor: pointer; color: var(--muted); font-weight: 600; }
 .segmented { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); margin-bottom: 10px; }
 .segmented button { margin: 0; padding: 9px; font-size: 15px; border: none; border-radius: 10px; background: transparent; color: var(--muted); }
 .segmented button.active { background: var(--card-2); color: var(--text); font-weight: 700; }
+/* More boxes than fit (drawBoxSwitch): the row scrolls sideways. */
+.segmented.many { overflow-x: auto; scrollbar-width: none; }
+.segmented.many::-webkit-scrollbar { display: none; }
+.segmented.many button { flex: 0 0 auto; width: auto; padding: 9px 18px; white-space: nowrap; }
 
 /* Slot list. */
 a.card { display: block; color: inherit; text-decoration: none; }
@@ -950,3 +954,63 @@ body.has-tabbar.has-bulk-bar { padding-bottom: calc(var(--tabbar-clear) + 100px)
   border: 1px dashed var(--border); border-radius: 16px; color: var(--muted); font-size: 14px; line-height: 1.45;
 }
 .ship-empty strong { color: var(--text); font-size: 15px; }
+
+/* Setup wizard (setup.html, many stores): one question per screen, a progress bar under the header, the main button
+   always at the bottom of the screen. */
+body.wizard { padding-bottom: 0; }
+.wiz-point { display: flex; align-items: center; gap: 14px; padding: 14px; font-size: 15px; line-height: 1.35; }
+.wiz-point + .wiz-point { border-top: 1px solid var(--border); }
+.wiz-progress { display: flex; align-items: center; gap: 12px; margin: -6px 0 18px; }
+.wiz-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--card-2); overflow: hidden; }
+.wiz-bar span { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.2s; }
+.wiz-count { font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wiz-step .radio-list { margin-top: 0; }
+.wiz-foot { position: sticky; bottom: 0; z-index: 10; margin: 24px -20px 0; padding: 20px 20px calc(16px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--bg) 26px); }
+.wiz-foot button { margin-top: 0; }
+/* "How many boxes?" with − n +. */
+.wiz-ask { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px 12px 16px;
+  border-radius: 18px; background: var(--card); border: 1px solid var(--border); }
+.wiz-ask-label { font-size: 16px; font-weight: 600; }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.stepper button { width: 44px; height: 44px; margin: 0; padding: 0; font-size: 22px; line-height: 1; border-radius: 12px; background: var(--card-2); }
+.stepper output { min-width: 40px; text-align: center; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* One card per box: its slot count, and a picture of the slots that fills in while typing. */
+.wiz-box { margin-top: 12px; padding: 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--border); }
+.wiz-box-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wiz-box-name { margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
+.wiz-slots { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.wiz-slots input { width: 76px; padding: 10px 8px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--bg); }
+.wiz-dots { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 5px; margin-top: 12px; }
+.wiz-dots:empty { display: none; }
+.wiz-dots span { aspect-ratio: 1; border-radius: 5px; background: var(--accent-soft); border: 1px solid #24503b; }
+/* Prices: the chips stay in reach while the slots scroll under them. */
+.wiz-prices { position: sticky; top: 0; z-index: 5; margin: 0 -20px; padding: 10px 20px 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.wiz-prices-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; margin-top: 10px;
+  font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wiz-prices-line .quiet-pill { margin: 0; flex: none; }
+.wiz-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 12px; touch-action: pan-y;
+  -webkit-user-select: none; user-select: none; }
+button.wiz-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; margin: 0; padding: 4px 2px;
+  min-height: 52px; border-radius: 12px; background: transparent; border: 1px dashed #3a4141; color: var(--muted); }
+.wiz-cell .n { font-size: 11px; font-weight: 600; }
+.wiz-cell .p { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+button.wiz-cell.set { background: var(--accent-soft); border: 1px solid #24503b; }
+.wiz-cell.set .p { color: var(--accent-bright); }
+.wiz-order { display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 8px; background: var(--bg); font-size: 14px; color: var(--text); }
+/* Review: each part with its Edit. */
+.wiz-review-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; }
+.wiz-review-row + .wiz-review-row { border-top: 1px solid var(--border); }
+.wiz-review-main { min-width: 0; }
+.wiz-review-label { margin-bottom: 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.wiz-review-value { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
+.wiz-review-row .text-action { flex: none; width: auto; margin: -6px -8px 0 0; padding: 6px 8px; font-size: 15px; font-weight: 600; }
+.wiz-prices .choice-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.wiz-prices .choice-chips button { width: 100%; padding: 9px 4px; }
+/* Home, a store just set up: what to do first (index.html #firstSteps). */
+.first-steps { margin-bottom: 16px; }
+.first-steps-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 4px 8px; }
+.first-steps-head h2 { margin: 0; font-size: 17px; }
+.first-steps-head .text-action { width: auto; margin: 0; padding: 6px 4px; font-size: 14px; font-weight: 600; }
+.first-steps .row-num { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: 50%; background: var(--accent-soft); color: var(--accent-bright); font-weight: 700; }

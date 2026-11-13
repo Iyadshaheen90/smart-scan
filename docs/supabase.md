@@ -76,6 +76,30 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   (same row goes live; takes an unnumbered pack if there is one), `sell_full_pack` (needs an unnumbered pack) and
   `save_back_stock` shipments (`on conflict` → in_back again) accept such a pack. Tests: `test/parity/reopen-ended.js`,
   `supabase/tests/counted_out_packs_test.sql`. **Status: LIVE on dev + prod 2026-11-12 (owner OK; all db + parity tests pass on dev); Sheets backend @42.**
+- **Many stores, steps 1-3 (migration 0028, 2026-11-12; design `~/.claude/plans/smart-scan-multi-store-design.md`):**
+  review finding 3 fixed at the root: the `own_rows` (store_members) and `my_stores` (stores) policies apply only while
+  **no store is entered** (`app.current_store_id() is null`), so inside a store only its rows show; `enter_store` leaves
+  any earlier store first (tests make several calls in one transaction); `users_json`, `set_user_permissions`,
+  `member_admin_check` also name the store. `my_stores` rows add `storeNumber`, `timeZone`, `dayEndHour`.
+  `activate_several`'s cap = the store's slot count. **`create_store(req)`** (any signed-in account; no `p_store`):
+  `{ name, street, city, state, zip, phone, username, lotteryState, timeZone, dayEndHour, ticketOrder, boxes: [[price…]…],
+  retailerNumber? }` → the store, the caller as owner (email from the JWT), every slot, the retailer number, all or
+  nothing; limits 3 a day and 10 owned per account (`too_many_stores`); states `app.supported_states()` (CA), prices
+  `app.slot_prices()` (1 2 3 5 10 20 30 40), 1-20 boxes, 1-100 slots a box. Shared checks `app.store_info_checked`
+  (set_store_info uses it too) and `app.store_hours_checked`. Owner: `store_settings` / `set_store_settings
+  { timeZone, dayEndHour, ticketOrder }` (hours refused with `day_started` once today has a close or shift close, or
+  when the new hours land on a closed day; ticketOrder = for slots added later), `add_slots { box, count, price }`
+  (end of a box, or the next box number), `remove_slot { box, slot }` (last slot of its box, empty), `remove_box { box }`
+  (last box, all empty); never renumbered; a store keeps one slot. `test_claim_store(store)` (service key): a store
+  under an hour old whose people all have `@test.invalid` emails becomes a test store, so `test_drop_store` can remove
+  what a wizard test made. Not built yet: the subscription row, Store Settings / Edit Layout pages, the store
+  chooser, inviting an existing account, deletion. Test: `supabase/tests/many_stores_test.sql`.
+  **Pages:** `config.js` `SIGN_UP_OPEN` (false: nothing changes); with it true on the database, Sign In shows Create
+  Account (`signup.html` → Supabase Auth sign-up, the confirm link opens `setup.html`), and a session without a store
+  (`needsStore`, `storeId: null`) is sent to `setup.html` by `requireLogin`. api.js: `signUp`, `sessionFromLink`,
+  `createStore` (saves the store into the session), `storeFields`, `storeName()`, `storeToday()`.
+  Before opening sign-up: Supabase Auth public sign-up on with email confirmation, a confirmation email template, our
+  own email domain, `setup.html` in the redirect list.
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

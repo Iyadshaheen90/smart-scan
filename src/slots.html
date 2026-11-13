@@ -26,10 +26,8 @@
     </a>
   </div>
 
-  <div class="segmented" id="boxSwitch">
-    <button type="button" data-box="1">Box 1</button>
-    <button type="button" data-box="2">Box 2</button>
-  </div>
+  <!-- One button per box the store has (drawBoxSwitch in nav.js); a one-box store has none. -->
+  <div class="segmented hidden" id="boxSwitch"></div>
   <div id="summary" class="sub saved-dim"></div>
   <div id="list" class="saved-dim">Loading…</div>
 
@@ -62,12 +60,19 @@
 
     const listEl = document.getElementById('list');
     const summaryEl = document.getElementById('summary');
-    const boxButtons = document.querySelectorAll('#boxSwitch button');
     let slots = [];
-    let box = Number(new URLSearchParams(location.search).get('box')) === 2 ? 2 : 1;
+    let box = Number(new URLSearchParams(location.search).get('box')) || 1;
+
+    function pickBox(n) {
+      box = n;
+      history.replaceState(null, '', `?box=${box}`);
+      render();
+    }
 
     function render() {
-      boxButtons.forEach((b) => b.classList.toggle('active', Number(b.dataset.box) === box));
+      // A box the store doesn't have (an old link, a removed box): its first box.
+      if (slots.length && !slots.some((s) => s.box === box)) box = Math.min(...slots.map((s) => s.box));
+      drawBoxSwitch(document.getElementById('boxSwitch'), slots, box, pickBox);
       const inBox = slots.filter((s) => s.box === box);
       const empty = inBox.filter((s) => !s.pack).length;
       summaryEl.textContent = `${inBox.length - empty} Live · ${empty} Out of Stock`;
@@ -168,12 +173,6 @@
         listEl.append(card);
       }
     }
-
-    boxButtons.forEach((b) => b.addEventListener('click', () => {
-      box = Number(b.dataset.box);
-      history.replaceState(null, '', `?box=${box}`);
-      render();
-    }));
 
     // Last load first (dimmed), then the fresh one. A tapped slot's page loads its own fresh data.
     // A failed load keeps the saved slots on screen (dimmed) above the reason and a Try again button.

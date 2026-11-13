@@ -44,6 +44,26 @@
 
   <a id="pendingClose" class="message banner hidden" href="close.html"></a>
 
+  <!-- A store just set up with the wizard (setup.html): what to do first, until the owner taps Done. The packs
+       already in the store go in by hand: each live pack from Slots, the back stock as a first shipment. -->
+  <div class="first-steps hidden" id="firstSteps">
+    <div class="first-steps-head"><h2>What to Do First</h2><button type="button" class="text-action" id="firstStepsDone">Done</button></div>
+    <div class="group">
+      <a class="group-row" href="activate-several.html">
+        <span class="row-num">1</span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Scan the Packs in Your Slots</span><span class="row-sub">Each pack's top ticket, into its slot</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <a class="group-row" href="backstock.html?mode=shipment">
+        <span class="row-num">2</span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Scan Your Back Stock</span><span class="row-sub">Sealed packs, as your first shipment</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <a class="group-row" href="users.html">
+        <span class="row-num">3</span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Add Your Employees</span><span class="row-sub">Each gets their own sign-in</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+    </div>
+  </div>
+
   <!-- Today's status. The owner also sees the last close's totals (sales are only counted at the close). -->
   <div class="status-card" id="statusCard">
     <div class="status-top">
@@ -192,13 +212,24 @@
       if (!isOwner) showExtraActions(session);
       else showTheftButton(session);
       $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
+      showFirstSteps();
       loadStatus().finally(splashReady);
     }
 
-    function todayOnPhone() {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // The owner of a store this phone just set up sees the first steps until Done (setup.html leaves the store's id).
+    function showFirstSteps() {
+      const KEY = 'smartScanFirstSteps';
+      let forStore = null;
+      try { forStore = localStorage.getItem(KEY); } catch (e) {}
+      $('firstSteps').classList.toggle('hidden', !(isOwner && forStore && forStore === session.storeId));
+      $('firstStepsDone').addEventListener('click', () => {
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        $('firstSteps').classList.add('hidden');
+      });
     }
+
+    // The store's business day until the server answers (storeToday in api.js: the store's time zone and day end).
+    function todayOnPhone() { return storeToday(); }
 
     function setChip(closed) {
       const chip = $('closedChip');

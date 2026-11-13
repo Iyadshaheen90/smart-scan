@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1010">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Set Up Your Store</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="wizard">
+  <!-- The setup wizard (many stores; database only): a new account sets up its own store, one question per screen.
+       Nothing is saved on the server until Create Store: the answers are a draft on this phone (kept when the app is
+       closed), and one call (create_store) makes the store, its owner and every slot, or nothing.
+       Opened after Create Account's email link (the sign-in is in the address), or by signing in without a store. -->
+
+  <!-- Before the steps: what happens next, or how to join a store someone else set up. -->
+  <div id="welcome" class="hidden">
+    <div class="auth-brand">
+      <img src="icons/icon-192.png" alt="" width="72" height="72">
+      <h1>Welcome to Smart Scan</h1>
+      <p class="sub">Let's set up your store. It takes about five minutes.</p>
+    </div>
+    <div class="group">
+      <div class="wiz-point"><span class="row-icon accent" data-icon="store"></span><span>Your store's name, address and hours</span></div>
+      <div class="wiz-point"><span class="row-icon accent" data-icon="grid"></span><span>Your boxes and the price of each slot</span></div>
+      <div class="wiz-point"><span class="row-icon accent" data-icon="scan"></span><span>Then scan the packs you have, and you're running</span></div>
+    </div>
+    <button class="primary" type="button" id="startBtn">Set Up My Store</button>
+    <p class="auth-note">Joining a store that already uses Smart Scan?<br>Ask its owner to add you with <strong id="myEmail"></strong>.</p>
+    <button type="button" class="link-button" id="signOutBtn">Sign Out</button>
+  </div>
+
+  <div id="wizard" class="hidden">
+    <header class="app-header" data-title="Your Store" data-title-id="stepTitle" data-back="#" data-back-label="Back" data-back-id="backLink"></header>
+    <div class="wiz-progress" aria-hidden="true">
+      <div class="wiz-bar"><span id="wizFill"></span></div>
+      <span class="wiz-count" id="wizCount"></span>
+    </div>
+
+    <!-- 1. Store -->
+    <section class="wiz-step hidden" data-step="store">
+      <p class="sub">What customers call your store, and where it is.</p>
+      <label for="name">Store Name</label>
+      <input id="name" autocomplete="organization" maxlength="60">
+      <label for="street">Street Address</label>
+      <input id="street" autocomplete="address-line1" maxlength="100">
+      <label for="city">City</label>
+      <input id="city" autocomplete="address-level2" maxlength="60">
+      <div class="field-pair">
+        <div>
+          <label for="state">State</label>
+          <input id="state" autocomplete="address-level1" maxlength="2" autocapitalize="characters">
+        </div>
+        <div>
+          <label for="zip">ZIP Code</label>
+          <input id="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5">
+        </div>
+      </div>
+      <label for="phone">Store Phone</label>
+      <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 123-4567">
+      <label for="username">Your Username</label>
+      <input id="username" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="30">
+      <p class="field-help">Your name in the app. It goes on everything you do: closes, shipments, packs put in.</p>
+    </section>
+
+    <!-- 2. State -->
+    <section class="wiz-step hidden" data-step="state">
+      <p class="sub">Which lottery's scratchers do you sell? Smart Scan reads each state's ticket barcodes differently.</p>
+      <div class="radio-list" id="stateList"></div>
+      <p class="field-help">More states are coming. If yours isn't here yet, use Report a Problem after signing in and we'll tell you when it is.</p>
+    </section>
+
+    <!-- 3. Hours -->
+    <section class="wiz-step hidden" data-step="hours">
+      <p class="sub">So each sale is counted on the right day.</p>
+      <label for="timeZone">Time Zone</label>
+      <select id="timeZone"></select>
+      <label for="dayEnd">When Does Your Business Day End?</label>
+      <select id="dayEnd"></select>
+      <p class="field-help" id="dayEndHelp"></p>
+    </section>
+
+    <!-- 4. Layout -->
+    <section class="wiz-step hidden" data-step="layout">
+      <p class="sub">A box is one display case of scratchers. A slot is one place in it that holds a pack.</p>
+      <div class="wiz-ask">
+        <span class="wiz-ask-label">How Many Boxes?</span>
+        <div class="stepper" id="boxCount">
+          <button type="button" data-step="-1" aria-label="One box fewer">−</button>
+          <output id="boxCountValue">1</output>
+          <button type="button" data-step="1" aria-label="One more box">+</button>
+        </div>
+      </div>
+      <div id="boxList"></div>
+      <p class="field-help">Count the slots the way you number them today. You can add slots or a box later.</p>
+    </section>
+
+    <!-- 5. Prices -->
+    <section class="wiz-step hidden" data-step="prices">
+      <p class="sub">Pick a price, then tap the slots that sell it. Slide across a row to fill it quickly.</p>
+      <div class="wiz-prices">
+        <div class="choice-chips" id="priceChips"></div>
+        <div class="wiz-prices-line"><span id="pricedCount"></span><button type="button" class="quiet-pill hidden" id="fillRest"></button></div>
+      </div>
+      <div id="priceBoxes"></div>
+    </section>
+
+    <!-- 6. Ticket order -->
+    <section class="wiz-step hidden" data-step="order">
+      <p class="sub">Which ticket of a new pack do you sell first?</p>
+      <div class="radio-list">
+        <label class="radio-card"><input type="radio" name="order" value="descending">
+          <span><span class="radio-title">Descending</span><span class="radio-note">The highest number sells first: 029, 028, 027 … down to 000.</span>
+            <span class="wiz-order mono" aria-hidden="true">029 → 000</span></span></label>
+        <label class="radio-card"><input type="radio" name="order" value="ascending">
+          <span><span class="radio-title">Ascending</span><span class="radio-note">Ticket 000 sells first: 000, 001, 002 … up to 029.</span>
+            <span class="wiz-order mono" aria-hidden="true">000 → 029</span></span></label>
+      </div>
+      <p class="field-help">This is for the whole store. Any slot can be changed to the other order later, on the slot.</p>
+    </section>
+
+    <!-- 7. Retailer number -->
+    <section class="wiz-step hidden" data-step="retailer">
+      <p class="sub">The account number the lottery gave your store. It's optional.</p>
+      <label for="retailer">Retailer Number <span class="label-hint">(optional)</span></label>
+      <input id="retailer" inputmode="numeric" autocomplete="off" maxlength="14">
+      <p class="field-help">It is printed on the Theft Report, so the lottery can find your account if packs are stolen. It is kept encrypted, and only you can see or change it. You can add it later in More.</p>
+    </section>
+
+    <!-- 8. Review -->
+    <section class="wiz-step hidden" data-step="review">
+      <p class="sub">Check everything, then create your store. All of it can be changed later.</p>
+      <div class="group" id="reviewList"></div>
+    </section>
+
+    <div id="message" class="message"></div>
+    <div class="wiz-foot">
+      <button class="primary" type="button" id="nextBtn">Continue</button>
+    </div>
+  </div>
+
+  <div id="pageMessage" class="message"></div>
+  <p id="signInLine" class="sub hidden" style="margin-top: 20px;"><a href="login.html">Go to Sign In</a></p>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const STEPS = ['store', 'state', 'hours', 'layout', 'prices', 'order', 'retailer', 'review'];
+    const TITLES = { store: 'Your Store', state: 'Your State', hours: 'Store Hours', layout: 'Your Boxes', prices: 'Slot Prices',
+      order: 'Ticket Order', retailer: 'Retailer Number', review: 'Review' };
+    // The states whose tickets the app reads (app.supported_states in the database), and each one's usual time zone.
+    const STATES = [{ code: 'CA', name: 'California', zone: 'America/Los_Angeles' }];
+    const ZONES = [['America/Los_Angeles', 'Pacific'], ['America/Denver', 'Mountain'], ['America/Phoenix', 'Arizona (no daylight time)'],
+      ['America/Chicago', 'Central'], ['America/New_York', 'Eastern'], ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii']];
+    // app.slot_prices in the database.
+    const PRICES = [1, 2, 3, 5, 10, 20, 30, 40];
+    const MAX_BOXES = 20;
+    const MAX_SLOTS = 100;
+    const FIRST_STEPS_KEY = 'smartScanFirstSteps';
+
+    let session = getSession();
+    let draft = null;
+    let paintPrice = 20;
+
+    // ---- The draft (this phone only, until Create Store) ----
+    const draftKey = () => `smartScanSetupDraft:${session.email || ''}`;
+    function newDraft() {
+      const fromEmail = String(session.email || '').split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 30);
+      return { step: -1, name: '', street: '', city: '', state: '', zip: '', phone: '', username: fromEmail.length >= 3 ? fromEmail : '',
+        lotteryState: STATES[0].code, timeZone: STATES[0].zone, dayEndHour: 0, boxes: [[]], order: '', retailer: '' };
+    }
+    function loadDraft() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+        if (saved && Array.isArray(saved.boxes) && saved.boxes.length) return { ...newDraft(), ...saved };
+      } catch (e) {}
+      return newDraft();
+    }
+    function saveDraft() {
+      try { localStorage.setItem(draftKey(), JSON.stringify(draft)); } catch (e) {}
+    }
+    const slotCount = () => draft.boxes.reduce((n, b) => n + b.length, 0);
+    const pricedCount = () => draft.boxes.reduce((n, b) => n + b.filter(Boolean).length, 0);
+
+    // ---- Steps ----
+    function show(step) {
+      draft.step = step;
+      saveDraft();
+      $('message').className = 'message';
+      $('message').textContent = '';
+      $('welcome').classList.toggle('hidden', step >= 0);
+      $('wizard').classList.toggle('hidden', step < 0);
+      if (step < 0) return;
+      const name = STEPS[step];
+      document.querySelectorAll('.wiz-step').forEach((el) => el.classList.toggle('hidden', el.dataset.step !== name));
+      $('stepTitle').textContent = TITLES[name];
+      $('wizFill').style.width = `${((step + 1) / STEPS.length) * 100}%`;
+      $('wizCount').textContent = `${step + 1} of ${STEPS.length}`;
+      DRAW[name]();
+      $('nextBtn').textContent = name === 'review' ? 'Create Store' : name === 'retailer' && !draft.retailer ? 'Skip for Now' : 'Continue';
+      window.scrollTo(0, 0);
+    }
+
+    const fail = (text, focus) => { showMessage($('message'), text); if (focus) $(focus).focus(); return false; };
+
+    // What each step puts on screen from the draft.
+    const DRAW = {
+      store() {
+        for (const f of ['name', 'street', 'city', 'state', 'zip', 'phone', 'username']) $(f).value = draft[f];
+      },
+      state() {
+        $('stateList').innerHTML = '';
+        for (const s of STATES) {
+          const label = document.createElement('label');
+          label.className = 'radio-card';
+          label.innerHTML = '<input type="radio" name="lotteryState"><span><span class="radio-title"></span></span>';
+          label.querySelector('input').value = s.code;
+          label.querySelector('input').checked = draft.lotteryState === s.code;
+          label.querySelector('.radio-title').textContent = s.name;
+          $('stateList').append(label);
+        }
+      },
+      hours() {
+        $('timeZone').innerHTML = '';
+        for (const [zone, name] of ZONES) $('timeZone').append(new Option(name, zone));
+        $('timeZone').value = draft.timeZone;
+        $('dayEnd').innerHTML = '';
+        for (let h = 0; h <= 12; h += 1) {
+          $('dayEnd').append(new Option(h === 0 ? 'Midnight (most stores)' : h === 12 ? '12 Noon' : `${h} AM`, h));
+        }
+        $('dayEnd').value = String(draft.dayEndHour);
+        drawDayEndHelp();
+      },
+      layout: drawLayout,
+      prices: drawPrices,
+      order() {
+        document.querySelectorAll('input[name="order"]').forEach((r) => { r.checked = r.value === draft.order; });
+      },
+      retailer() {
+        $('retailer').value = draft.retailer;
+      },
+      review: drawReview,
+    };
+
+    // What each step reads back into the draft; false (with a message) when something is missing.
+    const READ = {
+      store() {
+        for (const f of ['name', 'street', 'city', 'zip', 'phone']) draft[f] = $(f).value.trim();
+        draft.state = $('state').value.trim().toUpperCase();
+        draft.username = $('username').value.trim().toLowerCase();
+        saveDraft();
+        // The same checks, in the same words, as the database (app.store_info_checked, create_store).
+        if (!draft.name) return fail('Enter the store name (up to 60 letters).', 'name');
+        if (!draft.street) return fail('Enter the street address.', 'street');
+        if (!draft.city) return fail('Enter the city.', 'city');
+        if (!/^[A-Z]{2}$/.test(draft.state)) return fail('Enter the state as 2 letters, like CA.', 'state');
+        if (!/^\d{5}$/.test(draft.zip)) return fail('Enter the 5-digit ZIP code.', 'zip');
+        const digits = draft.phone.replace(/\D/g, '').replace(/^1(\d{10})$/, '$1');
+        if (!/^\d{10}$/.test(digits)) return fail('Enter the store phone with its area code (10 digits).', 'phone');
+        if (!/^[a-z0-9._-]{3,30}$/.test(draft.username)) {
+          return fail('Username must be 3-30 characters: letters, numbers, dot, dash or underscore.', 'username');
+        }
+        return true;
+      },
+      state() {
+        const picked = document.querySelector('input[name="lotteryState"]:checked');
+        if (!picked) return fail('Pick your state.');
+        if (picked.value !== draft.lotteryState) draft.timeZone = STATES.find((s) => s.code === picked.value).zone;
+        draft.lotteryState = picked.value;
+        return true;
+      },
+      hours() {
+        draft.timeZone = $('timeZone').value;
+        draft.dayEndHour = Number($('dayEnd').value);
+        return true;
+      },
+      layout() {
+        const empty = draft.boxes.findIndex((b) => !b.length);
+        if (empty >= 0) return fail(`Enter how many slots box ${empty + 1} has.`, `slots${empty + 1}`);
+        return true;
+      },
+      prices() {
+        const left = slotCount() - pricedCount();
+        if (left) return fail(`${left} ${left === 1 ? 'slot still needs' : 'slots still need'} a price. Tap ${left === 1 ? 'it' : 'them'}, or use Fill the Rest.`);
+        return true;
+      },
+      order() {
+        const picked = document.querySelector('input[name="order"]:checked');
+        if (!picked) return fail('Pick the order your tickets sell in.');
+        draft.order = picked.value;
+        return true;
+      },
+      retailer() {
+        draft.retailer = $('retailer').value.replace(/[\s-]/g, '');
+        if (draft.retailer && !/^[0-9]{4,12}$/.test(draft.retailer)) {
+          return fail('Enter the retailer number: digits only, as on your lottery terminal.', 'retailer');
+        }
+        return true;
+      },
+      review: () => true,
+    };
+
+    function drawDayEndHelp() {
+      const h = Number($('dayEnd').value);
+      $('dayEndHelp').textContent = h === 0
+        ? 'Open past midnight? Pick the hour after you close, so late-night sales count for the day they belong to.'
+        : `Sales until ${h === 12 ? '12 noon' : `${h} AM`} count for the day before. Pick the first hour you are always closed.`;
+    }
+    $('dayEnd').addEventListener('change', drawDayEndHelp);
+    $('retailer').addEventListener('input', () => {
+      $('nextBtn').textContent = $('retailer').value.trim() ? 'Continue' : 'Skip for Now';
+    });
+
+    // ---- Layout: how many boxes, how many slots in each, and a picture of them ----
+    function setBoxCount(n) {
+      const count = Math.max(1, Math.min(MAX_BOXES, n));
+      while (draft.boxes.length < count) draft.boxes.push([]);
+      draft.boxes.length = count;
+      saveDraft();
+      drawLayout();
+    }
+    // Keeps the prices already given when a box grows or shrinks.
+    function setSlotCount(index, n) {
+      const count = Math.max(0, Math.min(MAX_SLOTS, Math.floor(Number(n) || 0)));
+      const box = draft.boxes[index].slice(0, count);
+      while (box.length < count) box.push(null);
+      draft.boxes[index] = box;
+      saveDraft();
+    }
+    function drawDots(holder, count) {
+      holder.innerHTML = '';
+      for (let i = 0; i < count; i += 1) holder.append(document.createElement('span'));
+    }
+    function drawLayout() {
+      $('boxCountValue').textContent = draft.boxes.length;
+      $('boxCount').querySelector('[data-step="-1"]').disabled = draft.boxes.length <= 1;
+      $('boxCount').querySelector('[data-step="1"]').disabled = draft.boxes.length >= MAX_BOXES;
+      $('boxList').innerHTML = '';
+      draft.boxes.forEach((box, i) => {
+        const card = document.createElement('div');
+        card.className = 'wiz-box';
+        card.innerHTML = '<div class="wiz-box-head"><label class="wiz-box-name"></label><div class="wiz-slots"><input inputmode="numeric" maxlength="3" placeholder="0"><span>Slots</span></div></div><div class="wiz-dots"></div>';
+        const input = card.querySelector('input');
+        input.id = `slots${i + 1}`;
+        input.setAttribute('aria-label', `Slots in box ${i + 1}`);
+        card.querySelector('label').textContent = `Box ${i + 1}`;
+        card.querySelector('label').htmlFor = input.id;
+        input.value = box.length || '';
+        const dots = card.querySelector('.wiz-dots');
+        drawDots(dots, box.length);
+        input.addEventListener('input', () => {
+          input.value = input.value.replace(/\D/g, '');
+          if (Number(input.value) > MAX_SLOTS) input.value = String(MAX_SLOTS);
+          setSlotCount(i, input.value);
+          drawDots(dots, draft.boxes[i].length);
+        });
+        $('boxList').append(card);
+      });
+    }
+    $('boxCount').addEventListener('click', (e) => {
+      const button = e.target.closest('button');
+      if (button) setBoxCount(draft.boxes.length + Number(button.dataset.step));
+    });
+
+    // ---- Prices: pick a price, tap or slide across the slots that have it ----
+    function drawPrices() {
+      $('priceChips').innerHTML = '';
+      for (const p of PRICES) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = `$${p}`;
+        chip.classList.toggle('active', p === paintPrice);
+        chip.addEventListener('click', () => { paintPrice = p; drawPrices(); });
+        $('priceChips').append(chip);
+      }
+      $('priceBoxes').innerHTML = '';
+      draft.boxes.forEach((box, b) => {
+        const card = document.createElement('div');
+        card.className = 'wiz-box';
+        const head = document.createElement('div');
+        head.className = 'wiz-box-name';
+        head.textContent = draft.boxes.length > 1 ? `Box ${b + 1}` : 'Slots';
+        const cells = document.createElement('div');
+        cells.className = 'wiz-cells';
+        box.forEach((price, s) => {
+          const cell = document.createElement('button');
+          cell.type = 'button';
+          cell.className = 'wiz-cell';
+          cell.dataset.box = b;
+          cell.dataset.slot = s;
+          cell.innerHTML = '<span class="n"></span><span class="p"></span>';
+          cell.querySelector('.n').textContent = s + 1;
+          cells.append(cell);
+          drawCell(cell);
+        });
+        card.append(head, cells);
+        $('priceBoxes').append(card);
+      });
+      drawPriceCount();
+    }
+    function drawCell(cell) {
+      const price = draft.boxes[cell.dataset.box][cell.dataset.slot];
+      cell.classList.toggle('set', Boolean(price));
+      cell.querySelector('.p').textContent = price ? `$${price}` : '·';
+      cell.setAttribute('aria-label', `Slot ${Number(cell.dataset.slot) + 1}: ${price ? `$${price}` : 'no price yet'}`);
+    }
+    function drawPriceCount() {
+      const left = slotCount() - pricedCount();
+      $('pricedCount').textContent = left ? `${pricedCount()} of ${slotCount()} Slots Priced` : `All ${slotCount()} Slots Priced`;
+      $('fillRest').classList.toggle('hidden', !left);
+      $('fillRest').textContent = `Fill the Rest With $${paintPrice}`;
+    }
+    function paint(cell) {
+      if (!cell || draft.boxes[cell.dataset.box][cell.dataset.slot] === paintPrice) return;
+      draft.boxes[cell.dataset.box][cell.dataset.slot] = paintPrice;
+      saveDraft();
+      drawCell(cell);
+      drawPriceCount();
+    }
+    // A tap paints one slot; a finger slid sideways paints every slot it crosses (up and down still scrolls the page).
+    let painting = false;
+    $('priceBoxes').addEventListener('pointerdown', (e) => {
+      const cell = e.target.closest('.wiz-cell');
+      if (!cell) return;
+      painting = true;
+      paint(cell);
+    });
+    $('priceBoxes').addEventListener('pointermove', (e) => {
+      if (!painting) return;
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      paint(under && under.closest('.wiz-cell'));
+    });
+    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) $('priceBoxes').addEventListener(type, () => { painting = false; });
+    // The keyboard (and screen readers) press a slot instead.
+    $('priceBoxes').addEventListener('click', (e) => { if (e.detail === 0) paint(e.target.closest('.wiz-cell')); });
+    $('fillRest').addEventListener('click', () => {
+      draft.boxes = draft.boxes.map((box) => box.map((p) => p || paintPrice));
+      saveDraft();
+      drawPrices();
+    });
+
+    // ---- Review ----
+    function reviewRow(label, lines, step) {
+      const row = document.createElement('div');
+      row.className = 'wiz-review-row';
+      const main = document.createElement('div');
+      main.className = 'wiz-review-main';
+      const title = document.createElement('div');
+      title.className = 'wiz-review-label';
+      title.textContent = label;
+      main.append(title);
+      for (const line of lines) {
+        const value = document.createElement('div');
+        value.className = 'wiz-review-value';
+        value.textContent = line;
+        main.append(value);
+      }
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'text-action';
+      edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', `Edit ${label}`);
+      edit.addEventListener('click', () => show(STEPS.indexOf(step)));
+      row.append(main, edit);
+      return row;
+    }
+    function priceSummary() {
+      const counts = {};
+      for (const box of draft.boxes) for (const p of box) counts[p] = (counts[p] || 0) + 1;
+      return PRICES.filter((p) => counts[p]).map((p) => `$${p} × ${counts[p]}`).join(' · ');
+    }
+    function drawReview() {
+      const zone = (ZONES.find(([z]) => z === draft.timeZone) || [])[1] || draft.timeZone;
+      const dayEnd = draft.dayEndHour === 0 ? 'midnight' : draft.dayEndHour === 12 ? '12 noon' : `${draft.dayEndHour} AM`;
+      const boxes = draft.boxes.length;
+      const list = $('reviewList');
+      list.innerHTML = '';
+      list.append(
+        reviewRow('Store', [draft.name, draft.street, `${draft.city}, ${draft.state} ${draft.zip}`, draft.phone, `You sign your work as ${draft.username}`], 'store'),
+        reviewRow('State', [STATES.find((s) => s.code === draft.lotteryState).name], 'state'),
+        reviewRow('Hours', [`${zone} time`, `The business day ends at ${dayEnd}`], 'hours'),
+        reviewRow('Boxes', [`${boxes} ${boxes === 1 ? 'box' : 'boxes'} · ${slotCount()} slots`,
+          ...(boxes > 1 ? [draft.boxes.map((b, i) => `Box ${i + 1}: ${b.length}`).join(' · ')] : [])], 'layout'),
+        reviewRow('Slot Prices', [priceSummary()], 'prices'),
+        reviewRow('Ticket Order', [`${orderName(draft.order)} (${draft.order === 'ascending' ? '000 → 029' : '029 → 000'})`], 'order'),
+        reviewRow('Retailer Number', [draft.retailer || 'Not added. You can add it later in More.'], 'retailer'),
+      );
+    }
+
+    // Create Store: everything in one call. A refusal names what to fix; the draft stays.
+    async function createStore() {
+      const store = await whileBusy($('nextBtn'), 'Creating Your Store…', () => api('createStore', {
+        name: draft.name, street: draft.street, city: draft.city, state: draft.state, zip: draft.zip, phone: draft.phone,
+        username: draft.username, lotteryState: draft.lotteryState, timeZone: draft.timeZone, dayEndHour: draft.dayEndHour,
+        ticketOrder: draft.order, boxes: draft.boxes, ...(draft.retailer ? { retailerNumber: draft.retailer } : {}),
+      }));
+      try {
+        localStorage.removeItem(draftKey());
+        // Home shows "what to do first" for this store until it's dismissed.
+        localStorage.setItem(FIRST_STEPS_KEY, store.storeId);
+      } catch (e) {}
+      location.replace('index.html');
+    }
+
+    $('nextBtn').addEventListener('click', async () => {
+      $('message').className = 'message';
+      $('message').textContent = '';
+      const name = STEPS[draft.step];
+      if (!READ[name]()) return;
+      saveDraft();
+      if (name !== 'review') { show(draft.step + 1); return; }
+      // Every earlier step must still be whole (a draft from an older visit, or an Edit that left something empty).
+      for (let i = 0; i < STEPS.length - 1; i += 1) {
+        DRAW[STEPS[i]]();
+        if (!READ[STEPS[i]]()) { const text = $('message').textContent; show(i); showMessage($('message'), text); return; }
+      }
+      try {
+        await createStore();
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    });
+    // Enter in a field goes on, like the button.
+    $('wizard').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.matches('input')) { e.preventDefault(); $('nextBtn').click(); }
+    });
+
+    $('startBtn').addEventListener('click', () => show(0));
+    $('signOutBtn').addEventListener('click', signOut);
+
+    // ---- Opening the page ----
+    function start() {
+      draft = loadDraft();
+      $('myEmail').textContent = session.email || 'your email';
+      // Back is the header's pill: the step before, or the welcome screen from the first step. Each step reads what
+      // was typed first (without insisting it's complete), so nothing typed is lost by going back.
+      $('backLink').addEventListener('click', (e) => {
+        e.preventDefault();
+        const name = STEPS[draft.step];
+        READ[name]();
+        saveDraft();
+        show(draft.step - 1);
+      });
+      show(Math.min(draft.step, STEPS.length - 1));
+    }
+
+    (async () => {
+      if (!USE_DATABASE) { location.replace('login.html'); return; }
+      // From Create Account's email: the link's sign-in is after the #. Taken out of the address at once.
+      const link = new URLSearchParams(location.hash.slice(1));
+      if (link.get('access_token') || link.get('error')) history.replaceState(null, '', location.pathname);
+      if (link.get('access_token') && link.get('refresh_token')) {
+        try {
+          session = await api('sessionFromLink', { tokens: { access_token: link.get('access_token'),
+            refresh_token: link.get('refresh_token'), expires_in: Number(link.get('expires_in')) || 3600 } });
+          saveSession(session);
+          rememberEmail(session.email);
+        } catch (err) {
+          showMessage($('pageMessage'), err.message);
+          $('signInLine').classList.remove('hidden');
+          return;
+        }
+      } else if (link.get('error')) {
+        showMessage($('pageMessage'), 'This link has expired or was already used. Sign in with your email and password.');
+        $('signInLine').classList.remove('hidden');
+        return;
+      }
+      if (!session) { location.replace('login.html'); return; }
+      // Already on a store: nothing to set up here.
+      if (!needsStore(session)) { location.replace('index.html'); return; }
+      start();
+    })();
+  </script>
+</body>
+</html>
