@@ -118,6 +118,8 @@ async function tap(page, sel) {
     await tap(page, '.layout-box[data-box="1"] [data-act="add"]');
     await page.type('#addCount', '2');
     await tap(page, '#priceChips button[data-price="5"]');
+    await tap(page, '#priceCells .wiz-cell[data-index="0"]');
+    await tap(page, '#fillRest');
     await tap(page, '#addSave');
     await page.waitForFunction(() => /Added slots 2 to 3 to box 1/.test(document.getElementById('toast').textContent), { timeout: 20000 });
     await tap(page, '.layout-box[data-box="1"] [data-act="removeSlot"]');

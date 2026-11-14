@@ -105,8 +105,8 @@ Frontend (`src/`, plain HTML + JS, no build):
   phone on several stores hasn't picked one; the switcher from the store's name in the header, an `a.eyebrow` when
   `session.storeCount > 1`, and More → Switch Store; with sign-up open also Set Up Another Store → `setup.html?new=1`) ·
   `store-settings.html` (owner: time zone, business day end, ticket order for new slots) · `layout.html` Edit Layout
-  (owner: a card per box with Add Slots / Remove Last Slot, Remove Box on the last box, Add Box N; pop-ups; a toast
-  says what changed) · `delete.html` (title Leave Store / Delete Store / Delete Account: `.danger-card` per choice, a
+  (owner: a card per box with Add Slots / Remove Last Slot, Remove Box on the last box, Add Box N; the Add pop-up asks how many, then a price per new slot with the wizard's
+  chips + tap / slide cells + Fill the Rest; a toast says what changed) · `delete.html` (title Leave Store / Delete Store / Delete Account: `.danger-card` per choice, a
   second question in a pop-up whose green button keeps everything; without a store it offers Delete My Account or
   Keep My Account and Sign Out). Pages opened without a store (`stores.html`, `delete.html`) set the header's back
   pill themselves before nav.js and show no tab bar (`.tabbar:empty`). More: Store Settings and Edit Layout rows

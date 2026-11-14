@@ -96,7 +96,8 @@ async function tap(page, sel) {
       if (fn === 'store_settings') return settings;
       if (fn === 'set_store_settings') { settings = { ...settings, ...body.req }; return settings; }
       if (fn === 'add_slots') {
-        const { box, count, price } = body.req;
+        const { box, prices } = body.req;
+        const count = prices.length;
         const boxes = settings.boxes.map((b) => ({ ...b }));
         const at = boxes.find((b) => b.box === box);
         if (at) at.slots += count; else boxes.push({ box, slots: count, live: 0 });
@@ -293,26 +294,47 @@ async function tap(page, sel) {
     [['Box 1', '24 Slots · 20 With a Pack', 24, 'Add Slots|Remove Last Slot'], ['Box 2', '12 Slots · 0 With a Pack', 12, 'Add Slots|Remove Last Slot|Remove Box']]);
     assert.equal(await text(page, '#addBoxLabel'), 'Add Box 3');
     await app.shot('layout');
-    // Add Slots: needs a count and a price.
+    // Add Slots: needs a count, then a price for each new slot (tap, or Fill the Rest), as in the setup wizard.
     await tap(page, '.layout-box[data-box="1"] [data-act="add"]');
     assert.equal(await text(page, '#addTitle'), 'Add Slots to Box 1');
     assert.equal(await text(page, '#addRange'), 'Up to 76. A box holds at most 100 slots.');
     calls.length = 0;
     await tap(page, '#addSave');
     assert.equal(await text(page, '#addError'), 'Enter how many slots to add.');
-    await page.type('#addCount', '2x');
-    assert.equal(await page.$eval('#addCount', (e) => e.value), '2');
-    assert.equal(await text(page, '#addRange'), 'The new slots are numbers 25 to 26.');
+    assert.equal(await shown(page, '#pricePart'), false, 'no prices to pick before a count');
+    await page.type('#addCount', '3x');
+    assert.equal(await page.$eval('#addCount', (e) => e.value), '3');
+    assert.equal(await text(page, '#addRange'), 'The new slots are numbers 25 to 27.');
+    assert.deepEqual(await page.$$eval('#priceCells .wiz-cell', (els) => els.map((e) => e.textContent)), ['25·', '26·', '27·']);
+    assert.equal(await text(page, '#pricedCount'), '0 of 3 Priced');
     await tap(page, '#addSave');
-    assert.equal(await text(page, '#addError'), 'Pick the price of the new slots.');
+    assert.equal(await text(page, '#addError'), '3 slots still need a price. Tap them, or use Fill the Rest.');
     assert.equal(calls.length, 0, 'nothing sent yet');
+    // Tap one slot at $5, another at $10, fill the last with $30.
     await tap(page, '#priceChips button[data-price="5"]');
-    assert.equal(await text(page, '#addError'), '', 'the message goes once they pick a price');
+    await tap(page, '#priceCells .wiz-cell[data-index="0"]');
+    assert.equal(await text(page, '#addError'), '', 'the message goes once they price a slot');
+    await tap(page, '#priceChips button[data-price="10"]');
+    await tap(page, '#priceCells .wiz-cell[data-index="1"]');
+    assert.equal(await text(page, '#pricedCount'), '2 of 3 Priced');
+    await tap(page, '#addSave');
+    assert.equal(await text(page, '#addError'), '1 slot still needs a price. Tap it, or use Fill the Rest.');
+    await tap(page, '#priceChips button[data-price="30"]');
+    assert.equal(await text(page, '#fillRest'), 'Fill the Rest With $30');
     await app.shot('layout-add');
+    await tap(page, '#fillRest');
+    assert.equal(await text(page, '#pricedCount'), 'All 3 Priced');
+    assert.deepEqual(await page.$$eval('#priceCells .wiz-cell .p', (els) => els.map((e) => e.textContent)), ['$5', '$10', '$30']);
+    // Retyping the count (3, then 2) keeps the prices picked so far.
+    await page.focus('#addCount');
+    await page.keyboard.press('Backspace');
+    assert.equal(await shown(page, '#pricePart'), false);
+    await page.type('#addCount', '2');
+    assert.deepEqual(await page.$$eval('#priceCells .wiz-cell .p', (els) => els.map((e) => e.textContent)), ['$5', '$10']);
     await tap(page, '#addSave');
     await page.waitForFunction(() => document.getElementById('toast').textContent);
-    assert.deepEqual(calls[0], { fn: 'add_slots', body: { p_store: A.storeId, req: { box: 1, count: 2, price: 5 } } });
-    assert.equal(await text(page, '#toast'), 'Added slots 25 to 26 to box 1, at $5.');
+    assert.deepEqual(calls[0], { fn: 'add_slots', body: { p_store: A.storeId, req: { box: 1, prices: [5, 10] } } });
+    assert.equal(await text(page, '#toast'), 'Added slots 25 to 26 to box 1.');
     assert.equal(await shown(page, '#addDialog'), false);
     assert.equal(await text(page, '.layout-box[data-box="1"] .layout-count'), '26 Slots · 20 With a Pack');
     // More than fits is cut to what fits.
@@ -339,12 +361,19 @@ async function tap(page, sel) {
     assert.equal(await text(page, '#addTitle'), 'Add Box 3');
     await page.type('#addCount', '8');
     assert.equal(await text(page, '#addRange'), 'The new slots are numbers 1 to 8.');
+    // A new box gets a price per slot too: the first two at $1, the rest filled with $20 (picked by default).
+    assert.deepEqual(await page.$$eval('#priceCells .wiz-cell .n', (els) => els.map((e) => e.textContent)), ['1', '2', '3', '4', '5', '6', '7', '8']);
+    await tap(page, '#priceChips button[data-price="1"]');
+    await tap(page, '#priceCells .wiz-cell[data-index="0"]');
+    await tap(page, '#priceCells .wiz-cell[data-index="1"]');
     await tap(page, '#priceChips button[data-price="20"]');
+    await tap(page, '#fillRest');
+    await app.shot('layout-add-box');
     calls.length = 0;
     await tap(page, '#addSave');
     await page.waitForFunction(() => document.querySelectorAll('.layout-box').length === 3);
-    assert.deepEqual(calls[0].body.req, { box: 3, count: 8, price: 20 });
-    assert.equal(await text(page, '#toast'), 'Added box 3 with 8 slots, at $20.');
+    assert.deepEqual(calls[0].body.req, { box: 3, prices: [1, 1, 20, 20, 20, 20, 20, 20] });
+    assert.equal(await text(page, '#toast'), 'Added box 3 with 8 slots.');
     assert.equal(await page.$('.layout-box[data-box="2"] [data-act="removeBox"]'), null, 'only the last box can go');
     await tap(page, '.layout-box[data-box="3"] [data-act="removeBox"]');
     assert.equal(await text(page, '#removeTitle'), 'Remove Box 3?');

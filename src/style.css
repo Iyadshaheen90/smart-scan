@@ -1051,3 +1051,7 @@ a.link-button { display: block; width: fit-content; margin: 18px auto 0; padding
 .store-row .row-sub { white-space: normal; overflow-wrap: anywhere; }
 /* Signed in without a store (Your Stores before one is picked, Delete Account after the last store): no tabs, so no bar. */
 .tabbar:empty { display: none; }
+/* Edit Layout's Add pop-up: a price per new slot, picked as in the setup wizard. */
+.layout-how { margin: 0 0 10px; }
+#addDialog .wiz-prices-line { font-size: 14px; color: var(--muted); }
+#addDialog .wiz-cells { margin-top: 8px; }

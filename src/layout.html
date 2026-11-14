@@ -16,7 +16,7 @@
 <body>
   <!-- Edit Layout (many stores; owner only, database only): the store's boxes and how many slots each has
        (store_settings for the picture; add_slots, remove_slot, remove_box). Slots are added at the end of a box, or as
-       a new box. Only the last slot of a box comes off, and only when empty; boxes and slots are never renumbered, so
+       a new box, each with its own price (tap or slide, as in the setup wizard). Only the last slot of a box comes off, and only when empty; boxes and slots are never renumbered, so
        past reports keep pointing at the right place. Every change has its way back: what was added can be removed,
        what was removed can be added again. -->
   <header class="app-header" data-title="Edit Layout" data-back="more.html" data-back-label="More"></header>
@@ -33,16 +33,21 @@
   <div class="toast-wrap" aria-live="polite"><div id="toast" class="message"></div></div>
   <div id="message" class="message"></div>
 
-  <!-- Add Slots / Add a Box: how many, and their price. -->
+  <!-- Add Slots / Add a Box: how many, then a price for each one. -->
   <div id="addDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="addTitle">
     <form id="addForm" class="dialog form-dialog" novalidate>
       <div class="dialog-title" id="addTitle"></div>
       <label for="addCount">How Many Slots?</label>
       <input id="addCount" inputmode="numeric" maxlength="3" autocomplete="off">
       <p class="field-help" id="addRange"></p>
-      <label id="priceLabel">Price of Each Ticket</label>
-      <div class="choice-chips layout-prices" id="priceChips" role="group" aria-labelledby="priceLabel"></div>
-      <p class="field-help">One price for all of them now. Change any slot's price later on the slot.</p>
+      <!-- A price per new slot, picked the way the setup wizard does (owner 2026-11-14). -->
+      <div id="pricePart" class="hidden">
+        <label id="priceLabel">Slot Prices</label>
+        <p class="field-help layout-how">Pick a price, then tap the slots that sell it. Slide across a row to fill it quickly.</p>
+        <div class="choice-chips layout-prices" id="priceChips" role="group" aria-labelledby="priceLabel"></div>
+        <div class="wiz-prices-line"><span id="pricedCount"></span><button type="button" class="quiet-pill hidden" id="fillRest"></button></div>
+        <div class="wiz-cells" id="priceCells"></div>
+      </div>
       <div id="addError" class="message"></div>
       <div class="dialog-buttons">
         <button type="button" class="cancel" id="addCancel">Cancel</button>
@@ -151,10 +156,15 @@
     }
 
     // ---- Add Slots / Add a Box ----
-    let adding = null;    // { box, from }: the box number and how many slots it has now (0 for a new box)
-    let addPrice = null;
+    let adding = null;      // { box, from }: the box number and how many slots it has now (0 for a new box)
+    let addPrices = [];     // one price per new slot, in slot order; null until it's picked
+    let pickedPrices = [];  // every price picked in this pop-up, so retyping the count (3, then 2) loses none
+    let paintPrice = 20;    // the price the next tap gives a slot (as in the setup wizard)
+    const priced = () => addPrices.filter(Boolean).length;
+    // A message about what's missing goes away once they act on it.
+    function clearAddError() { $('addError').className = 'message'; $('addError').textContent = ''; }
     function drawRange() {
-      const n = Number($('addCount').value) || 0;
+      const n = addPrices.length;
       const room = limits.maxSlots - adding.from;
       $('addRange').textContent = !n ? `Up to ${room}. A box holds at most ${limits.maxSlots} slots.`
         : n === 1 ? `The new slot is number ${adding.from + 1}.`
@@ -167,49 +177,115 @@
         chip.type = 'button';
         chip.textContent = `$${p}`;
         chip.dataset.price = p;
-        chip.classList.toggle('active', p === addPrice);
-        chip.setAttribute('aria-pressed', p === addPrice ? 'true' : 'false');
-        chip.addEventListener('click', () => { addPrice = p; drawChips(); clearAddError(); });
+        chip.classList.toggle('active', p === paintPrice);
+        chip.setAttribute('aria-pressed', p === paintPrice ? 'true' : 'false');
+        chip.addEventListener('click', () => { paintPrice = p; drawChips(); drawPriceCount(); });
         $('priceChips').append(chip);
       }
     }
-    // A message about what's missing goes away once they act on it.
-    function clearAddError() { $('addError').className = 'message'; $('addError').textContent = ''; }
+    function drawCell(cell) {
+      const price = addPrices[cell.dataset.index];
+      const number = adding.from + Number(cell.dataset.index) + 1;
+      cell.classList.toggle('set', Boolean(price));
+      cell.querySelector('.p').textContent = price ? `$${price}` : '·';
+      cell.setAttribute('aria-label', `Slot ${number}: ${price ? `$${price}` : 'no price yet'}`);
+    }
+    function drawPriceCount() {
+      const left = addPrices.length - priced();
+      $('pricedCount').textContent = left ? `${priced()} of ${addPrices.length} Priced` : `All ${addPrices.length} Priced`;
+      $('fillRest').classList.toggle('hidden', !left);
+      $('fillRest').textContent = `Fill the Rest With $${paintPrice}`;
+    }
+    function drawCells() {
+      $('pricePart').classList.toggle('hidden', !addPrices.length);
+      $('priceCells').innerHTML = '';
+      addPrices.forEach((price, i) => {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'wiz-cell';
+        cell.dataset.index = i;
+        cell.innerHTML = '<span class="n"></span><span class="p"></span>';
+        cell.querySelector('.n').textContent = adding.from + i + 1;
+        $('priceCells').append(cell);
+        drawCell(cell);
+      });
+      drawPriceCount();
+    }
+    function paint(cell) {
+      if (!cell || addPrices[cell.dataset.index] === paintPrice) return;
+      addPrices[cell.dataset.index] = paintPrice;
+      pickedPrices[cell.dataset.index] = paintPrice;
+      drawCell(cell);
+      drawPriceCount();
+      clearAddError();
+    }
+    // A tap gives one slot the picked price; a finger slid sideways gives it to every slot it crosses (up and down
+    // still scrolls).
+    let painting = false;
+    $('priceCells').addEventListener('pointerdown', (e) => {
+      const cell = e.target.closest('.wiz-cell');
+      if (!cell) return;
+      painting = true;
+      paint(cell);
+    });
+    $('priceCells').addEventListener('pointermove', (e) => {
+      if (!painting) return;
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      paint(under && under.closest('#priceCells .wiz-cell'));
+    });
+    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) $('priceCells').addEventListener(type, () => { painting = false; });
+    // The keyboard (and screen readers) press a slot instead.
+    $('priceCells').addEventListener('click', (e) => { if (e.detail === 0) paint(e.target.closest('.wiz-cell')); });
+    $('fillRest').addEventListener('click', () => {
+      addPrices = addPrices.map((p) => p || paintPrice);
+      addPrices.forEach((p, i) => { pickedPrices[i] = p; });
+      drawCells();
+      clearAddError();
+    });
+
     function openAdd(b) {
       adding = b ? { box: b.box, from: b.slots } : { box: (boxes.length ? boxes[boxes.length - 1].box : 0) + 1, from: 0 };
-      addPrice = null;
+      addPrices = [];
+      pickedPrices = [];
       $('addTitle').textContent = b ? `Add Slots to Box ${adding.box}` : `Add Box ${adding.box}`;
       $('addSave').textContent = b ? 'Add Slots' : 'Add Box';
       $('addCount').value = '';
-      $('addError').className = 'message';
-      $('addError').textContent = '';
+      clearAddError();
       drawRange();
       drawChips();
+      drawCells();
       $('addDialog').classList.remove('hidden');
       $('addCount').focus();
     }
+    // Typing the count keeps the prices already picked when it grows, shrinks or is retyped.
     $('addCount').addEventListener('input', () => {
       $('addCount').value = $('addCount').value.replace(/\D/g, '');
       const room = limits.maxSlots - adding.from;
       if (Number($('addCount').value) > room) $('addCount').value = String(room);
+      const count = Number($('addCount').value) || 0;
+      addPrices = Array.from({ length: count }, (_, i) => pickedPrices[i] || null);
       drawRange();
+      drawCells();
       clearAddError();
     });
     $('addBox').addEventListener('click', () => openAdd(null));
     $('addCancel').addEventListener('click', () => $('addDialog').classList.add('hidden'));
     $('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const count = Number($('addCount').value) || 0;
+      const count = addPrices.length;
       if (!count) { showMessage($('addError'), 'Enter how many slots to add.'); $('addCount').focus(); return; }
-      if (!addPrice) { showMessage($('addError'), 'Pick the price of the new slots.'); return; }
+      const left = count - priced();
+      if (left) {
+        showMessage($('addError'), `${left} ${left === 1 ? 'slot still needs' : 'slots still need'} a price. Tap ${left === 1 ? 'it' : 'them'}, or use Fill the Rest.`);
+        return;
+      }
       try {
-        const done = await whileBusy($('addSave'), 'Adding…', () => api('addSlots', { box: adding.box, count, price: addPrice }));
+        const done = await whileBusy($('addSave'), 'Adding…', () => api('addSlots', { box: adding.box, prices: addPrices }));
         boxes = done.boxes;
         draw();
         $('addDialog').classList.add('hidden');
         const range = count === 1 ? `slot ${adding.from + 1}` : `slots ${adding.from + 1} to ${adding.from + count}`;
-        toast(adding.from ? `Added ${range} to box ${adding.box}, at $${addPrice}.`
-          : `Added box ${adding.box} with ${plural(count, 'slot')}, at $${addPrice}.`);
+        toast(adding.from ? `Added ${range} to box ${adding.box}.` : `Added box ${adding.box} with ${plural(count, 'slot')}.`);
       } catch (err) {
         showMessage($('addError'), err.message);
       }

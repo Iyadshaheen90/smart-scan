@@ -125,6 +125,9 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   is no longer on that store. Actions: `myStores`, `inviteUser` (`{ users, existing, emailed }`), `passwordHelp`,
   `sendPasswordReset`, `leaveStore`, `deleteStore`, `accountDeleteCheck`, `deleteAccount`. Leave / Delete and Set Up
   Another Store show only with `SIGN_UP_OPEN`; Store Settings, Edit Layout and Switch Store show on the database.
+  **Migration 0030 (2026-11-14, owner: a price per new slot, like the wizard):** `add_slots { box, prices: [price…] }`
+  (one per new slot, in slot order; `bad_price` "Every new slot needs a price."); the older `{ box, count, price }` still
+  works. Edit Layout sends `prices`. Test: in `many_stores_test.sql`.
   Not built: sign-in by username (design), the subscription row and the "cancel the subscription first" block on
   Delete Store (subscriptions build), auth settings for sign-up (needs our own email domain).
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons

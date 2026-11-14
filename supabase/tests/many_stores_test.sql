@@ -175,6 +175,29 @@ begin
     end;
   end loop;
 
+  -- A price per new slot (migration 0030): in slot order, at the end of the box; a bad one saves nothing.
+  r := public.add_slots(a, '{"box": 2, "prices": [5, 10, 30]}');
+  assert r -> 'boxes' -> 1 = '{"box": 2, "slots": 4, "live": 0}'::jsonb and r ->> 'added' = '3', r::text;
+  assert (select jsonb_agg(x -> 'slotPrice' order by (x ->> 'slot')::int) from jsonb_array_elements(public.list_slots(a, '{}')) x
+    where x ->> 'box' = '2') = '[20, 5, 10, 30]'::jsonb, 'the new slots'' prices';
+  for r in select x from jsonb_array_elements('[
+    {"code": "bad_count", "req": {"box": 2, "prices": []}},
+    {"code": "bad_count", "req": {"box": 2, "prices": "5"}},
+    {"code": "bad_price", "req": {"box": 2, "prices": [5, 7]}},
+    {"code": "bad_price", "req": {"box": 2, "prices": [5, null]}},
+    {"code": "bad_price", "req": {"box": 2, "prices": [5, "10"]}},
+    {"code": "no_box", "req": {"box": 4, "prices": [5]}},
+    {"code": "too_many_slots", "req": {"box": 2, "prices": [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]}}]'::jsonb) as q(x) loop
+    begin
+      perform public.add_slots(a, r -> 'req');
+      assert false, format('added with %s', r -> 'req');
+    exception when sqlstate 'P0001' then
+      get stacked diagnostics h = pg_exception_hint;
+      assert h = r ->> 'code', format('%s gave %s', r -> 'req', h);
+    end;
+  end loop;
+  assert (public.store_settings(a, '{}') -> 'boxes' -> 1 ->> 'slots')::int = 4, 'a refused add kept slots';
+
   -- Remove: only the last slot, only when empty; only the last box.
   begin
     perform public.remove_slot(a, '{"box": 1, "slot": 3}'); assert false, 'a middle slot was removed';
