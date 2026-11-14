@@ -36,9 +36,13 @@ function renderHeader(el, session) {
   const forRole = !el.dataset.backRole || (session && session.role === el.dataset.backRole);
   const back = forRole ? el.dataset.back : '';
   const id = (name) => (name ? ` id="${navEscape(name)}"` : '');
+  // On several stores (the database): the store's name is how to switch (Your Stores).
+  const several = Boolean(session && session.storeId && session.storeCount > 1);
   const top = back
     ? `<a class="back"${id(el.dataset.backId)} href="${navEscape(back)}">${icon('chevronLeft')}<span class="back-label">${navEscape(el.dataset.backLabel || 'Back')}</span></a>`
-    : `<div class="eyebrow">${navEscape(storeName())}</div>`;
+    : several
+      ? `<a class="eyebrow" href="stores.html" aria-label="${navEscape(`${storeName()}. Switch store`)}">${navEscape(storeName())}${icon('swap')}</a>`
+      : `<div class="eyebrow">${navEscape(storeName())}</div>`;
   // No name pill before the person is on a store (the setup wizard).
   const pill = session && session.username
     ? `<a class="user-pill" href="more.html"><span class="name">${navEscape(session.username)}</span><span class="avatar">${navEscape(initials(session.username))}</span></a>`

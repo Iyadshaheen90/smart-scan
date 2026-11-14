@@ -253,27 +253,31 @@ function authErrorCode(r) {
   return (r.data && (r.data.error_code || r.data.code || r.data.error)) || '';
 }
 
-// The session for a sign-in's tokens: the person's first store (by name) and who they are there.
+// The session for a sign-in's tokens: the person's store and who they are there. With one store, that one; with
+// several, the one this phone used last (many stores: the switcher), or none yet, and Your Stores asks (stores.html).
 async function dbSessionFor(tokens) {
   const r = await dbFetch('/rest/v1/rpc/my_stores', { body: {}, token: tokens.access_token });
   if (r.status >= 300) throw (r.data && r.data.hint ? new ApiError(r.data.hint, r.data.message) : serverError());
-  const store = r.data[0];
+  const stores = r.data;
+  const email = tokens.user && tokens.user.email;
+  const store = stores.length === 1 ? stores[0] : stores.find((x) => x.storeId === lastStore(email));
   // An account without a store: with self sign-up open it sets one up (setup.html); otherwise it was turned off.
-  if (!store && !SIGN_UP_IS_OPEN) throw new ApiError('bad_login', 'This account is no longer active.');
+  if (!stores.length && !SIGN_UP_IS_OPEN) throw new ApiError('bad_login', 'This account is no longer active.');
   return {
     backend: 'supabase',
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
     accessExpiresAt: Date.now() + tokens.expires_in * 1000,
-    email: tokens.user && tokens.user.email,
+    email,
     ...storeFields(store),
+    storeCount: stores.length,
     expiresAt: new Date(Date.now() + DB_SESSION_HOURS * 3600 * 1000).toISOString(),
   };
 }
 
 // What the session keeps about the person's store (a my_stores row, or create_store's answer); no store: none of it.
 function storeFields(store) {
-  if (!store) return { storeId: null };
+  if (!store) return { storeId: null, storeName: null, storeNumber: null, timeZone: null, dayEndHour: null, username: null, role: null, permissions: [] };
   return {
     storeId: store.storeId,
     storeName: store.storeName,
@@ -286,9 +290,86 @@ function storeFields(store) {
   };
 }
 
-// Signed in on the database but not on any store yet (a new account before the setup wizard is finished).
+// Signed in on the database but not in a store: a new account before the setup wizard is finished, or someone on
+// several stores who hasn't picked one on this phone yet.
 function needsStore(session) {
   return Boolean(session) && session.backend === 'supabase' && !session.storeId;
+}
+
+// Where a signed-in person starts: Home; Your Stores to pick one of several; the setup wizard without any.
+function startPage(session) {
+  if (!needsStore(session)) return 'index.html';
+  if (session.storeCount > 0) return 'stores.html';
+  // No store at all: set one up, or (sign-up closed: someone whose last store just went) the page that offers to
+  // delete the account too or sign out.
+  return SIGN_UP_IS_OPEN ? 'setup.html' : 'delete.html';
+}
+
+// ---- Several stores (many stores, step 4) ----
+// One account can be on several stores, with its own username, role and permissions in each. The session holds the
+// store being used; the phone remembers it per email, so the next sign-in opens the same store.
+const LAST_STORE_KEY = 'smartScanLastStore:';
+function lastStore(email) {
+  try { return localStorage.getItem(LAST_STORE_KEY + String(email || '').toLowerCase()) || ''; } catch (e) { return ''; }
+}
+function rememberStore(email, storeId) {
+  try {
+    if (storeId) localStorage.setItem(LAST_STORE_KEY + String(email || '').toLowerCase(), storeId);
+    else localStorage.removeItem(LAST_STORE_KEY + String(email || '').toLowerCase());
+  } catch (e) {}
+}
+
+// What the phone keeps about one store's work: the pages' saved answers and the drafts (a half-scanned close, a
+// shipment being scanned, packs lined up for Activate Several). They belong to the store they were made in.
+const STORE_WORK_KEYS = ['smartScanSaved:', 'smartScanOwnerHome:', 'smartScanCloseDraft', 'smartScanLateDraft', 'smartScanShiftDraft',
+  'smartScanBackStockDraft', 'smartScanActivateSeveral:', 'smartScanCloseRefused'];
+function clearStoreWork() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && STORE_WORK_KEYS.some((k) => key.startsWith(k))) localStorage.removeItem(key);
+    }
+    sessionStorage.removeItem(LAST_PAGE_KEY);
+  } catch (e) {}
+}
+
+// Moves this phone into one of the person's stores (a my_stores row, or create_store's answer). Refused while a
+// close is waiting to be sent: it belongs to the store it was made in. The other store's saved answers and drafts
+// are cleared, so nothing of one store shows or gets sent in another. The way back is switching again.
+function enterStore(store, storeCount) {
+  const session = getSession();
+  if (!session) throw signedOut();
+  if (session.storeId && session.storeId !== store.storeId && getPendingClose()) {
+    throw new ApiError('pending_close', 'A close on this phone is still waiting to be sent. Open Close Day to send it first, then switch.');
+  }
+  if (session.storeId !== store.storeId) clearStoreWork();
+  saveSession({ ...session, ...storeFields(store), ...(storeCount == null ? {} : { storeCount }) });
+  rememberStore(session.email, store.storeId);
+}
+
+// After the person lost the store they were in (they left it, it was deleted, or the owner took them off): their
+// stores are read again. One left: the phone moves into it. Several: Your Stores asks. None: signed out, or with
+// `stay` (they left or deleted it themselves) still signed in without a store, on the page that offers to delete the
+// account too. Returns the page to open.
+async function leaveCurrentStore(stay = false) {
+  const session = getSession();
+  clearStoreWork();
+  clearPendingClose();
+  rememberStore(session.email, '');
+  let stores = [];
+  try { stores = await dbRpc('my_stores', {}); } catch (e) {}
+  if (!stores.length && stay) {
+    saveSession({ ...getSession(), ...storeFields(null), storeCount: 0 });
+    return 'delete.html';
+  }
+  if (!stores.length) {
+    try { await DB_ACTIONS.logout(); } catch (e) {}
+    clearSession();
+    return 'login.html';
+  }
+  saveSession({ ...getSession(), ...storeFields(stores.length === 1 ? stores[0] : null), storeCount: stores.length });
+  if (stores.length === 1) rememberStore(session.email, stores[0].storeId);
+  return startPage(getSession());
 }
 
 async function dbSignIn(email, password) {
@@ -334,15 +415,16 @@ async function dbRpc(fn, body) {
 
 // An Edge Function (members: invite, setPassword, resendInvite; support: report); it answers { ok, data, code, error }
 // like Apps Script.
-async function dbEdge(name, action, params) {
+// whole: the full answer ({ data, …what else the function says }) instead of only its data.
+async function dbEdge(name, action, params, whole = false) {
   const session = getSession();
   const r = await dbFetch(`/functions/v1/${name}`, { body: { action, storeId: session && session.storeId, ...params }, token: await freshToken() });
-  if (r.data && r.data.ok) return r.data.data;
+  if (r.data && r.data.ok) return whole ? r.data : r.data.data;
   if (r.data && r.data.code) throw new ApiError(r.data.code, r.data.error);
   if (r.status === 401) throw signedOut();
   throw serverError();
 }
-const dbMembers = (action, params) => dbEdge('members', action, params);
+const dbMembers = (action, params, whole) => dbEdge('members', action, params, whole);
 
 // Where an invite or password email's link opens (allowed in the Supabase project's redirect list).
 function setPasswordUrl() {
@@ -400,7 +482,17 @@ const DB_ACTIONS = {
   },
   // Manage Employees: an employee is added by email (they get an invite), not with a starting password.
   createUser: ({ username, email }) => dbMembers('invite', { username, email, redirectTo: setPasswordUrl() }),
+  // The same, saying whether the email already had a Smart Scan account (it then joined with its own sign-in and got
+  // a plain "you were added" email): { users, existing, emailed }.
+  inviteUser: async ({ username, email }) => {
+    const r = await dbMembers('invite', { username, email, redirectTo: setPasswordUrl() }, true);
+    return { users: r.data, existing: Boolean(r.existing), emailed: r.emailed !== false };
+  },
   resetPassword: ({ username, newPassword }) => dbMembers('setPassword', { username, newPassword }),
+  // Reset Password rule (owner 2026-11-12): { how: 'set' } the owner types a password (the account's only store is
+  // this one), or { how: 'email' } the person is on another store too and gets a reset link instead.
+  passwordHelp: ({ username }) => dbMembers('passwordHelp', { username }),
+  sendPasswordReset: ({ username }) => dbMembers('sendReset', { username, redirectTo: setPasswordUrl() }),
   // A new invite email for someone who hasn't signed in yet (database only; the sheets have no emails).
   resendInvite: ({ username }) => dbMembers('resendInvite', { username, redirectTo: setPasswordUrl() }),
   me: () => dbRpc('me', { p_store: getSession().storeId }),
@@ -425,9 +517,42 @@ const DB_ACTIONS = {
   },
   // The setup wizard's one call: makes the store with this account as its owner, and the session moves into it.
   createStore: async (params) => {
+    // Checked before the store is made (enterStore would refuse after it): this phone moves into the new store.
+    if (getSession().storeId && getPendingClose()) {
+      throw new ApiError('pending_close', 'A close on this phone is still waiting to be sent. Open Close Day to send it first, then set up the new store.');
+    }
     const store = await dbRpc('create_store', { req: params });
-    saveSession({ ...getSession(), ...storeFields(store) });
+    enterStore(store, (Number(getSession().storeCount) || 0) + 1);
     return store;
+  },
+  // Every store the signed-in person is on (Your Stores); the session learns how many there are.
+  myStores: async () => {
+    const stores = await dbRpc('my_stores', {});
+    if (getSession()) saveSession({ ...getSession(), storeCount: stores.length });
+    return stores;
+  },
+  // An employee takes themselves off the store they're in. Answers the page to open next.
+  leaveStore: async () => {
+    await dbRpc('leave_store', { p_store: getSession().storeId, req: {} });
+    return { next: await leaveCurrentStore(true) };
+  },
+  // The owner deletes the store they're in, typing its name. Answers the page to open next.
+  deleteStore: async ({ name }) => {
+    await dbMembers('deleteStore', { name });
+    return { next: await leaveCurrentStore(true) };
+  },
+  // What stands in the way of deleting this account (owns_store), before asking for the password.
+  accountDeleteCheck: () => dbRpc('account_delete_check', {}),
+  // Deletes the signed-in person's own account, after their password. This phone forgets them.
+  deleteAccount: async ({ password }) => {
+    const session = getSession();
+    await dbMembers('deleteAccount', { password });
+    clearStoreWork();
+    clearPendingClose();
+    rememberStore(session.email, '');
+    try { if (lastEmail() === String(session.email || '').toLowerCase()) localStorage.removeItem(LAST_EMAIL_KEY); } catch (e) {}
+    clearSession();
+    return {};
   },
   // Report a Problem (database only): the support Edge Function saves it, keeps the screenshots and emails support.
   reportProblem: (params) => dbEdge('support', 'report', params),
@@ -440,13 +565,29 @@ async function dbApi(action, params) {
     const session = getSession();
     if (!session || !session.storeId) throw signedOut();
     const fn = action.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
-    return await dbRpc(fn, { p_store: session.storeId, req: params });
+    try {
+      return await dbRpc(fn, { p_store: session.storeId, req: params });
+    } catch (err) {
+      // Refused: maybe this person isn't on the store any more (taken off, or the store was deleted). Then the phone
+      // moves to a store they still have, or signs out, instead of staying on pages that can't load.
+      if (err.code === 'forbidden' && !(await stillOnStore(session.storeId))) location.replace(await leaveCurrentStore());
+      throw err;
+    }
   } catch (err) {
     if (err.code === 'unauthorized') {
       clearSession();
       location.href = 'login.html';
     }
     throw err;
+  }
+}
+
+// Is the signed-in person still on this store? (True when it can't be checked, so a hiccup changes nothing.)
+async function stillOnStore(storeId) {
+  try {
+    return (await dbRpc('my_stores', {})).some((s) => s.storeId === storeId);
+  } catch (e) {
+    return true;
   }
 }
 
@@ -509,9 +650,9 @@ function requireLogin(role) {
     location.replace('login.html');
     return null;
   }
-  // A new account without a store yet: the setup wizard.
+  // Not in a store: a new account goes to the setup wizard, someone on several stores picks one.
   if (needsStore(session)) {
-    location.replace('setup.html');
+    location.replace(startPage(session));
     return null;
   }
   const allowed = Array.isArray(role) ? role.some((p) => can(session, p)) : role !== 'owner' || session.role === 'owner';

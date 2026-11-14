@@ -52,7 +52,7 @@
   <script>
     // Only where creating an account is open; otherwise Sign In.
     if (!SIGN_UP_IS_OPEN) location.replace('login.html');
-    else if (getSession()) location.replace(needsStore(getSession()) ? 'setup.html' : 'index.html');
+    else if (getSession()) location.replace(startPage(getSession()));
     document.getElementById('disclaimer').textContent = APP_DISCLAIMER;
     document.querySelectorAll('.password-rule').forEach((el) => showPasswordRule(el));
 

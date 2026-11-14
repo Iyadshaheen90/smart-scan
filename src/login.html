@@ -58,7 +58,7 @@
   <script src="icons.js"></script>
   <script src="nav.js"></script>
   <script>
-    if (getSession()) location.replace(needsStore(getSession()) ? 'setup.html' : 'index.html');
+    if (getSession()) location.replace(startPage(getSession()));
     document.getElementById('disclaimer').textContent = APP_DISCLAIMER;
 
     const form = document.getElementById('form');
@@ -117,7 +117,7 @@
           : { username: form.username.value, password: form.password.value }));
         saveSession(session);
         if (USE_DATABASE) rememberEmail(session.email || form.username.value);
-        location.replace(needsStore(session) ? 'setup.html' : 'index.html');
+        location.replace(startPage(session));
       } catch (err) {
         showMessage(messageEl, err.message);
       }

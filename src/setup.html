@@ -32,8 +32,9 @@
       <div class="wiz-point"><span class="row-icon accent" data-icon="scan"></span><span>Then scan the packs you have, and you're running</span></div>
     </div>
     <button class="primary" type="button" id="startBtn">Set Up My Store</button>
-    <p class="auth-note">Joining a store that already uses Smart Scan?<br>Ask its owner to add you with <strong id="myEmail"></strong>.</p>
+    <p class="auth-note" id="joinNote">Joining a store that already uses Smart Scan?<br>Ask its owner to add you with <strong id="myEmail"></strong>.</p>
     <button type="button" class="link-button" id="signOutBtn">Sign Out</button>
+    <a class="link-button hidden" id="cancelAdd" href="stores.html">Back to Your Stores</a>
   </div>
 
   <div id="wizard" class="hidden">
@@ -167,6 +168,9 @@
     const MAX_SLOTS = 100;
     const FIRST_STEPS_KEY = 'smartScanFirstSteps';
 
+    // Set Up Another Store (Your Stores → setup.html?new=1): someone already on a store makes one more. The phone
+    // moves into the new store when it's created.
+    const ADDING = new URLSearchParams(location.search).get('new') === '1';
     let session = getSession();
     let draft = null;
     let paintPrice = 20;
@@ -541,6 +545,13 @@
     function start() {
       draft = loadDraft();
       $('myEmail').textContent = session.email || 'your email';
+      if (ADDING && !needsStore(session)) {
+        document.querySelector('#welcome h1').textContent = 'Set Up Another Store';
+        document.querySelector('#welcome .auth-brand .sub').textContent = `It gets its own slots, stock, reports and people. ${session.storeName} stays as it is.`;
+        $('joinNote').classList.add('hidden');
+        $('signOutBtn').classList.add('hidden');
+        $('cancelAdd').classList.remove('hidden');
+      }
       // Back is the header's pill: the step before, or the welcome screen from the first step. Each step reads what
       // was typed first (without insisting it's complete), so nothing typed is lost by going back.
       $('backLink').addEventListener('click', (e) => {
@@ -575,8 +586,10 @@
         return;
       }
       if (!session) { location.replace('login.html'); return; }
-      // Already on a store: nothing to set up here.
-      if (!needsStore(session)) { location.replace('index.html'); return; }
+      // Already in a store: nothing to set up here, unless they asked for another one (sign-up open).
+      if (!needsStore(session) && !(ADDING && SIGN_UP_IS_OPEN)) { location.replace('index.html'); return; }
+      // On several stores without one picked: Your Stores first.
+      if (needsStore(session) && !ADDING && startPage(session) !== 'setup.html') { location.replace(startPage(session)); return; }
       start();
     })();
   </script>

@@ -14,10 +14,10 @@ const out = execFileSync('npx', ['--yes', 'supabase@2.122.0', 'db', 'query', ...
   { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
 const a = JSON.parse(out.slice(out.indexOf('{'))).rows[0].audit;
 
-// The only functions postgres may own: three plain helpers and the four that must read Vault or auth.users.
+// The only functions postgres may own: three plain helpers and the five that must read Vault or auth.users.
 const POSTGRES_PLAIN = ['app.fail', 'app.uid', 'app.current_store_id'];
 const POSTGRES_DEFINER = ['app.store_retailer_number', 'app.save_retailer_number', 'app.forget_retailer_number',
-  'public.service_is_current_password'];
+  'public.service_is_current_password', 'public.service_account_info'];
 const problems = [];
 const counts = { signedIn: 0, serviceOnly: 0, internal: 0 };
 for (const f of a.functions) {

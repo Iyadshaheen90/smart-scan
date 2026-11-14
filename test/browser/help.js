@@ -79,7 +79,9 @@ function checkData() {
 (async () => {
   checkData();
   const handle = (b) => (b.action === 'closeStatus' ? { slots: [], permissions: [] } : {});
-  const allSections = FAQ.map((s) => s.id);
+  // Every section with something for the owner on Sheets (Your Store is database only: many stores).
+  const allSections = FAQ.filter((s) => s.items.some((i) => faqVisible(i, { role: 'owner' }, 'sheets'))).map((s) => s.id);
+  assert.ok(!allSections.includes('store') && FAQ.some((s) => s.id === 'store'), 'Your Store is for the database');
   const everyoneSections = ['start', 'close', 'shift', 'slots', 'problems', 'about'];
 
   // ---- Owner: More → Help & FAQ, every section (the Sheets versions while BACKEND is 'sheets') ----

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Leave or Delete</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Leave or Delete (many stores, step 5; database only): an employee leaves the store they're in; the owner
+       deletes the store (typing its name); anyone deletes their own account (their password again). An account that
+       owns a store can't be deleted until the store is. Deleting has no way back, so each one says exactly what goes
+       and asks twice. Leaving a store does: the owner adds the person again.
+       After the last store is gone the person is still signed in, without a store, and this page offers the last two
+       choices: delete the account too, or sign out and keep it. -->
+  <header class="app-header" data-title="Leave or Delete" id="header"></header>
+
+  <!-- Without a store: what just happened, then the account. -->
+  <p class="sub hidden" id="noStore"></p>
+
+  <!-- Employee: leave this store. -->
+  <section class="danger-card hidden" id="leaveCard">
+    <h2>Leave <span data-store-name></span></h2>
+    <p>You come off this store and can't open it any more. Your sign-in stays, and what you did here keeps your name.</p>
+    <p class="way-back">To come back, the owner adds you again.</p>
+    <button type="button" class="danger" id="leaveBtn">Leave Store</button>
+  </section>
+
+  <!-- Owner: delete this store. -->
+  <section class="danger-card hidden" id="storeCard">
+    <h2>Delete <span data-store-name></span></h2>
+    <p>This deletes the store for good:</p>
+    <ul>
+      <li>Every slot, pack and back stock count</li>
+      <li>Every close, shift close and report</li>
+      <li>Shipments, returns and problem reports</li>
+      <li>Each employee's access to this store</li>
+    </ul>
+    <p class="way-back">It can't be undone. <a href="month.html">Download your months first</a> to keep a copy.</p>
+    <label for="storeName">Type the Store's Name to Confirm</label>
+    <input id="storeName" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false">
+    <div id="storeMessage" class="message"></div>
+    <button type="button" class="danger" id="storeBtn">Delete Store</button>
+  </section>
+
+  <!-- Everyone: delete my account. -->
+  <section class="danger-card hidden" id="accountCard">
+    <h2>Delete My Account</h2>
+    <p id="accountText">This deletes your sign-in for good, at every store you're on. What you did keeps your username.</p>
+    <p class="way-back hidden" id="accountBlocked"></p>
+    <form id="accountForm" class="hidden" novalidate>
+      <label for="password">Your Password</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <div id="accountMessage" class="message"></div>
+      <button type="submit" class="danger" id="accountBtn">Delete My Account</button>
+    </form>
+  </section>
+
+  <div class="group signout-group hidden" id="keepBlock">
+    <button type="button" class="group-row signout-row keep-row" id="keepBtn"><span class="row-title">Keep My Account and Sign Out</span></button>
+  </div>
+
+  <div id="message" class="message"></div>
+
+  <div id="confirmDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="confirmTitle"></div>
+      <div class="slot-detail" id="confirmText"></div>
+      <div id="confirmError" class="message"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="save" id="confirmCancel">Keep It</button>
+        <button type="button" class="cancel" id="confirmGo"></button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script>
+    // Inside a store the header has More's back pill; without one there is nowhere to go back to.
+    if (getSession() && getSession().storeId) {
+      document.getElementById('header').dataset.back = 'more.html';
+      document.getElementById('header').dataset.backLabel = 'More';
+      document.getElementById('header').dataset.title = getSession().role === 'owner' ? 'Delete Store' : 'Leave Store';
+    } else {
+      document.getElementById('header').dataset.title = 'Delete Account';
+    }
+  </script>
+  <script src="nav.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const session = getSession();
+    const inStore = Boolean(session && session.storeId);
+    const isOwner = inStore && session.role === 'owner';
+    if (!session) location.replace('login.html');
+    else if (!USE_DATABASE) location.replace('more.html');
+
+    // One "are you sure" for all three; the red button does it, the green one keeps everything.
+    let confirmed = null;
+    function ask(title, text, go, run) {
+      $('confirmTitle').textContent = title;
+      $('confirmText').textContent = text;
+      $('confirmGo').textContent = go;
+      $('confirmError').className = 'message';
+      $('confirmError').textContent = '';
+      confirmed = run;
+      $('confirmDialog').classList.remove('hidden');
+    }
+    $('confirmCancel').addEventListener('click', () => $('confirmDialog').classList.add('hidden'));
+    $('confirmGo').addEventListener('click', async () => {
+      try {
+        await whileBusy($('confirmGo'), 'Working…', confirmed);
+      } catch (err) {
+        $('confirmDialog').classList.add('hidden');
+        showMessage($(confirmed.messageId || 'message'), err.message);
+      }
+    });
+
+    if (session && USE_DATABASE) {
+      document.querySelectorAll('[data-store-name]').forEach((el) => { el.textContent = session.storeName || 'This Store'; });
+      $('leaveCard').classList.toggle('hidden', !inStore || isOwner);
+      $('storeCard').classList.toggle('hidden', !isOwner);
+      $('accountCard').classList.remove('hidden');
+      if (!inStore) {
+        $('noStore').textContent = 'You\'re not on any store now. You can delete your account too, or keep it and sign out.';
+        $('noStore').classList.remove('hidden');
+        $('keepBlock').classList.remove('hidden');
+      }
+      checkAccount();
+    }
+
+    // The account can go unless it still owns a store (the server says which).
+    async function checkAccount() {
+      try {
+        await api('accountDeleteCheck');
+        $('accountForm').classList.remove('hidden');
+        $('accountBlocked').classList.add('hidden');
+      } catch (err) {
+        if (err.code !== 'owns_store') { showMessage($('message'), err.message); return; }
+        $('accountBlocked').textContent = err.message;
+        $('accountBlocked').classList.remove('hidden');
+        $('accountForm').classList.add('hidden');
+      }
+    }
+
+    $('leaveBtn').addEventListener('click', () => {
+      ask(`Leave ${session.storeName}?`, 'You won\'t be able to open this store until its owner adds you again.', 'Leave Store', async () => {
+        const { next } = await api('leaveStore');
+        location.replace(next);
+      });
+    });
+
+    $('storeBtn').addEventListener('click', () => {
+      $('storeMessage').className = 'message';
+      $('storeMessage').textContent = '';
+      const typed = $('storeName').value.trim();
+      if (typed.toLowerCase() !== String(session.storeName).trim().toLowerCase()) {
+        showMessage($('storeMessage'), `Type the store's name to delete it: ${session.storeName}`);
+        $('storeName').focus();
+        return;
+      }
+      const run = async () => {
+        const { next } = await api('deleteStore', { name: typed });
+        location.replace(next);
+      };
+      run.messageId = 'storeMessage';
+      ask(`Delete ${session.storeName} for Good?`, 'Everything in this store is deleted now, for everyone. This can\'t be undone.', 'Delete Store', run);
+    });
+
+    $('accountForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      $('accountMessage').className = 'message';
+      $('accountMessage').textContent = '';
+      const password = $('password').value;
+      if (!password) { showMessage($('accountMessage'), 'Enter your password to delete your account.'); $('password').focus(); return; }
+      const run = async () => {
+        await api('deleteAccount', { password });
+        location.replace('login.html');
+      };
+      run.messageId = 'accountMessage';
+      ask('Delete Your Account for Good?', `${session.email || 'This account'} won't be able to sign in again. This can't be undone.`, 'Delete Account', run);
+    });
+
+    $('keepBtn').addEventListener('click', () => signOut());
+  </script>
+</body>
+</html>

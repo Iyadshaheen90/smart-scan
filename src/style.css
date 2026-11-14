@@ -1014,3 +1014,40 @@ button.wiz-cell.set { background: var(--accent-soft); border: 1px solid #24503b;
 .first-steps-head .text-action { width: auto; margin: 0; padding: 6px 4px; font-size: 14px; font-weight: 600; }
 .first-steps .row-num { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
   border-radius: 50%; background: var(--accent-soft); color: var(--accent-bright); font-weight: 700; }
+
+/* Many stores, steps 4 and 5 (2026-11-14): Your Stores, Store Settings, Edit Layout, Leave or Delete. */
+/* The store's name in a header is how to switch when the person is on several stores. */
+.app-header a.eyebrow { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px 4px 0;
+  color: var(--muted); font-size: 14px; text-decoration: none; }
+.app-header a.eyebrow svg { flex: none; width: 14px; height: 14px; color: var(--accent-bright); }
+.store-row .row-end { flex: none; display: inline-flex; align-items: center; }
+.settings-card { padding: 2px 16px 16px; }
+.settings-card select { background: var(--bg); }
+.settings-note { margin: 10px 4px 0; }
+.layout-total { margin: 0 4px 4px; font-size: 14px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.layout-count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.layout-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.layout-actions button.small { margin: 0; background: var(--card-2); border-color: transparent; }
+.layout-actions button.small.danger { margin-left: auto; background: transparent; color: var(--danger); }
+.layout-actions button:disabled { opacity: 0.45; }
+#addBox { margin-top: 16px; }
+.choice-chips.layout-prices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.choice-chips.layout-prices button { width: 100%; padding: 9px 4px; }
+/* Leave or Delete: one card per thing that can go, saying what goes with it. */
+.danger-card { margin-top: 16px; padding: 18px 16px; border-radius: 18px; background: var(--card); border: 1px solid var(--border); }
+.danger-card:first-of-type { margin-top: 0; }
+.danger-card h2 { margin: 0 0 8px; font-size: 18px; overflow-wrap: anywhere; }
+.danger-card p { margin: 0 0 8px; font-size: 15px; line-height: 1.45; }
+.danger-card ul { margin: 0 0 10px; padding-left: 20px; }
+.danger-card li { margin-bottom: 3px; font-size: 15px; line-height: 1.4; color: var(--muted); }
+.danger-card .way-back { font-size: 14px; color: var(--muted); }
+.danger-card a { color: var(--accent-bright); }
+.danger-card input { background: var(--bg); }
+.danger-card button.danger { margin-top: 14px; background: var(--error-bg); font-weight: 700; }
+.group-row.signout-row.keep-row { color: var(--text); }
+a.link-button { display: block; width: fit-content; margin: 18px auto 0; padding: 10px 14px; color: var(--accent-bright);
+  font-size: 15px; font-weight: 600; text-decoration: none; }
+/* Your Stores: the line under a store's name wraps instead of being cut (role, username, Store ID). */
+.store-row .row-sub { white-space: normal; overflow-wrap: anywhere; }
+/* Signed in without a store (Your Stores before one is picked, Delete Account after the last store): no tabs, so no bar. */
+.tabbar:empty { display: none; }

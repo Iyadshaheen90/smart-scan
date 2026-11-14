@@ -193,7 +193,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.waitForFunction(() => /Password for later changed/.test(document.querySelector('#listMessage').textContent));
     await (await buttonOn('later', 'Resend Invite')).click();
     await page.waitForFunction(() => /already has a password/.test(document.querySelector('#listMessage').textContent), { timeout: 20000 });
-    assert.equal(await text(page, '#listMessage'), 'later already has a password (you set one). They can sign in with it, or use Forgot Password.');
+    assert.equal(await text(page, '#listMessage'), 'later already has a password. They can sign in with it, or use Forgot Password.');
 
     // The first link no longer works.
     await page.goto(answer.testLink);

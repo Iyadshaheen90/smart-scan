@@ -29,6 +29,12 @@
   <div class="group-block" id="storeGroup">
     <h2 class="group-label">Store</h2>
     <div class="group">
+      <!-- Several stores (database): everyone on more than one store, and with self sign-up open an owner who may
+           set up another. -->
+      <a class="group-row hidden" href="stores.html" id="storesRow">
+        <span class="row-icon accent" data-icon="swap"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title" id="storesTitle">Switch Store</span><span class="row-sub" id="storesSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
       <a class="group-row owner-only hidden" href="users.html">
         <span class="row-icon accent" data-icon="users"></span>
         <span class="row-text"><span class="row-main"><span class="row-title">Manage Employees</span><span class="row-sub">People, invites and permissions</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
@@ -37,6 +43,16 @@
       <a class="group-row owner-only db-only hidden" href="store.html" id="storeInfoRow">
         <span class="row-icon accent" data-icon="mapPin"></span>
         <span class="row-text"><span class="row-main"><span class="row-title">Store Info</span><span class="row-sub" id="storeInfoSub">Store ID, address and phone</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <!-- Owner only, database only (many stores): the store's hours and the ticket order for new slots; its boxes
+           and slots. -->
+      <a class="group-row owner-only db-only hidden" href="store-settings.html">
+        <span class="row-icon accent" data-icon="clock"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Store Settings</span><span class="row-sub">Hours and ticket order for new slots</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <a class="group-row owner-only db-only hidden" href="layout.html">
+        <span class="row-icon accent" data-icon="grid"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Edit Layout</span><span class="row-sub">Add or remove slots and boxes</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
       </a>
       <!-- Owner only: the store's lottery retailer number, printed on the Theft Report. -->
       <button type="button" class="group-row owner-only hidden" id="retailerRow">
@@ -84,6 +100,12 @@
       <a class="group-row" href="account.html">
         <span class="row-icon" data-icon="key"></span>
         <span class="row-text"><span class="row-main"><span class="row-title">Change My Password</span><span class="row-sub">Choose a new sign-in password</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+      <!-- With self sign-up open (database): an employee leaves the store, the owner deletes it, anyone deletes their
+           own account. -->
+      <a class="group-row hidden" href="delete.html" id="deleteRow">
+        <span class="row-icon danger" data-icon="trash"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title" id="deleteTitle"></span><span class="row-sub">Permanent. Read what goes first.</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
       </a>
     </div>
   </div>
@@ -182,6 +204,22 @@
       document.querySelectorAll('.db-only').forEach((el) => {
         el.classList.toggle('hidden', !USE_DATABASE || (el.classList.contains('owner-only') && session.role !== 'owner'));
       });
+      // Switch Store: on several stores, or (sign-up open) an owner who may set up another. The phone asks again how
+      // many stores there are, so someone just added to a second store sees it without signing in again.
+      const showStores = () => {
+        const s = getSession() || session;
+        const several = s.storeCount > 1;
+        document.getElementById('storesRow').classList.toggle('hidden', !USE_DATABASE || !(several || (SIGN_UP_IS_OPEN && s.role === 'owner')));
+        document.getElementById('storesTitle').textContent = several ? 'Switch Store' : 'Your Stores';
+        document.getElementById('storesSub').textContent = several ? `Now in ${s.storeName}` : 'Set up another store';
+        document.getElementById('storeGroup').classList.toggle('hidden', !document.getElementById('storeGroup').querySelector('.group-row:not(.hidden)'));
+      };
+      showStores();
+      if (USE_DATABASE) api('myStores').then(showStores).catch(() => {});
+      if (SIGN_UP_IS_OPEN) {
+        document.getElementById('deleteTitle').textContent = session.role === 'owner' ? 'Delete Store or Account' : 'Leave Store or Delete Account';
+        document.getElementById('deleteRow').classList.remove('hidden');
+      }
       // Store Info says so when the address or phone is still missing.
       if (USE_DATABASE && session.role === 'owner') {
         api('storeInfo').then((info) => {

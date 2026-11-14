@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Your Stores</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Your Stores (many stores, step 4; database only): one account can be on several stores, with its own username,
+       role and permissions in each. Opened after sign-in when a phone hasn't picked one yet, from the store's name in
+       any header, and from More → Switch Store. Tapping a store moves this phone into it: the other store's saved
+       answers and drafts are cleared, and it's refused while a close is waiting to be sent. The way back is tapping
+       the other store. With self sign-up open, an owner can set up another store from here. -->
+  <header class="app-header" data-title="Your Stores" id="header"></header>
+  <p class="sub" id="intro">Loading…</p>
+  <div class="group hidden" id="storeList"></div>
+  <div id="message" class="message"></div>
+
+  <div class="group-block hidden" id="addBlock">
+    <div class="group">
+      <a class="group-row" href="setup.html?new=1">
+        <span class="row-icon accent" data-icon="plus"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Set Up Another Store</span><span class="row-sub">Its own slots, stock, reports and people</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="group signout-group hidden" id="signOutBlock">
+    <button type="button" class="group-row signout-row" id="signOut"><span class="row-title">Sign Out</span></button>
+  </div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script>
+    // Inside a store the header has More's back pill; before one is picked there is nowhere to go back to.
+    if (getSession() && getSession().storeId) {
+      document.getElementById('header').dataset.back = 'more.html';
+      document.getElementById('header').dataset.backLabel = 'More';
+    }
+  </script>
+  <script src="nav.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const session = getSession();
+    if (!session) location.replace('login.html');
+    else if (!USE_DATABASE) location.replace('index.html');
+
+    function storeRow(store, count, current) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'group-row store-row';
+      row.dataset.store = store.storeId;
+      row.innerHTML = '<span class="row-icon" data-icon="store"></span><span class="row-text"><span class="row-main">'
+        + '<span class="row-title"></span><span class="row-sub"></span></span><span class="row-end"></span></span>';
+      row.querySelector('.row-title').textContent = store.storeName;
+      row.querySelector('.row-sub').textContent = `${store.role === 'owner' ? 'Owner' : 'Employee'} · ${store.username} · Store ID ${store.storeNumber}`;
+      row.querySelector('.row-icon').classList.toggle('accent', current);
+      row.querySelector('.row-end').innerHTML = current ? '<span class="chip green">Current</span>' : `<span class="row-chev">${icon('chevronRight')}</span>`;
+      if (current) row.setAttribute('aria-current', 'true');
+      row.addEventListener('click', () => {
+        $('message').className = 'message';
+        $('message').textContent = '';
+        try {
+          enterStore(store, count);
+          location.replace('index.html');
+        } catch (err) {
+          showMessage($('message'), err.message);
+        }
+      });
+      return row;
+    }
+
+    async function load() {
+      try {
+        const stores = await api('myStores');
+        // Nothing left to pick from: the setup wizard (sign-up open) or signed out.
+        if (!stores.length) { location.replace(await leaveCurrentStore()); return true; }
+        const current = getSession().storeId;
+        $('intro').textContent = stores.length === 1 ? 'You\'re on one store.'
+          : current ? 'Tap a store to switch to it. Each store keeps its own slots, stock and reports.'
+            : 'Which store are you working in? Each store keeps its own slots, stock and reports.';
+        $('storeList').innerHTML = '';
+        for (const store of stores) $('storeList').append(storeRow(store, stores.length, store.storeId === current));
+        fillIcons($('storeList'));
+        $('storeList').classList.remove('hidden');
+        // Setting up another store is part of self sign-up; an employee-only account can start its own store too.
+        $('addBlock').classList.toggle('hidden', !SIGN_UP_IS_OPEN);
+        $('signOutBlock').classList.toggle('hidden', Boolean(current));
+        $('message').className = 'message';
+        $('message').textContent = '';
+        return true;
+      } catch (err) {
+        $('intro').textContent = '';
+        showLoadError($('message'), err, load);
+        return false;
+      }
+    }
+
+    $('signOut').addEventListener('click', () => signOut());
+    if (session && USE_DATABASE) load();
+  </script>
+</body>
+</html>

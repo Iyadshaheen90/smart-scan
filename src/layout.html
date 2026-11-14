@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Edit Layout</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Edit Layout (many stores; owner only, database only): the store's boxes and how many slots each has
+       (store_settings for the picture; add_slots, remove_slot, remove_box). Slots are added at the end of a box, or as
+       a new box. Only the last slot of a box comes off, and only when empty; boxes and slots are never renumbered, so
+       past reports keep pointing at the right place. Every change has its way back: what was added can be removed,
+       what was removed can be added again. -->
+  <header class="app-header" data-title="Edit Layout" data-back="more.html" data-back-label="More"></header>
+
+  <p class="sub hidden" id="notYet">Edit Layout starts with the new database on Dec 1.</p>
+
+  <div id="layoutPage" class="hidden">
+    <p class="sub">Add slots or a box when your display grows. Slots come off the end of a box, and only when empty. Numbers never change, so past reports stay right.</p>
+    <div class="layout-total" id="total"></div>
+    <div id="boxList"></div>
+    <button type="button" class="add-member hidden" id="addBox"><span data-icon="plus"></span><span id="addBoxLabel">Add a Box</span></button>
+  </div>
+
+  <div class="toast-wrap" aria-live="polite"><div id="toast" class="message"></div></div>
+  <div id="message" class="message"></div>
+
+  <!-- Add Slots / Add a Box: how many, and their price. -->
+  <div id="addDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <form id="addForm" class="dialog form-dialog" novalidate>
+      <div class="dialog-title" id="addTitle"></div>
+      <label for="addCount">How Many Slots?</label>
+      <input id="addCount" inputmode="numeric" maxlength="3" autocomplete="off">
+      <p class="field-help" id="addRange"></p>
+      <label id="priceLabel">Price of Each Ticket</label>
+      <div class="choice-chips layout-prices" id="priceChips" role="group" aria-labelledby="priceLabel"></div>
+      <p class="field-help">One price for all of them now. Change any slot's price later on the slot.</p>
+      <div id="addError" class="message"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="cancel" id="addCancel">Cancel</button>
+        <button type="submit" class="save" id="addSave">Add</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Remove the last slot of a box, or the last box. -->
+  <div id="removeDialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="removeTitle">
+    <div class="dialog">
+      <div class="dialog-title" id="removeTitle"></div>
+      <div class="slot-detail" id="removeText"></div>
+      <div id="removeError" class="message"></div>
+      <div class="dialog-buttons">
+        <button type="button" class="cancel" id="removeCancel">Cancel</button>
+        <button type="button" class="save" id="removeGo">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin();
+    const $ = (id) => document.getElementById(id);
+    // From the server with the layout (store_settings): the limits and the prices a slot can have.
+    let limits = { maxBoxes: 20, maxSlots: 100, prices: [1, 2, 3, 5, 10, 20, 30, 40] };
+    let boxes = [];
+
+    if (session && session.role !== 'owner') {
+      showMessage($('message'), 'Only the owner can change the layout.');
+    } else if (session && !USE_DATABASE) {
+      $('notYet').classList.remove('hidden');
+    } else if (session) {
+      $('layoutPage').classList.remove('hidden');
+      load();
+    }
+
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : word.endsWith('x') ? 'es' : 's'}`;
+
+    // The floating message goes away by itself (6 s, an error 9 s) or when tapped.
+    let toastTimer = null;
+    function toast(text, kind = 'ok') {
+      clearTimeout(toastTimer);
+      showMessage($('toast'), text, kind);
+      toastTimer = setTimeout(hideToast, kind === 'error' ? 9000 : 6000);
+    }
+    function hideToast() { $('toast').className = 'message'; $('toast').textContent = ''; }
+    $('toast').addEventListener('click', hideToast);
+
+    function draw() {
+      const slots = boxes.reduce((n, b) => n + b.slots, 0);
+      const live = boxes.reduce((n, b) => n + b.live, 0);
+      $('total').textContent = `${plural(boxes.length, 'Box')} · ${plural(slots, 'Slot')} · ${live} With a Pack`;
+      $('boxList').innerHTML = '';
+      const last = boxes.length ? boxes[boxes.length - 1].box : 0;
+      for (const b of boxes) {
+        const card = document.createElement('div');
+        card.className = 'wiz-box layout-box';
+        card.dataset.box = b.box;
+        card.innerHTML = '<div class="wiz-box-head"><div class="wiz-box-name"></div><div class="layout-count"></div></div>'
+          + '<div class="wiz-dots"></div><div class="layout-actions"></div>';
+        card.querySelector('.wiz-box-name').textContent = `Box ${b.box}`;
+        card.querySelector('.layout-count').textContent = `${plural(b.slots, 'Slot')} · ${b.live} With a Pack`;
+        const dots = card.querySelector('.wiz-dots');
+        for (let i = 0; i < b.slots; i += 1) dots.append(document.createElement('span'));
+        const actions = card.querySelector('.layout-actions');
+        const button = (label, name, run, danger) => {
+          const el = document.createElement('button');
+          el.type = 'button';
+          el.className = `small${danger ? ' danger' : ''}`;
+          el.dataset.act = name;
+          el.textContent = label;
+          el.addEventListener('click', run);
+          actions.append(el);
+          return el;
+        };
+        button('Add Slots', 'add', () => openAdd(b)).disabled = b.slots >= limits.maxSlots;
+        // A store keeps at least one slot.
+        button('Remove Last Slot', 'removeSlot', () => openRemove(b, false)).disabled = slots <= 1;
+        if (b.box === last && boxes.length > 1) button('Remove Box', 'removeBox', () => openRemove(b, true), true);
+        $('boxList').append(card);
+      }
+      $('addBox').classList.toggle('hidden', boxes.length >= limits.maxBoxes);
+      $('addBoxLabel').textContent = `Add Box ${last + 1}`;
+    }
+
+    async function load() {
+      try {
+        const settings = await api('storeSettings');
+        limits = { maxBoxes: settings.maxBoxes, maxSlots: settings.maxSlots, prices: settings.prices };
+        boxes = settings.boxes;
+        draw();
+        $('message').className = 'message';
+        $('message').textContent = '';
+        return true;
+      } catch (err) {
+        showLoadError($('message'), err, load);
+        return false;
+      }
+    }
+
+    // ---- Add Slots / Add a Box ----
+    let adding = null;    // { box, from }: the box number and how many slots it has now (0 for a new box)
+    let addPrice = null;
+    function drawRange() {
+      const n = Number($('addCount').value) || 0;
+      const room = limits.maxSlots - adding.from;
+      $('addRange').textContent = !n ? `Up to ${room}. A box holds at most ${limits.maxSlots} slots.`
+        : n === 1 ? `The new slot is number ${adding.from + 1}.`
+          : `The new slots are numbers ${adding.from + 1} to ${adding.from + n}.`;
+    }
+    function drawChips() {
+      $('priceChips').innerHTML = '';
+      for (const p of limits.prices) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = `$${p}`;
+        chip.dataset.price = p;
+        chip.classList.toggle('active', p === addPrice);
+        chip.setAttribute('aria-pressed', p === addPrice ? 'true' : 'false');
+        chip.addEventListener('click', () => { addPrice = p; drawChips(); clearAddError(); });
+        $('priceChips').append(chip);
+      }
+    }
+    // A message about what's missing goes away once they act on it.
+    function clearAddError() { $('addError').className = 'message'; $('addError').textContent = ''; }
+    function openAdd(b) {
+      adding = b ? { box: b.box, from: b.slots } : { box: (boxes.length ? boxes[boxes.length - 1].box : 0) + 1, from: 0 };
+      addPrice = null;
+      $('addTitle').textContent = b ? `Add Slots to Box ${adding.box}` : `Add Box ${adding.box}`;
+      $('addSave').textContent = b ? 'Add Slots' : 'Add Box';
+      $('addCount').value = '';
+      $('addError').className = 'message';
+      $('addError').textContent = '';
+      drawRange();
+      drawChips();
+      $('addDialog').classList.remove('hidden');
+      $('addCount').focus();
+    }
+    $('addCount').addEventListener('input', () => {
+      $('addCount').value = $('addCount').value.replace(/\D/g, '');
+      const room = limits.maxSlots - adding.from;
+      if (Number($('addCount').value) > room) $('addCount').value = String(room);
+      drawRange();
+      clearAddError();
+    });
+    $('addBox').addEventListener('click', () => openAdd(null));
+    $('addCancel').addEventListener('click', () => $('addDialog').classList.add('hidden'));
+    $('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const count = Number($('addCount').value) || 0;
+      if (!count) { showMessage($('addError'), 'Enter how many slots to add.'); $('addCount').focus(); return; }
+      if (!addPrice) { showMessage($('addError'), 'Pick the price of the new slots.'); return; }
+      try {
+        const done = await whileBusy($('addSave'), 'Adding…', () => api('addSlots', { box: adding.box, count, price: addPrice }));
+        boxes = done.boxes;
+        draw();
+        $('addDialog').classList.add('hidden');
+        const range = count === 1 ? `slot ${adding.from + 1}` : `slots ${adding.from + 1} to ${adding.from + count}`;
+        toast(adding.from ? `Added ${range} to box ${adding.box}, at $${addPrice}.`
+          : `Added box ${adding.box} with ${plural(count, 'slot')}, at $${addPrice}.`);
+      } catch (err) {
+        showMessage($('addError'), err.message);
+      }
+    });
+
+    // ---- Remove Last Slot / Remove Box ----
+    let removing = null;  // { box, slots, whole }
+    function openRemove(b, whole) {
+      removing = { box: b.box, slots: b.slots, whole };
+      $('removeTitle').textContent = whole ? `Remove Box ${b.box}?` : `Remove Slot ${b.slots} From Box ${b.box}?`;
+      $('removeText').textContent = whole
+        ? `All ${plural(b.slots, 'slot')} in box ${b.box} must be empty. Its past sales stay in your reports. You can add the box again with Add Box.`
+        : `The slot must be empty. Its past sales stay in your reports. You can add it again with Add Slots.`;
+      $('removeGo').textContent = whole ? 'Remove Box' : 'Remove Slot';
+      $('removeError').className = 'message';
+      $('removeError').textContent = '';
+      $('removeDialog').classList.remove('hidden');
+    }
+    $('removeCancel').addEventListener('click', () => $('removeDialog').classList.add('hidden'));
+    $('removeGo').addEventListener('click', async () => {
+      try {
+        const done = await whileBusy($('removeGo'), 'Removing…', () => (removing.whole
+          ? api('removeBox', { box: removing.box })
+          : api('removeSlot', { box: removing.box, slot: removing.slots })));
+        boxes = done.boxes;
+        draw();
+        $('removeDialog').classList.add('hidden');
+        toast(removing.whole ? `Removed box ${removing.box}.` : `Removed slot ${removing.slots} from box ${removing.box}.`);
+      } catch (err) {
+        showMessage($('removeError'), err.message);
+      }
+    });
+  </script>
+</body>
+</html>

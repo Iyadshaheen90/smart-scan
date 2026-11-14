@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Store Settings</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Store Settings (many stores; owner only, database only): the store's time zone, the hour its business day
+       ends, and the ticket order slots added later start with (store_settings / set_store_settings). Moving the hours
+       moves sales between days, so the server refuses it once today has a close or a shift close; the way back is
+       saving the old value again. -->
+  <header class="app-header" data-title="Store Settings" data-back="more.html" data-back-label="More"></header>
+
+  <p class="sub hidden" id="notYet">Store Settings starts with the new database on Dec 1.</p>
+
+  <form id="settingsForm" class="hidden" novalidate>
+    <div class="group-block group-first">
+      <h2 class="group-label">Hours</h2>
+      <div class="card settings-card">
+        <label for="timeZone">Time Zone</label>
+        <select id="timeZone" disabled></select>
+        <label for="dayEnd">Business Day Ends At</label>
+        <select id="dayEnd" disabled></select>
+        <p class="field-help" id="dayEndHelp"></p>
+      </div>
+      <p class="field-help settings-note">Hours can change only before the day's first close or shift close, so no sale moves to another day.</p>
+    </div>
+
+    <div class="group-block">
+      <h2 class="group-label">Ticket Order for New Slots</h2>
+      <div class="radio-list">
+        <label class="radio-card"><input type="radio" name="order" value="descending" disabled>
+          <span><span class="radio-title">Descending</span><span class="radio-note">The highest number sells first: 029 down to 000.</span></span></label>
+        <label class="radio-card"><input type="radio" name="order" value="ascending" disabled>
+          <span><span class="radio-title">Ascending</span><span class="radio-note">Ticket 000 sells first: 000 up to 029.</span></span></label>
+      </div>
+      <p class="field-help settings-note">For slots you add later in Edit Layout. The slots you have now keep their order: change them with Ticket Order in More, or on the slot.</p>
+    </div>
+
+    <div id="formMessage" class="message"></div>
+    <button class="primary" type="submit" id="saveBtn" disabled>Save Settings</button>
+  </form>
+
+  <div id="message" class="message"></div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin();
+    const $ = (id) => document.getElementById(id);
+    // The same list as the setup wizard; the store's own zone is added if it isn't one of these.
+    const ZONES = [['America/Los_Angeles', 'Pacific'], ['America/Denver', 'Mountain'], ['America/Phoenix', 'Arizona (no daylight time)'],
+      ['America/Chicago', 'Central'], ['America/New_York', 'Eastern'], ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii']];
+    const inputs = () => [$('timeZone'), $('dayEnd'), ...document.querySelectorAll('input[name="order"]')];
+
+    if (session && session.role !== 'owner') {
+      showMessage($('message'), 'Only the owner can change the store settings.');
+    } else if (session && !USE_DATABASE) {
+      $('notYet').classList.remove('hidden');
+    } else if (session) {
+      $('settingsForm').classList.remove('hidden');
+      load();
+    }
+
+    function drawDayEndHelp() {
+      const h = Number($('dayEnd').value);
+      $('dayEndHelp').textContent = h === 0
+        ? 'Open past midnight? Pick the hour after you close, so late-night sales count for the day they belong to.'
+        : `Sales until ${h === 12 ? '12 noon' : `${h} AM`} count for the day before. Pick the first hour you are always closed.`;
+    }
+    $('dayEnd').addEventListener('change', drawDayEndHelp);
+
+    function fill(settings) {
+      $('timeZone').innerHTML = '';
+      for (const [zone, name] of ZONES) $('timeZone').append(new Option(name, zone));
+      if (!ZONES.some(([zone]) => zone === settings.timeZone)) $('timeZone').append(new Option(settings.timeZone, settings.timeZone));
+      $('timeZone').value = settings.timeZone;
+      $('dayEnd').innerHTML = '';
+      for (let h = 0; h <= 12; h += 1) {
+        $('dayEnd').append(new Option(h === 0 ? 'Midnight (most stores)' : h === 12 ? '12 Noon' : `${h} AM`, h));
+      }
+      $('dayEnd').value = String(settings.dayEndHour);
+      document.querySelectorAll('input[name="order"]').forEach((r) => { r.checked = r.value === settings.ticketOrder; });
+      drawDayEndHelp();
+      // The phone works out the store's day from these until the server answers (storeToday in api.js).
+      saveSession({ ...getSession(), timeZone: settings.timeZone, dayEndHour: settings.dayEndHour });
+    }
+
+    async function load() {
+      try {
+        fill(await api('storeSettings'));
+        inputs().forEach((el) => { el.disabled = false; });
+        $('saveBtn').disabled = false;
+        $('message').className = 'message';
+        $('message').textContent = '';
+        return true;
+      } catch (err) {
+        showLoadError($('message'), err, load);
+        return false;
+      }
+    }
+
+    $('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('formMessage').className = 'message';
+      $('formMessage').textContent = '';
+      try {
+        const order = document.querySelector('input[name="order"]:checked');
+        const settings = await whileBusy($('saveBtn'), 'Saving…', () => api('setStoreSettings', {
+          timeZone: $('timeZone').value, dayEndHour: Number($('dayEnd').value), ticketOrder: order ? order.value : '' }));
+        fill(settings);
+        showMessage($('formMessage'), 'Store settings saved.', 'ok');
+      } catch (err) {
+        showMessage($('formMessage'), err.message);
+      }
+    });
+  </script>
+</body>
+</html>

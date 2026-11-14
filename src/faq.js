@@ -6,6 +6,7 @@
 //   who: 'everyone' | 'employee' | 'owner' | a permission key (PERMISSIONS in Permissions.js). An employee sees an item
 //        tagged 'everyone' or 'employee' or one of the permissions the owner turned on for them; the owner sees all.
 //   backend: 'sheets' | 'supabase' — only on that backend (sign-in, passwords and months work differently).
+//   signUp: true — only while self sign-up is open (config.js SIGN_UP_OPEN): what it describes is hidden until then.
 //   go: the page the Go There button opens.
 // Answers: one paragraph per line; lines starting "1. " make a numbered list, lines starting "- " a bullet list.
 // Rules (test/browser/help.js): no dollar sign in anything an employee can see (except the password rule's signs),
@@ -639,9 +640,9 @@ const FAQ = [
         id: 'add', who: 'owner', backend: 'supabase', go: 'users.html',
         q: { en: 'How do I add an employee?', es: '¿Cómo agrego un empleado?', ar: 'كيف أضيف موظفاً؟' },
         a: {
-          en: 'More → Manage Employees, then tap Add Employee. Type a username and their email, and tap Add Employee. They get an email to choose their own password, and show as Invited until they sign in.',
-          es: 'More → Manage Employees y toca Add Employee. Escribe un nombre de usuario y su correo, y toca Add Employee. Recibe un correo para elegir su propia contraseña, y aparece como Invited hasta que inicie sesión.',
-          ar: 'More ← Manage Employees، ثم اضغط Add Employee. اكتب اسم مستخدم وبريده الإلكتروني، واضغط Add Employee. تصله رسالة لاختيار كلمة المرور بنفسه، ويظهر كـ Invited حتى يسجّل الدخول.',
+          en: 'More → Manage Employees, then tap Add Employee. Type a username and their email, and tap Add Employee. They get an email to choose their own password, and show as Invited until they sign in. If that email already uses Smart Scan at another store, they keep the password they have: they sign in as usual and pick your store under More → Switch Store.',
+          es: 'More → Manage Employees y toca Add Employee. Escribe un nombre de usuario y su correo, y toca Add Employee. Recibe un correo para elegir su propia contraseña, y aparece como Invited hasta que inicie sesión. Si ese correo ya usa Smart Scan en otra tienda, conserva la contraseña que tiene: inicia sesión como siempre y elige tu tienda en More → Switch Store.',
+          ar: 'More ← Manage Employees، ثم اضغط Add Employee. اكتب اسم مستخدم وبريده الإلكتروني، واضغط Add Employee. تصله رسالة لاختيار كلمة المرور بنفسه، ويظهر كـ Invited حتى يسجّل الدخول. إذا كان هذا البريد يستخدم Smart Scan في متجر آخر، فيبقى على كلمة المرور التي لديه: يسجّل الدخول كعادته ويختار متجرك من More ← Switch Store.',
         },
       },
       {
@@ -666,9 +667,9 @@ const FAQ = [
         id: 'employee-forgot', who: 'owner', backend: 'supabase', go: 'users.html',
         q: { en: 'An employee forgot their password.', es: 'Un empleado olvidó su contraseña.', ar: 'نسي موظف كلمة المرور.' },
         a: {
-          en: 'They can tap Forgot Password? on Sign In. Or tap Reset Password on their card, type a new one and tell them.',
-          es: 'Puede tocar Forgot Password? en Sign In. O toca Reset Password en su tarjeta, escribe una nueva y díselo.',
-          ar: 'يمكنه الضغط على Forgot Password? في صفحة Sign In. أو اضغط Reset Password على بطاقته، واكتب كلمة جديدة وأخبره بها.',
+          en: 'They can tap Forgot Password? on Sign In. Or tap Reset Password on their card, type a new one and tell them. If they also use Smart Scan at another store, you can\'t type their password: Reset Password emails them a link to choose a new one instead.',
+          es: 'Puede tocar Forgot Password? en Sign In. O toca Reset Password en su tarjeta, escribe una nueva y díselo. Si también usa Smart Scan en otra tienda, no puedes escribir su contraseña: Reset Password le envía un correo con un enlace para elegir una nueva.',
+          ar: 'يمكنه الضغط على Forgot Password? في صفحة Sign In. أو اضغط Reset Password على بطاقته، واكتب كلمة جديدة وأخبره بها. إذا كان يستخدم Smart Scan في متجر آخر أيضاً، فلا يمكنك كتابة كلمة مروره: يرسل له Reset Password رسالة فيها رابط لاختيار كلمة جديدة.',
         },
       },
       {
@@ -723,6 +724,58 @@ const FAQ = [
             + '- Full Pack Sale: بيع رزمة مغلقة من المخزن (Undo يبقى لك).\n'
             + '- Ticket Order: ضبط ↓ / ↑ لخانة فارغة، أو لكل الخانات من More.\n'
             + '- Theft Report: إعداد Theft Report، بدون $.',
+        },
+      },
+    ],
+  },
+  {
+    // Many stores (2026-11-14): the store's hours, its boxes and slots, being on several stores, leaving and deleting.
+    id: 'store',
+    title: { en: 'Your Store', es: 'Tu tienda', ar: 'متجرك' },
+    items: [
+      {
+        id: 'store-settings', who: 'owner', backend: 'supabase', go: 'store-settings.html',
+        q: { en: 'How do I change the store\'s hours or time zone?', es: '¿Cómo cambio el horario o la zona horaria de la tienda?', ar: 'كيف أغيّر ساعات المتجر أو المنطقة الزمنية؟' },
+        a: {
+          en: 'More → Store Settings. Pick the time zone and when your business day ends: midnight for most stores, or the hour after you close if you\'re open past midnight, so late-night sales count for the right day. Hours can change only before the day\'s first close or shift close. If it\'s refused, change them tomorrow before the first close. Ticket Order for New Slots is the order that slots you add later start with.',
+          es: 'More → Store Settings. Elige la zona horaria y cuándo termina tu día de trabajo: medianoche para la mayoría de las tiendas, o la hora después de cerrar si abres pasada la medianoche, para que las ventas de la madrugada cuenten en el día correcto. El horario solo se puede cambiar antes del primer cierre o cierre de turno del día. Si se rechaza, cámbialo mañana antes del primer cierre. Ticket Order for New Slots es el orden con el que empiezan las casillas que agregues después.',
+          ar: 'More ← Store Settings. اختر المنطقة الزمنية ومتى ينتهي يوم عملك: منتصف الليل لمعظم المتاجر، أو الساعة التي تلي الإغلاق إذا كنت تفتح بعد منتصف الليل، حتى تُحسب مبيعات آخر الليل في اليوم الصحيح. لا يمكن تغيير الساعات إلا قبل أول إغلاق أو إغلاق وردية في اليوم. إذا رُفض التغيير، غيّرها غداً قبل أول إغلاق. Ticket Order for New Slots هو الترتيب الذي تبدأ به الخانات التي تضيفها لاحقاً.',
+        },
+      },
+      {
+        id: 'edit-layout', who: 'owner', backend: 'supabase', go: 'layout.html',
+        q: { en: 'How do I add or remove slots or a box?', es: '¿Cómo agrego o quito casillas o una caja?', ar: 'كيف أضيف أو أزيل خانات أو صندوقاً؟' },
+        a: {
+          en: 'More → Edit Layout.\n- Add Slots puts new slots at the end of a box, and Add Box makes the next box. Type how many and pick their price.\n- Remove Last Slot takes the last slot off a box, and Remove Box takes off the last box. They must be empty: mark the pack Sold Out or returned first.\nBoxes and slots are never renumbered, so past reports stay right. To undo a change, add it again or remove it again.',
+          es: 'More → Edit Layout.\n- Add Slots pone casillas nuevas al final de una caja, y Add Box crea la caja siguiente. Escribe cuántas y elige su precio.\n- Remove Last Slot quita la última casilla de una caja, y Remove Box quita la última caja. Deben estar vacías: marca primero el paquete como Sold Out o devuelto.\nLas cajas y casillas nunca cambian de número, así los reportes anteriores siguen correctos. Para deshacer un cambio, agrégalo o quítalo otra vez.',
+          ar: 'More ← Edit Layout.\n- Add Slots يضيف خانات جديدة في آخر الصندوق، و Add Box ينشئ الصندوق التالي. اكتب العدد واختر السعر.\n- Remove Last Slot يزيل آخر خانة من الصندوق، و Remove Box يزيل آخر صندوق. يجب أن تكون فارغة: علّم الرزمة أولاً Sold Out أو مُرجعة.\nلا تتغيّر أرقام الصناديق والخانات أبداً، فتبقى التقارير السابقة صحيحة. للتراجع عن تغيير، أضفه أو أزله مرة أخرى.',
+        },
+      },
+      {
+        id: 'switch-store', who: 'everyone', backend: 'supabase', go: 'stores.html',
+        q: { en: 'I\'m on more than one store. How do I switch?', es: 'Estoy en más de una tienda. ¿Cómo cambio?', ar: 'أنا في أكثر من متجر. كيف أبدّل بينها؟' },
+        a: {
+          en: 'Tap the store\'s name at the top of Home, or More → Switch Store, then tap the store. Each store has its own slots, stock and reports, and your own username and permissions. Send any close that\'s still waiting first: the app won\'t switch until it\'s sent. Scans you started but didn\'t finish in the other store are cleared when you switch. To go back, switch again.',
+          es: 'Toca el nombre de la tienda arriba en Home, o More → Switch Store, y luego toca la tienda. Cada tienda tiene sus propias casillas, inventario y reportes, y tu propio nombre de usuario y permisos. Envía primero cualquier cierre que esté esperando: la app no cambia hasta que se envíe. Los escaneos que empezaste y no terminaste en la otra tienda se borran al cambiar. Para volver, cambia otra vez.',
+          ar: 'اضغط على اسم المتجر أعلى Home، أو More ← Switch Store، ثم اضغط على المتجر. لكل متجر خاناته ومخزونه وتقاريره، واسم المستخدم والصلاحيات الخاصة بك فيه. أرسل أولاً أي إغلاق ما زال ينتظر: لا يبدّل التطبيق حتى يُرسل. تُمسح عمليات المسح التي بدأتها ولم تكملها في المتجر الآخر عند التبديل. للرجوع، بدّل مرة أخرى.',
+        },
+      },
+      {
+        id: 'added-store', who: 'everyone', backend: 'supabase',
+        q: { en: 'Another store added me. Do I need a new account?', es: 'Otra tienda me agregó. ¿Necesito una cuenta nueva?', ar: 'أضافني متجر آخر. هل أحتاج حساباً جديداً؟' },
+        a: {
+          en: 'No. You keep the same email and password. An email tells you that you were added. Sign in as usual and pick the store under More → Switch Store.',
+          es: 'No. Conservas el mismo correo y la misma contraseña. Un correo te avisa que te agregaron. Inicia sesión como siempre y elige la tienda en More → Switch Store.',
+          ar: 'لا. تبقى على البريد وكلمة المرور نفسيهما. تصلك رسالة تخبرك بأنك أُضفت. سجّل الدخول كعادتك واختر المتجر من More ← Switch Store.',
+        },
+      },
+      {
+        id: 'leave-delete', who: 'everyone', backend: 'supabase', signUp: true, go: 'delete.html',
+        q: { en: 'How do I leave a store, or delete my store or account?', es: '¿Cómo salgo de una tienda, o elimino mi tienda o mi cuenta?', ar: 'كيف أغادر متجراً، أو أحذف متجري أو حسابي؟' },
+        a: {
+          en: 'More → the red row under Account.\n- Leave Store (employees): you come off the store. To come back, the owner adds you again.\n- Delete Store (owner): type the store\'s name. Everything in it is deleted for good, for everyone. Download your months first if you want a copy.\n- Delete My Account: type your password. Your sign-in is deleted for good, at every store. If you own a store, delete the store first.',
+          es: 'More → la fila roja debajo de Account.\n- Leave Store (empleados): sales de la tienda. Para volver, el dueño te agrega otra vez.\n- Delete Store (dueño): escribe el nombre de la tienda. Todo lo que tiene se elimina para siempre, para todos. Descarga antes tus meses si quieres una copia.\n- Delete My Account: escribe tu contraseña. Tu inicio de sesión se elimina para siempre, en todas las tiendas. Si eres dueño de una tienda, elimina primero la tienda.',
+          ar: 'More ← الصف الأحمر تحت Account.\n- Leave Store (للموظفين): تخرج من المتجر. للعودة، يضيفك المالك مرة أخرى.\n- Delete Store (للمالك): اكتب اسم المتجر. يُحذف كل ما فيه نهائياً، للجميع. نزّل شهورك أولاً إذا أردت نسخة.\n- Delete My Account: اكتب كلمة مرورك. يُحذف تسجيل دخولك نهائياً، في كل المتاجر. إذا كنت تملك متجراً فاحذف المتجر أولاً.',
         },
       },
     ],
@@ -850,9 +903,10 @@ const FAQ = [
 ];
 
 // Whether this person sees an item: the owner sees everything; an employee sees 'everyone' and 'employee' items and
-// those for a permission the owner turned on. backend: only on that backend.
+// those for a permission the owner turned on. backend: only on that backend; signUp: only with self sign-up open.
 function faqVisible(item, session, backend) {
   if (item.backend && item.backend !== backend) return false;
+  if (item.signUp && !(typeof SIGN_UP_IS_OPEN !== 'undefined' && SIGN_UP_IS_OPEN)) return false;
   if (!session) return false;
   if (session.role === 'owner') return true;
   const who = [].concat(item.who);

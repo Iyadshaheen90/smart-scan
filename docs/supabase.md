@@ -100,6 +100,33 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   `createStore` (saves the store into the session), `storeFields`, `storeName()`, `storeToday()`.
   Before opening sign-up: Supabase Auth public sign-up on with email confirmation, a confirmation email template, our
   own email domain, `setup.html` in the redirect list.
+- **Many stores, steps 4-5 (migration 0029 `switch_stores_and_deletion`, built 2026-11-14; deployed or not: see PROGRESS):**
+  **Database:** `service_account_info({ email } | { userId })` → `{ userId, email, stores }` (service key only, owned by
+  postgres: reads auth.users and counts memberships across stores; in db-audit's allowed list). `member_admin_check`:
+  invite also answers `storeName`, setPassword also `email`. `service_add_member` refuses an account already on the store
+  (`email_exists`). `leave_store` (not the owner: `owner_cant_leave`; deletes the caller's own member row),
+  `delete_store { name }` (owner; the typed name must match, else `wrong_name`; deletes every row of the store, its
+  members and the Vault retailer number; problem reports go with the store row; answers `screenshotReports`),
+  `account_delete_check()` (no store; `owns_store` names the stores the account owns, else `{ stores }`).
+  Test: `supabase/tests/switch_and_deletion_test.sql`.
+  **members Edge Function:** `invite` first asks `service_account_info`: an email that already has an account is added
+  with `service_add_member` and gets a plain "You Were Added to <store>" email (`members/mail.ts`, Gmail SMTPS 465 with
+  the same SMTP_USER / SMTP_PASS secrets as support; a test store gets `testEmail` back instead) → `{ data, existing,
+  emailed }`. **Reset Password rule:** `passwordHelp` → `{ how: 'set' | 'email' }` (email when the account is on more than
+  one store); `setPassword` refuses such an account (`shared_account`); `sendReset` sends Supabase's recovery email (test
+  store: `testLink`). `deleteStore { name }` calls `delete_store` as the owner, then removes the store's screenshots from
+  the `problem-screenshots` bucket. `deleteAccount { password }`: `account_delete_check`, the password checked by signing
+  in, then the Auth admin delete (memberships go by the foreign key).
+  **Pages (api.js):** the session holds `storeCount`; `dbSessionFor` picks the only store, else the one this phone used
+  last (`smartScanLastStore:<email>`), else none → `stores.html` (`startPage(session)`: index / stores / setup, or
+  delete.html for a store-less account while sign-up is closed). `enterStore(store, count)` = the switch: refused with
+  `pending_close`, clears the other store's saved answers and drafts (`STORE_WORK_KEYS`), remembers the store.
+  `leaveCurrentStore(stay)` after the store is lost; `dbApi` on `forbidden` asks `my_stores` and moves the phone if it
+  is no longer on that store. Actions: `myStores`, `inviteUser` (`{ users, existing, emailed }`), `passwordHelp`,
+  `sendPasswordReset`, `leaveStore`, `deleteStore`, `accountDeleteCheck`, `deleteAccount`. Leave / Delete and Set Up
+  Another Store show only with `SIGN_UP_OPEN`; Store Settings, Edit Layout and Switch Store show on the database.
+  Not built: sign-in by username (design), the subscription row and the "cancel the subscription first" block on
+  Delete Store (subscriptions build), auth settings for sign-up (needs our own email domain).
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

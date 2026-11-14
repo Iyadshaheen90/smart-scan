@@ -101,6 +101,17 @@ Frontend (`src/`, plain HTML + JS, no build):
   until Done). Styles `.wiz-*` in style.css. Box buttons everywhere come from the store's own slots (`drawBoxSwitch`
   in nav.js: none for one box, a scrolling row past four); headers show `storeName()` (the session's store); the
   store's business day before the server answers is `storeToday()` (api.js).
+  Many stores, steps 4-5 (2026-11-14, database only): `stores.html` Your Stores (the chooser after sign-in when a
+  phone on several stores hasn't picked one; the switcher from the store's name in the header, an `a.eyebrow` when
+  `session.storeCount > 1`, and More → Switch Store; with sign-up open also Set Up Another Store → `setup.html?new=1`) ·
+  `store-settings.html` (owner: time zone, business day end, ticket order for new slots) · `layout.html` Edit Layout
+  (owner: a card per box with Add Slots / Remove Last Slot, Remove Box on the last box, Add Box N; pop-ups; a toast
+  says what changed) · `delete.html` (title Leave Store / Delete Store / Delete Account: `.danger-card` per choice, a
+  second question in a pop-up whose green button keeps everything; without a store it offers Delete My Account or
+  Keep My Account and Sign Out). Pages opened without a store (`stores.html`, `delete.html`) set the header's back
+  pill themselves before nav.js and show no tab bar (`.tabbar:empty`). More: Store Settings and Edit Layout rows
+  (owner, database), Switch Store / Your Stores, and with sign-up open the red Leave / Delete row under Account.
+  Manage Employees: adding an email that already has an account says so; Reset Password first asks `passwordHelp`.
   `login.html` (Email + Forgot Password? on the database) · `set-password.html` (database: invite / password email links) ·
   `setup-owner.html` · `account.html` · `users.html` (owner; on the database an employee is added by username + email; each employee card has a switch per permission,
   `.perm-row` + `input.toggle` in style.css, saved at once with `setUserPermissions`, plus Turn All On/Off; folded under a
