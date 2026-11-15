@@ -15,11 +15,11 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
   `smart-scan-subscriptions-design.md` (plans, trial, read-only) and `smart-scan-multi-store-design.md` (setup wizard,
   several stores, sign-in by username, other states' tickets). All owner decisions in both are made.
   `smart-scan-startup-readiness.md`: running it as a business, with a checklist per stage (read when planning one).
-- Many stores, build steps 1-3 are live but closed: `create_store`, store settings and layout functions (migration
-  0028), `setup.html` (setup wizard), `signup.html`, all behind `SIGN_UP_OPEN = false` in `config.js`. Try the wizard
-  on dev with `node scripts/preview-wizard.js`. Steps 4-5 (Your Stores / switching, Store Settings, Edit Layout,
-  inviting an existing account, the Reset Password rule, Leave / Delete: migration 0029) are built; whether they are
-  deployed is in PROGRESS. What's built and what's left: `docs/supabase.md` ("Many stores").
+- Many stores, build steps 1-5 are live (migrations 0028-0030). Closed behind `SIGN_UP_OPEN = false` in `config.js`:
+  `signup.html`, `setup.html` (setup wizard), Set Up Another Store, Leave / Delete (`delete.html`). Open on the
+  database: Your Stores / switching (`stores.html`, only shows on 2+ stores), Store Settings, Edit Layout (a price per
+  new slot), inviting an existing account, the Reset Password rule. Try the closed parts on dev with
+  `node scripts/preview-wizard.js`. What's built and what's left: `docs/supabase.md` ("Many stores").
 
 ## Details live in docs/ (read only the one the task needs)
 
