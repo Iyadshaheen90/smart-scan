@@ -53,8 +53,10 @@
       icon.dataset.icon = 'box';
       const text = el('span', 'row-text');
       const main = el('span', 'row-main');
+      // Two short lines, so the date is never cut off: the pack, then when it came.
       main.append(el('span', 'row-title', `Box ${entry.box} · Slot ${entry.slot}`),
-        el('span', 'row-sub', `Oldest: ${words.name} · ${words.when.replace(/^An older pack /, '')}`));
+        el('span', 'row-sub', `Oldest: ${words.name}`),
+        el('span', 'row-sub', entry.oldest && entry.oldest.unnumbered ? 'No pack number yet' : words.when));
       const chev = el('span', 'row-chev');
       chev.dataset.icon = 'chevronRight';
       text.append(main, el('span', 'tag live', `${entry.packsInBack} in Back`), chev);

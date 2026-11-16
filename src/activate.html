@@ -714,6 +714,9 @@
             notOldestOk = true;
             activate();
           } else {
+            // Straight back to the scanner, where the oldest pack shows.
+            newTicket = null;
+            render();
             showMessage(messageEl, 'Not activated. Scan the oldest pack instead.');
           }
         } else if (err.code === 'price_mismatch' && canLoad && !overridePrice) {

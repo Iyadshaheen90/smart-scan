@@ -1,6 +1,6 @@
 // Restock from the back (Pro; owner 2026-11-16; database only) against a throwaway test store on the dev project.
 // Slots: 1-1 empty $20 (last game 1747), 1-2 live 1747, 1-3 empty $10 (last game 2222, none in the back), 1-4 empty $5
-// (last game 4444, two packs from the sheets). 1747 in the back: 0000004 (10 days ago) and 0000003 (2 days ago).
+// (last game 4444, two packs from the sheets + 0000009 received yesterday). 1747 in the back: 0000004 (10 days ago) and 0000003 (2 days ago).
 // Home and Slots say 2 slots are ready; Ready to Restock lists 1-1 (oldest 0000004) and 1-4 (game only); a row opens
 // the slot with the oldest pack above the scanner and Back to Restock; a newer pack asks (No keeps it out, the oldest
 // goes in without asking); Sold Out on 1-2 offers the oldest pack of its game; Activate Several shows Use This Pack
@@ -37,10 +37,11 @@ const SEED = {
     { game: '1747', pack: '0000001', status: 'live', box: 1, slot: 2, price: 20, top: 5, activationTicket: 29, activatedOn: iso(daysAgo(3)), tookFromBack: true },
     { game: '1747', pack: '0000003', status: 'in_back', receivedOn: iso(daysAgo(2)) },
     { game: '1747', pack: '0000004', status: 'in_back', receivedOn: iso(daysAgo(10)) },
+    { game: '4444', pack: '0000009', status: 'in_back', receivedOn: iso(daysAgo(1)) },
   ],
 };
 
-const text = (page, sel) => page.$eval(sel, (e) => e.textContent.replace(/\s+/g, ' ').trim());
+const text = (page, sel) => page.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').trim());
 const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.offsetParent !== null);
 const tap = async (page, sel) => { await page.$eval(sel, (e) => e.scrollIntoView({ block: 'center' })); await page.click(sel); };
 const shot = async (page, name) => { if (shots) await page.screenshot({ path: path.join(shots, name) }); };
@@ -92,15 +93,15 @@ async function enter(page, printed) {
     // 3. The list: each ready slot with the oldest pack; 1-2 (live) and 1-3 (none in the back) aren't on it.
     await tap(page, '#restockRow');
     await page.waitForFunction(() => document.querySelectorAll('#list .group-row').length === 2, { timeout: 15000 });
-    assert.equal(await text(page, '[data-slot="1-1"]'), `Box 1 · Slot 1 Oldest: 1747-0000004 · Received ${short(daysAgo(10))} 2 in Back`);
-    assert.equal(await text(page, '[data-slot="1-4"]'), 'Box 1 · Slot 4 Oldest: Game 4444 · from before pack numbers were kept 2 in Back');
+    assert.equal(await text(page, '[data-slot="1-1"]'), `Box 1 · Slot 1 Oldest: 1747-0000004 Received ${short(daysAgo(10))} 2 in Back`);
+    assert.equal(await text(page, '[data-slot="1-4"]'), 'Box 1 · Slot 4 Oldest: Game 4444 No pack number yet 3 in Back');
     assert.equal(await shown(page, '#empty'), false);
     await shot(page, 'restock-list.png');
 
     // 4. A row opens the slot: the oldest pack above the scanner, and Back goes to the list.
     await tap(page, '[data-slot="1-1"]');
     await page.waitForFunction(() => !document.getElementById('restockPick').classList.contains('hidden'), { timeout: 15000 });
-    assert.equal(await text(page, '#restockPick'), `Oldest in the Back 1747-0000004 Received ${short(daysAgo(10))} · 2 Packs of Game 1747 in the Back`);
+    assert.equal(await text(page, '#restockPick'), `OLDEST IN THE BACK 1747-0000004 Received ${short(daysAgo(10))} · 2 Packs of Game 1747 in the Back`);
     assert.match(await text(page, '#back'), /Restock/);
     await shot(page, 'restock-slot.png');
 
