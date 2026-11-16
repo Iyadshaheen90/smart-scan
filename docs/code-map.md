@@ -235,7 +235,7 @@ Frontend (`src/`, plain HTML + JS, no build):
   replaced the per-game pop-up): each scanned/typed full ticket adds its pack to `shipLines` ("This Shipment", `#shipArea`,
   newest game first; `packs: [packNumber | null]`); a 2nd pack of a game adds to its line, the same pack twice → red flash
   (haptic error), a typed 4-digit game = a pack with no number ("Typed" chip), a red − (`.ship-minus`, error colors) takes the last off. A new game picks its
-  price with chips (`STANDARD_PACK_SIZES`, size filled in, editable). `#receiveBar` (`.bulk-bar.above-tabbar`) "Receive N
+  price with chips (`STANDARD_PACK_SIZES`, size filled in, editable) or Other (typed price + pack size side by side, `line.otherPrice`; the size follows a typed usual price until it is typed itself). `#receiveBar` (`.bulk-bar.above-tabbar`) "Receive N
   Packs" (gray "Pick a Price for N New Games" until set) sends one `saveBackStock` shipment with `packNumbers` per line +
   notes; then `#shipDone` (per game +N, before → after; $ for the owner only). A refusal naming "Pack gggg-ppppppp" marks
   that chip red (tap = take it off) + `#shipMessage`. Draft `{ mode, lines (count), ship, notes }`: each mode keeps its own

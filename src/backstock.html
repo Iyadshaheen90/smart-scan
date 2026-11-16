@@ -662,32 +662,66 @@
     }
 
     // A game the store has never had: its ticket price (chips; the usual pack size fills in) and the pack size.
+    // Other (owner 2026-11-14): a price outside the eight is typed, with its pack size, so a new tier never blocks a
+    // shipment. A typed price that is one of the eight still fills in the usual size.
     function newGameFields(line) {
       const box = el('div', 'ship-new');
-      box.append(el('div', 'ship-new-label', Number(line.gamePrice) > 0 ? 'Ticket Price' : 'Pick the Ticket Price'));
+      const other = line.otherPrice || (Number(line.gamePrice) > 0 && !STANDARD_PACK_SIZES[Number(line.gamePrice)]);
+      const heading = el('div', 'ship-new-label', Number(line.gamePrice) > 0 ? 'Ticket Price' : 'Pick the Ticket Price');
+      box.append(heading);
       const chips = el('div', 'choice-chips');
+      const chip = (text, active, onTap, after) => {
+        const b = el('button', active ? 'active' : '', text);
+        b.type = 'button';
+        b.addEventListener('click', () => { onTap(); saveDraft(); render(); if (after) after(); });
+        chips.append(b);
+      };
       for (const price of Object.keys(STANDARD_PACK_SIZES).map(Number).sort((a, b) => a - b)) {
-        const chip = el('button', Number(line.gamePrice) === price ? 'active' : '', `$${price}`);
-        chip.type = 'button';
-        chip.addEventListener('click', () => {
-          line.gamePrice = String(price);
-          line.ticketsPerPack = String(STANDARD_PACK_SIZES[price]);
-          saveDraft();
-          render();
+        chip(`$${price}`, !other && Number(line.gamePrice) === price, () => {
+          Object.assign(line, { otherPrice: false, gamePrice: String(price), ticketsPerPack: String(STANDARD_PACK_SIZES[price]) });
         });
-        chips.append(chip);
       }
+      chip('Other', other, () => {
+        if (!other) Object.assign(line, { otherPrice: true, gamePrice: '', ticketsPerPack: '' });
+      }, () => {
+        // Straight to the price box (same tap, so the phone opens the keyboard).
+        const input = document.querySelector(`.ship-line[data-game="${line.gameNumber}"] input.other-price`);
+        if (input) input.focus();
+      });
       box.append(chips);
-      if (Number(line.gamePrice) > 0) {
-        const label = el('label', 'bulk-field', 'Tickets per Pack');
-        const input = el('input');
+
+      const number = (labelText, value, inputMode, cls) => {
+        const label = el('label', 'bulk-field', labelText);
+        const input = el('input', cls);
         input.type = 'number';
-        input.inputMode = 'numeric';
-        input.min = '1';
-        input.value = line.ticketsPerPack;
-        input.addEventListener('input', () => { line.ticketsPerPack = input.value; saveDraft(); renderShipBar(); });
+        input.inputMode = inputMode;
+        input.min = '0';
+        input.step = inputMode === 'decimal' ? 'any' : '1';
+        input.value = value;
         label.append(input);
-        box.append(label);
+        return { label, input };
+      };
+      const size = number('Tickets per Pack', line.ticketsPerPack, 'numeric', 'other-size');
+      size.input.addEventListener('input', () => { line.ticketsPerPack = size.input.value; saveDraft(); renderShipBar(); });
+      if (other) {
+        const price = number('Price per Ticket ($)', line.gamePrice, 'decimal', 'other-price');
+        price.input.addEventListener('input', () => {
+          // The size follows the price while it is still the usual one (or empty); a typed size stays.
+          const before = STANDARD_PACK_SIZES[Number(line.gamePrice)];
+          if (size.input.value === '' || Number(size.input.value) === before) {
+            size.input.value = STANDARD_PACK_SIZES[Number(price.input.value)] || '';
+            line.ticketsPerPack = size.input.value;
+          }
+          line.gamePrice = price.input.value;
+          heading.textContent = Number(line.gamePrice) > 0 ? 'Ticket Price' : 'Pick the Ticket Price';
+          saveDraft();
+          renderShipBar();
+        });
+        const pair = el('div', 'bulk-fields');
+        pair.append(price.label, size.label);
+        box.append(pair);
+      } else if (Number(line.gamePrice) > 0) {
+        box.append(size.label);
       }
       return box;
     }

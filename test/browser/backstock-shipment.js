@@ -140,6 +140,48 @@ function handle(body) {
   await page.click('#clearBtn');
   assert.match(await text('#shipList'), /^Scan a ticket from every pack/); assert.equal(await shown('#receiveBar'), false);
 
+  // 9b. Other: a price outside the eight (a $50 game) is typed with its pack size, and is received.
+  app.setHandle(handle);
+  await enter('1900-0000201-1-010');
+  const chipTap = (label) => page.evaluate((l) => [...document.querySelectorAll('.ship-line[data-game="1900"] .choice-chips button')].find((b) => b.textContent === l).click(), label);
+  const val = (sel) => page.$eval(`.ship-line[data-game="1900"] ${sel}`, (i) => i.value);
+  const typeIn = async (sel, v) => { await page.$eval(`.ship-line[data-game="1900"] ${sel}`, (i) => { i.value = ''; }); await page.type(`.ship-line[data-game="1900"] ${sel}`, v); };
+  assert.equal(await page.$$eval('.ship-line[data-game="1900"] .choice-chips button', (b) => b.map((x) => x.textContent).join(' ')), '$1 $2 $3 $5 $10 $20 $30 $40 Other');
+  await chipTap('Other');
+  assert.equal(await page.evaluate(() => document.activeElement.classList.contains('other-price')), true, 'Other opens the price box');
+  assert.equal(await text('#receiveBtn'), 'Pick a Price for 1 New Game');
+  await typeIn('input.other-price', '5');                    // one of the eight: the usual size fills in…
+  assert.equal(await val('input.other-size'), '80');
+  await typeIn('input.other-price', '50');                   // …and follows the price while untouched
+  assert.equal(await val('input.other-size'), '');
+  assert.equal(await page.$eval('#receiveBtn', (b) => b.disabled), true);
+  await typeIn('input.other-size', '20');
+  await typeIn('input.other-price', '50');                   // a typed size stays
+  assert.equal(await val('input.other-size'), '20');
+  assert.equal(await text('#receiveBtn'), 'Receive 1 Pack');
+  assert.equal(await text('#shipSum'), '1 Pack · 1 Game · $1,000');
+  assert.equal(await text('.ship-line[data-game="1900"] .ship-new-label'), 'Ticket Price');
+  await shot('shipment-other.png');
+  if (process.env.SHOT) {   // the line as the phone shows it (the Receive bar is fixed, so a full-page shot covers it)
+    await page.$eval('.ship-line[data-game="1900"]', (l) => l.scrollIntoView({ block: 'center' }));
+    await page.screenshot({ path: path.join(process.env.SHOT, 'shipment-other-phone.png') });
+  }
+  await page.reload(); await page.waitForFunction(() => document.querySelectorAll('.ship-line').length === 1);
+  assert.equal(await text('.ship-line[data-game="1900"] .choice-chips .active'), 'Other', 'kept on the phone');
+  assert.deepEqual([await val('input.other-price'), await val('input.other-size')], ['50', '20']);
+  await chipTap('$30');                                      // a chip leaves Other
+  assert.equal(await page.$$eval('.ship-line[data-game="1900"] input.other-price', (i) => i.length), 0);
+  assert.equal(await val('input.other-size'), '30');
+  await chipTap('Other');                                    // back to Other starts empty
+  assert.deepEqual([await val('input.other-price'), await val('input.other-size')], ['', '']);
+  await typeIn('input.other-price', '50'); await typeIn('input.other-size', '20');
+  sent.length = 0;
+  await page.click('#receiveBtn');
+  await page.waitForFunction(() => !document.getElementById('shipDone').classList.contains('hidden'));
+  assert.deepEqual(sent[0].lines, [{ gameNumber: '1900', packs: 1, packNumbers: ['0000201'], gamePrice: '50', ticketsPerPack: '20' }]);
+  assert.deepEqual([reserve('1900').price_per_ticket, reserve('1900').tickets_per_pack, reserve('1900').packs_in_reserve].map(Number), [50, 20, 1]);
+  await page.click('#shipDone button');
+
   // 10. A scan while the finger is still on Press and Hold: the list changes after the lift.
   await page.$eval('#holdBtn', (b) => b.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, bubbles: true })));
   await page.$eval('#typed', (el) => { el.value = '1747-1263701-4-075'; });

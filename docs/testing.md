@@ -19,7 +19,7 @@ node test/browser/backstock-search.js     # Back Stock list: Backstock|Scan view
 node test/browser/auto-scan.js            # Press and Hold | Auto Scan on the slot page and Back Stock Scan: default, hides hold at once, remembered, separate choices
 node test/browser/backstock-remove.js     # Manage packs, removing: why step, Back, Cancel, reasons, refusal (real backend code, fake sheet)
 node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cancel, Save as shipment (real backend code, fake sheet)
-node test/browser/backstock-shipment.js   # Shipment Received list: a pack per scan, 2nd pack, same pack caught, typed = no number, −, new game price chips, Receive bar above tabs, draft, Receive (packNumbers sent, real backend), done card, ended game, refused pack red + tap off, Clear, waits for the lift
+node test/browser/backstock-shipment.js   # Shipment Received list: a pack per scan, 2nd pack, same pack caught, typed = no number, −, new game price chips, Other ($50 typed + size, kept on reload, chip leaves it), Receive bar above tabs, draft, Receive (packNumbers sent, real backend), done card, ended game, refused pack red + tap off, Clear, waits for the lift
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
 node test/browser/home.js                 # home for both roles: one request, saved numbers first, tiles, chips, Start month, huge numbers fit
