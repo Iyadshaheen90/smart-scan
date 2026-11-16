@@ -28,6 +28,12 @@ Moved out of CLAUDE.md on 2026-10-29. Read before changing how anything is count
 
 ## Business rules
 
+**Oldest pack first (Restock from the back, Pro, database only; owner 2026-11-16):** an empty slot whose last game has
+packs in the back is "ready to restock" (Home card, Slots row, `restock.html`). The pack to put in is the oldest of
+that game (received day, then pack number; packs from the sheets first, named by game only). Same game only, never
+another game at the same price. Scan to confirm: a newer pack of the game asks once (`not_oldest`), and the person
+may use it anyway. Owner and Load packs only.
+
 **Roles** (enforced server-side with `owner: true` / `allow: [...]` in `WebApp.js`, and hidden in the UI)
 - Employees: Close Day (where they mark packs **Sold out**) and a view-only Slots page. Nothing else unless the owner
   turns on a permission for them (below) — by default `endPack` outside Close Day is owner-only (owner's choice

@@ -154,6 +154,13 @@ Frontend (`src/`, plain HTML + JS, no build):
   floating `.bulk-bar` Activate All is enabled only when the latest check is all Ready. Saved → done view (per slot,
   old pack ended, left in the back) with **Undo All** (`undoActivateSeveral`; the packs go back on the list). Same
   pack twice or a pack already live is refused at scan. Test: test/browser/activate-several.js (dev project).
+- `restock.html` Ready to Restock (Pro; database only; owner + Load packs; owner 2026-11-16): `restockList` rows
+  (`[data-slot="b-s"]`) = empty slots whose last game has packs in the back, with the oldest (`oldestPackWords` in
+  api.js) and "N in Back"; a row opens `activate.html?from=restock`. Shown from Home `#restockCard` and Slots
+  `#restockRow` (in `#bulkGroup`) only while the list isn't empty. On the slot page `restockList { box, slot }` fills
+  `#restockPick` above the scanner (new pack only) and the Sold Out prompt; `not_oldest` → confirm → `notOldestOk`.
+  Activate Several sends `goingOut` (other packs of the game on the list) and shows Use This Pack Anyway.
+  Test: test/browser/restock.js (dev project).
 - `report.html` Report a Problem (database only, everyone; More → Support, and under Help & FAQ): New Report (area chips
   picked from the last page used, `lastPage()`; text; up to 3 screenshots shrunk to 1600 px JPEG on the phone; What's
   Included) → `reportProblem` (support Edge Function) → "Report #N Sent"; My Reports (`myReports`, status chips Received /

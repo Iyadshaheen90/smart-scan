@@ -793,6 +793,17 @@ function backStockText(gameNumber, packs) {
   return `Game ${gameNumber}: ${packs} ${packs === 1 ? 'Pack' : 'Packs'} in Back Stock`;
 }
 
+// Restock from the back (Pro, database only; owner 2026-11-16): the pack to put out next, from restockList's
+// { gameNumber, packsInBack, oldest }. Packs from the sheets have no number, so only the game can be named.
+function oldestPackWords(entry) {
+  const o = entry.oldest || {};
+  const packs = `${entry.packsInBack} ${entry.packsInBack === 1 ? 'Pack' : 'Packs'} of Game ${entry.gameNumber} in the Back`;
+  if (o.unnumbered) return { name: `Game ${entry.gameNumber}`, when: 'An older pack from before pack numbers were kept', packs };
+  const [y, m, d] = String(o.receivedOn || '').split('-').map(Number);
+  const when = y ? `Received ${new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Received before dates were kept';
+  return { name: `${entry.gameNumber}-${o.packNumber}`, when, packs };
+}
+
 // Disables a form's button while a request runs, so a double tap can't submit twice.
 async function whileBusy(button, busyLabel, fn) {
   const label = button.textContent;

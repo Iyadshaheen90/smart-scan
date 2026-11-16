@@ -183,9 +183,13 @@
     }
 
     // ---- The database checks every row (nothing saved) ----
+    // goingOut: the other packs of this game on the list, so the oldest-first check (Restock from the back) doesn't
+    // count them as left behind; notOldestOk: Use This Pack Anyway was tapped.
     function request(r) {
       const req = { box: r.box || undefined, slot: r.slot || undefined, gameNumber: r.game, packNumber: r.pack, ticketNumber: r.ticket,
-        oldPackEnd: r.oldEnd || undefined, oldPackTicket: r.oldTop === null ? undefined : r.oldTop, overridePrice: r.override };
+        oldPackEnd: r.oldEnd || undefined, oldPackTicket: r.oldTop === null ? undefined : r.oldTop, overridePrice: r.override,
+        notOldestOk: r.notOldestOk || undefined,
+        goingOut: rows.filter((o) => o !== r && o.game === r.game).map((o) => o.pack) };
       if (r.gamePrice !== '' || r.size !== '') { req.gamePrice = r.gamePrice; req.ticketsPerPack = r.size; }
       return req;
     }
@@ -343,6 +347,13 @@
         card.append(fix);
       }
       if (r.override) card.append(el('div', 'bulk-note', 'The slot price changes to this game\'s price.'));
+      if (code === 'not_oldest' && !r.notOldestOk) {
+        const fix = el('button', 'small bulk-fix', 'Use This Pack Anyway');
+        fix.type = 'button';
+        fix.addEventListener('click', () => { r.notOldestOk = true; changed(); });
+        card.append(fix);
+      }
+      if (r.notOldestOk) card.append(el('div', 'bulk-note', 'Not the oldest pack of this game, used anyway.'));
       return card;
     }
 

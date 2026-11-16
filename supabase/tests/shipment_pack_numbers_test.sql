@@ -121,8 +121,10 @@ begin
   r := public.save_back_stock(s, '{"mode": "count", "lines": [{"gameNumber": "1747", "packs": 7, "packNumbers": ["0000001"]}]}');
   assert r -> 'results' -> 0 ->> 'after' = '7', r::text;
 
-  -- A received pack put in a slot comes out of the back by its number (the unnumbered count stays).
-  r := public.activate_pack(s, '{"box": 1, "slot": 2, "gameNumber": "1747", "packNumber": "0000010", "ticketNumber": 29}');
+  -- A received pack put in a slot comes out of the back by its number (the unnumbered count stays). The sheets' packs
+  -- are older, so it is chosen anyway (notOldestOk, migration 0031).
+  r := public.activate_pack(s, '{"box": 1, "slot": 2, "gameNumber": "1747", "packNumber": "0000010", "ticketNumber": 29,
+    "notOldestOk": true}');
   assert (r ->> 'packsInBack')::int = 6, r::text;
   reset role;
   assert (select status from app.packs where store_id = '00000000-0000-4000-8000-00000000000a' and game_number = '1747' and pack_number = '0000010') = 'live', 'line 128';

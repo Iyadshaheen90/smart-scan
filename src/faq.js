@@ -376,6 +376,15 @@ const FAQ = [
         },
       },
       {
+        id: 'restock', who: ['owner', 'load_packs'], backend: 'supabase', go: 'restock.html',
+        q: { en: 'What is Ready to Restock?', es: '¿Qué es Ready to Restock?', ar: 'ما هو Ready to Restock؟' },
+        a: {
+          en: 'When a slot is empty and its last game still has packs in the back, Home and Slots show Ready to Restock. Tap it to see each of those slots and the oldest pack to put in, so older packs sell first.\n- Open a slot (or tap Sold Out on one) and the oldest pack shows above the scanner. Scan that pack.\n- Scan a newer pack of the same game and the app asks first. Tap OK to use it anyway. In Activate Several, the row shows Use This Pack Anyway.\n- Packs received the same day count as equally old.\n- Packs from before pack numbers were kept can\'t be named, so the app shows only the game.',
+          es: 'Cuando una casilla está vacía y su último juego todavía tiene paquetes atrás, Home y Slots muestran Ready to Restock. Tócalo para ver esas casillas y el paquete más viejo para poner, así los paquetes viejos se venden primero.\n- Abre una casilla (o toca Sold Out en una) y el paquete más viejo aparece arriba del escáner. Escanea ese paquete.\n- Si escaneas un paquete más nuevo del mismo juego, la app pregunta primero. Toca OK para usarlo de todos modos. En Activate Several, la fila muestra Use This Pack Anyway.\n- Los paquetes recibidos el mismo día cuentan como igual de viejos.\n- Los paquetes de antes de que se guardaran los números de paquete no se pueden nombrar, así que la app muestra solo el juego.',
+          ar: 'عندما تكون خانة فارغة ولا تزال لعبتها الأخيرة لها رزم في المخزن، تظهر Ready to Restock في Home و Slots. اضغطها لترى تلك الخانات وأقدم رزمة توضع فيها، حتى تُباع الرزم القديمة أولاً.\n- افتح خانة (أو اضغط Sold Out في خانة) فتظهر أقدم رزمة فوق الماسح. امسح تلك الرزمة.\n- إذا مسحت رزمة أحدث من نفس اللعبة يسألك التطبيق أولاً. اضغط OK لاستخدامها على أي حال. في Activate Several يظهر في الصف Use This Pack Anyway.\n- الرزم المستلمة في نفس اليوم تُعتبر بنفس القِدم.\n- الرزم من قبل حفظ أرقام الرزم لا يمكن تسميتها، لذلك يعرض التطبيق اللعبة فقط.',
+        },
+      },
+      {
         id: 'sold-out-midday', who: ['owner', 'load_packs'], go: 'slots.html',
         q: { en: 'A pack sold out during the day.', es: 'Un paquete se agotó durante el día.', ar: 'نفدت رزمة خلال اليوم.' },
         a: {

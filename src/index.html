@@ -89,6 +89,14 @@
   <a id="closeYesterdayBtn" class="action-main action-month hidden" href="close.html?yesterday=1"><span data-icon="check"></span><span id="closeYesterdayText">Close Yesterday</span></a>
   <p class="sub hidden" id="closeYesterdayNote"></p>
 
+  <!-- Ready to Restock (Pro, owner 2026-11-16; database only): owner and employees with Load packs, only while an
+       empty slot's game has packs in the back. -->
+  <a class="list-card restock-card hidden" id="restockCard" href="restock.html">
+    <span class="icon-box" data-icon="box"></span>
+    <span class="grow"><span class="restock-card-title">Ready to Restock</span><span class="restock-card-sub" id="restockCardSub"></span></span>
+    <span class="chev" data-icon="chevronRight"></span>
+  </a>
+
   <!-- Owner -->
   <div class="owner-only hidden">
     <!-- From the 1st until the owner starts the new month's spreadsheet; gone once it's started. -->
@@ -214,6 +222,16 @@
       $('todayLabel').textContent = `Today · ${dayName(todayOnPhone())}`;
       showFirstSteps();
       loadStatus().finally(splashReady);
+      showRestock();
+    }
+
+    async function showRestock() {
+      if (!USE_DATABASE || !can(session, 'load_packs')) return;
+      try {
+        const list = await api('restockList');
+        $('restockCard').classList.toggle('hidden', !list.length);
+        $('restockCardSub').textContent = `${list.length === 1 ? '1 empty slot has' : `${list.length} empty slots have`} packs in the back`;
+      } catch (err) {}
     }
 
     // The owner of a store this phone just set up sees the first steps until Done (setup.html leaves the store's id).

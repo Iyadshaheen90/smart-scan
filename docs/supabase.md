@@ -62,6 +62,16 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   row → everything thrown away (custom SQLSTATE SS001), `saved: false`; max 48 rows. `undo_activate_several { slots:
   [{ box, slot, oldPack }] }`: last first, undo_activation then undo_end_pack when oldPack; all or nothing, a refusal is
   prefixed "Box b, slot s:". Both need load_packs. Test: `supabase/tests/activate_several_test.sql`.
+- **Restock from the back (migration 0031, 2026-11-16; Pro; database only, no Sheets version):** `restock_list(req)`
+  (load_packs + `app.require_pro('Ready to Restock')`): empty slots whose last game (not ended) has packs in the back →
+  `[{ box, slot, gameNumber, packsInBack, oldest }]`; `{ box, slot }` → only that slot, also while live (its game).
+  `app.oldest_in_back(game, skip)`: `{ unnumbered: true }` when `games.unnumbered_in_back` > 0 (sheets packs are
+  oldest), else the in-back pack by `received_on` (nulls first), then pack number → `{ packNumber, receivedOn,
+  receivedText }`. `activate_pack` (when `has_pro('restock')`): scanning a numbered in-back pack while an older one is
+  in the back (`app.older_in_back`: earlier `received_on`, or sheets packs; same day = equally old) → `not_oldest`
+  unless `notOldestOk`; `goingOut` (pack numbers) are skipped (Activate Several's other rows of the game).
+  `app.has_pro` is `true` for every store until the subscriptions build (`store_access() = 'pro'`); `app.require_pro`
+  → `needs_pro`. `test_seed` packs take `receivedOn`. Test: `supabase/tests/restock_test.sql`.
 - **Shipment pack numbers (migration 0026, 2026-11-11; owner's rule: a pack number of a game is never entered twice,
   and a live pack never goes into back stock):** `save_back_stock` shipment lines take `packNumbers` (7 digits, at most
   `packs`); those go in `app.packs` as `in_back` with `received_on` + `shipment_id`, the rest add to `unnumbered_in_back`.

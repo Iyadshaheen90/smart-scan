@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Ready to Restock</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ready to Restock (Pro; owner 2026-11-16; database only): each empty slot whose last game has packs in the back,
+       with the oldest pack to put in. A row opens the slot, which shows that pack again while scanning. -->
+  <header class="app-header" data-title="Ready to Restock" data-back="slots.html" data-back-label="Slots" data-help="packs"></header>
+  <p class="sub" id="hint">Empty slots whose game has packs in the back. Put the oldest pack in first.</p>
+  <div id="notOnDatabase" class="card hidden">Ready to Restock comes with the move to the database on December 1.</div>
+
+  <div id="message" class="message"></div>
+  <div class="group hidden" id="list"></div>
+  <div class="card restock-empty hidden" id="empty">
+    <strong>Nothing to restock.</strong>
+    <span>No empty slot has packs of its game in the back.</span>
+  </div>
+
+  <nav class="tabbar" data-active="slots"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin(['load_packs']);
+    const $ = (id) => document.getElementById(id);
+
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = text;
+      return node;
+    }
+
+    function row(entry) {
+      const words = oldestPackWords(entry);
+      const a = el('a', 'group-row');
+      a.href = `activate.html?box=${entry.box}&slot=${entry.slot}&from=restock`;
+      a.dataset.slot = `${entry.box}-${entry.slot}`;
+      const icon = el('span', 'row-icon accent');
+      icon.dataset.icon = 'box';
+      const text = el('span', 'row-text');
+      const main = el('span', 'row-main');
+      main.append(el('span', 'row-title', `Box ${entry.box} · Slot ${entry.slot}`),
+        el('span', 'row-sub', `Oldest: ${words.name} · ${words.when.replace(/^An older pack /, '')}`));
+      const chev = el('span', 'row-chev');
+      chev.dataset.icon = 'chevronRight';
+      text.append(main, el('span', 'tag live', `${entry.packsInBack} in Back`), chev);
+      a.append(icon, text);
+      return a;
+    }
+
+    async function load() {
+      try {
+        const list = await api('restockList');
+        $('list').replaceChildren(...list.map(row));
+        fillIcons($('list'));
+        $('list').classList.toggle('hidden', !list.length);
+        $('empty').classList.toggle('hidden', list.length > 0);
+      } catch (err) {
+        showMessage($('message'), err.message);
+      }
+    }
+
+    if (session) {
+      if (!USE_DATABASE) { $('notOnDatabase').classList.remove('hidden'); $('hint').classList.add('hidden'); }
+      else load();
+    }
+  </script>
+</body>
+</html>

@@ -50,6 +50,12 @@
   <div id="scanStep" class="hidden">
     <h2 id="scanPrompt"></h2>
     <p class="sub" id="scanHint"></p>
+    <!-- Restock from the back (Pro, database only): the oldest pack of the slot's game, to scan first. -->
+    <div class="restock-pick hidden" id="restockPick">
+      <div class="restock-pick-label">Oldest in the Back</div>
+      <div class="restock-pick-name mono" id="restockName"></div>
+      <div class="slot-detail" id="restockWhen"></div>
+    </div>
     <div class="scan-viewport paused" id="viewport">
       <video id="video" playsinline muted autoplay></video>
       <div class="scan-guide"></div>
@@ -212,13 +218,17 @@
     let oldTop = null;      // the returned pack's top ticket
     let newTicket = null;
     let overridePrice = false;
+    let notOldestOk = false;  // chose a newer pack than the oldest in the back anyway
+    let restock = null;       // restockList for this slot: { gameNumber, packsInBack, oldest } (database, Load packs)
     let replacing = false;  // chose to put a new pack in after ending the old one
     let finished = false;
     let scannerStarted = false;
 
-    // Back goes to the page this slot was opened from: Settling (?from=settling) or, by default, Slots on this box.
+    // Back goes to the page this slot was opened from: Settling (?from=settling), Ready to Restock (?from=restock) or,
+    // by default, Slots on this box.
     const backTo = params.get('from') === 'settling' ? { href: 'settling.html', label: 'Settling' }
-      : { href: `slots.html?box=${box}`, label: 'Slots' };
+      : params.get('from') === 'restock' ? { href: 'restock.html', label: 'Restock' }
+        : { href: `slots.html?box=${box}`, label: 'Slots' };
     $('back').href = backTo.href;
     $('back').querySelector('.back-label').textContent = backTo.label;
     $('doneBtn').href = backTo.href;
@@ -315,7 +325,7 @@
       // Without Load packs (Return packs only) the slot can only be left out of stock.
       show('replaceBtn', canLoad);
       if (oldPackDealtWith) {
-        const ask = canLoad ? ' Put a new pack in now?' : '';
+        const ask = !canLoad ? '' : restock ? ` Put the oldest pack of game ${restock.gameNumber} in now?` : ' Put a new pack in now?';
         $('nextPrompt').textContent = oldEnd === 'sold_out'
           ? `Pack ${pack.gameNumber}-${pack.packNumber} sold out: ${soldText(pack.remaining, pack.price)}.${ask}`
           : `Pack ${pack.gameNumber}-${pack.packNumber} returned with top ticket ${pad3(oldTop)}: `
@@ -338,6 +348,13 @@
           $('scanHint').textContent = 'Scan the top ticket of the pack going into this slot (the one customers get next).';
         }
         startScannerOnce();
+      }
+      const pick = scanning && !waitingForOldTop() && restock;
+      show('restockPick', pick);
+      if (pick) {
+        const words = oldestPackWords(restock);
+        $('restockName').textContent = words.name;
+        $('restockWhen').textContent = `${words.when} · ${words.packs}`;
       }
 
       show('confirmStep', Boolean(newTicket));
@@ -429,6 +446,7 @@
         }
         newTicket = ticket;
         overridePrice = false;
+        notOldestOk = false;
         show('newGame', false);
       }
       render();
@@ -668,6 +686,7 @@
         oldPackEnd: oldEnd || undefined,
         oldPackTicket: oldTop === null ? undefined : oldTop,
         overridePrice,
+        notOldestOk: notOldestOk || undefined,
       };
       if (!$('newGame').classList.contains('hidden')) {
         req.gamePrice = $('gamePrice').value;
@@ -690,6 +709,13 @@
         if (err.code === 'unknown_game' && canLoad) {
           show('newGame', true);
           showMessage(messageEl, err.message);
+        } else if (err.code === 'not_oldest' && !notOldestOk) {
+          if (confirm(err.message)) {
+            notOldestOk = true;
+            activate();
+          } else {
+            showMessage(messageEl, 'Not activated. Scan the oldest pack instead.');
+          }
         } else if (err.code === 'price_mismatch' && canLoad && !overridePrice) {
           if (confirm(err.message)) {
             overridePrice = true;
@@ -710,7 +736,10 @@
     }
 
     async function loadSlots() {
-      allSlots = await api('listSlots');
+      const [slots, restocks] = await Promise.all([api('listSlots'),
+        USE_DATABASE && canLoad ? api('restockList', { box, slot: slotNumber }).catch(() => []) : []]);
+      allSlots = slots;
+      restock = restocks[0] || null;
       slot = allSlots.find((s) => s.box === box && s.slot === slotNumber);
       if (!slot) throw new Error(`There's no slot ${slotNumber} in box ${box}.`);
       if (isOwner) fillSwapSlots();
