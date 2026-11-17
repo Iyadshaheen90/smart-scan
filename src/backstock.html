@@ -217,10 +217,10 @@
     function addTicket(ticket) {
       if (mode === 'shipment') { addShipPack(ticket.gameNumber, ticket.packNumber); return; }
       if (mode !== 'fullpack') { addGame(ticket.gameNumber); return; }
-      if (!stockLoaded) { flash('Still loading back stock. Try again in a moment.', 'error'); return; }
+      if (!stockLoaded) { flash('Still loading. Try again.', 'error'); return; }
       const game = known(ticket.gameNumber);
       if (!game || game.packsInBack < 1) {
-        flash(`No packs of game ${ticket.gameNumber} in the back, so it can't be sold as a full pack. Receive the shipment first.`, 'error');
+        flash(`No packs of game ${ticket.gameNumber} in the back. Receive the shipment first.`, 'error');
         return;
       }
       whenHandsFree(() => openSellDialog(game, ticket.packNumber));
@@ -231,7 +231,7 @@
       if (mode === 'shipment') { addShipPack(gameNumber, null); return; }
       const existing = lines.find((l) => l.gameNumber === gameNumber);
       if (existing) {
-        flash(`Game ${gameNumber} is already on the list — change its number of packs below.`);
+        flash(`Game ${gameNumber} is already on the list.`);
         focusLine(gameNumber);
         return;
       }
@@ -547,9 +547,9 @@
     // Game Ended: only offered when none of the game is left (no packs in the back, not in a slot).
     $('packEnd').addEventListener('click', () => {
       const { g } = dialog;
-      if (!confirm(`Mark game ${g.gameNumber} as ended? Do this when the lottery has stopped the game. It disappears from back stock. Its sales history stays, and receiving a pack of it later brings it back.`)) return;
+      if (!confirm(`Mark game ${g.gameNumber} as ended? Only when the lottery has stopped it.`)) return;
       sendChange($('packEnd'), '…', 'endGame', {},
-        () => `Game ${g.gameNumber} marked ended and hidden. It's under "Ended Games" at the bottom if you need it back.`);
+        () => `Game ${g.gameNumber} ended. Find it under Ended Games.`);
     });
 
     // Tapping a reason is what removes the packs.
@@ -558,7 +558,7 @@
       const packs = g.packsInBack - count;
       const reason = b.dataset.reason;
       sendChange(b, 'Removing…', 'removeBackStock', { packs, reason },
-        () => `Removed ${packs} pack${packs === 1 ? '' : 's'} of game ${g.gameNumber} (${reason}): ${g.packsInBack} → ${count} in the back.`);
+        () => `Removed ${packs} pack${packs === 1 ? '' : 's'} of game ${g.gameNumber}. ${count} left in the back.`);
     }));
 
     // A scan lands while the finger is still on "Press and hold to scan". Opening the pop-up under that
@@ -596,7 +596,7 @@
     const shipValue = (list) => list.reduce((sum, l) => sum + l.packs.length * linePrice(l) * lineSize(l), 0);
 
     function addShipPack(gameNumber, packNumber) {
-      if (!stockLoaded) { haptic('error'); flash('Still loading back stock. Try again in a moment.', 'error'); return; }
+      if (!stockLoaded) { haptic('error'); flash('Still loading. Try again.', 'error'); return; }
       let line = shipLines.find((l) => l.gameNumber === gameNumber);
       if (packNumber && line && line.packs.includes(packNumber)) {
         haptic('error');
@@ -613,7 +613,7 @@
       const count = line.packs.length;
       afterLift($('holdBtn'), () => {
         flash(`${packNumber ? `Pack ${gameNumber}-${packNumber}` : `Game ${gameNumber}`} added${count > 1 ? ` · ${count} packs of this game` : ''}.`
-          + (!game ? ' New game: pick its price below.' : game.endedDate ? ' It was marked ended; receiving it brings it back.' : ''), 'ok');
+          + (!game ? ' New game: pick its price below.' : ''), 'ok');
         render();
       });
     }
@@ -787,7 +787,7 @@
         const found = /Pack (\d{4}-\d{7})/.exec(err.message);
         refusedPack = found ? found[1] : null;
         render();
-        showMessage($('shipMessage'), err.message + (refusedPack ? ' Tap the red pack to take it off, then Receive again.' : ''));
+        showMessage($('shipMessage'), err.message + (refusedPack ? ' Remove the red pack and try again.' : ''));
         $('shipMessage').scrollIntoView({ block: 'center' });
       }
     });
@@ -846,7 +846,7 @@
         stock = r.backStock;
         closeSellDialog();
         renderStock();
-        flash(`Sold full pack ${r.packKey}${isOwner ? ` for ${money(r.dollars)}` : ''}. Game ${r.gameNumber}: ${r.before} → ${r.after} in the back.`);
+        flash(`Sold full pack ${r.packKey}${isOwner ? ` for ${money(r.dollars)}` : ''}. ${r.after} left in the back.`);
       } catch (err) {
         closeSellDialog();
         flash(err.message, 'error');
@@ -918,7 +918,7 @@
         saveDraft();
         render();
         renderStock();
-        showMessage($('saveMessage'), `${mode === 'shipment' ? 'Shipment' : 'Count'} saved. Packs in the back — ${summary}.`, 'ok');
+        showMessage($('saveMessage'), `${mode === 'shipment' ? 'Shipment' : 'Count'} saved.`, 'ok');
       } catch (err) {
         showMessage($('saveMessage'), err.message);
       }

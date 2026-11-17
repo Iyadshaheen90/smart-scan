@@ -96,12 +96,12 @@
       e.preventDefault();
       const email = form.username.value.trim();
       if (!email) {
-        showMessage(messageEl, 'Type your email above first, then tap Forgot Password.');
+        showMessage(messageEl, 'Enter your email first.');
         return;
       }
       try {
         await api('forgotPassword', { email });
-        showMessage(messageEl, `If ${email} has an account, an email with a link to choose a new password is on its way.`, 'ok');
+        showMessage(messageEl, `If ${email} has an account, a reset link is on its way.`, 'ok');
       } catch (err) {
         showMessage(messageEl, err.message);
       }

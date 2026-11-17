@@ -342,7 +342,7 @@
 
       const scanning = !newTicket && (waitingForOldTop() || (canLoad && (!pack || replacing)));
       if (!pack && !canLoad && !canUndoEnd && !canOrder) {
-        showMessage(messageEl, "The owner hasn't turned on loading packs for you, so this slot stays out of stock.");
+        showMessage(messageEl, "You can't load packs. Ask the owner.");
       }
       show('scanStep', scanning);
       if (scanning) {
@@ -451,17 +451,17 @@
       if (waitingForOldTop()) {
         const pack = slot.pack;
         if (ticket.gameNumber !== pack.gameNumber || ticket.packNumber !== pack.packNumber) {
-          showMessage(messageEl, `That ticket is from pack ${ticket.gameNumber}-${ticket.packNumber}, not the returned pack ${pack.gameNumber}-${pack.packNumber}.`);
+          showMessage(messageEl, `Wrong pack. Scan pack ${pack.gameNumber}-${pack.packNumber}.`);
           return;
         }
         if (alreadySold(pack.order, pack.exposedTicket, ticket.ticketNumber)) {
-          showMessage(messageEl, `Ticket ${pad3(ticket.ticketNumber)} is ${soldSide(pack.order)} the last recorded top ticket (${pad3(pack.exposedTicket)}). Scan the ticket on top now.`);
+          showMessage(messageEl, `Ticket ${pad3(ticket.ticketNumber)} is already sold. Scan the top ticket.`);
           return;
         }
         oldTop = ticket.ticketNumber;
       } else {
         if (slot.pack && ticket.gameNumber === slot.pack.gameNumber && ticket.packNumber === slot.pack.packNumber) {
-          showMessage(messageEl, 'That ticket is from the pack already in this slot. Scan the new pack.');
+          showMessage(messageEl, 'That pack is already in this slot. Scan the new pack.');
           return;
         }
         newTicket = ticket;
@@ -534,7 +534,7 @@
           api('endPack', { box, slot: slotNumber, reason: oldEnd, ticketNumber: oldTop }));
         slot.pack = null;
         finished = true;
-        showMessage(messageEl, `${describeEnded(result)} The slot is now out of stock. Back stock wasn't changed.`, 'ok');
+        showMessage(messageEl, `${describeEnded(result)} The slot is out of stock.`, 'ok');
         render();
       } catch (err) {
         showMessage(messageEl, err.message);
@@ -543,17 +543,14 @@
 
     $('undoBtn').addEventListener('click', async () => {
       const pack = slot.pack;
-      if (!confirm(`Take pack ${pack.gameNumber}-${pack.packNumber} back out of this slot? Use this only if it went into the wrong slot.`)) return;
+      if (!confirm(`Take pack ${pack.gameNumber}-${pack.packNumber} out of this slot?`)) return;
       clearMessage();
       try {
         const result = await whileBusy($('undoBtn'), 'Undoing…', () => api('undoActivation', { box, slot: slotNumber }));
         slot.pack = null;
         slot.slotPrice = result.slotPrice;
         finished = true;
-        const back = result.returnedToBack
-          ? `It's counted back in the back (${result.packsInBack} pack${result.packsInBack === 1 ? '' : 's'} of game ${result.gameNumber}).`
-          : "Back stock wasn't changed (this pack wasn't taken from it).";
-        showMessage(messageEl, `Undone. Pack ${result.packKey} is out of this slot, and the slot is $${result.slotPrice} and out of stock. ${back} Now go to the right slot and scan it there.`, 'ok');
+        showMessage(messageEl, `Undone. Pack ${result.packKey} is out of this slot${result.returnedToBack ? ' and back in the back' : ''}.`, 'ok');
         render();
       } catch (err) {
         showMessage(messageEl, err.message);
@@ -562,7 +559,7 @@
 
     $('undoEndBtn').addEventListener('click', async () => {
       const ended = slot.endedToday;
-      if (!confirm(`Put pack ${ended.packKey} back in this slot? Today's sales entry for it will be removed.`)) return;
+      if (!confirm(`Put pack ${ended.packKey} back in this slot? Its sale today is removed.`)) return;
       clearMessage();
       try {
         const result = await whileBusy($('undoEndBtn'), 'Putting Back…', () => api('undoEndPack', { box, slot: slotNumber }));
@@ -570,7 +567,7 @@
         oldTop = null;
         replacing = false;
         await loadSlots();
-        showMessage(messageEl, `Pack ${result.packKey} is back in this slot with top ticket ${pad3(result.exposedTicket)}.`, 'ok');
+        showMessage(messageEl, `Pack ${result.packKey} is back in this slot.`, 'ok');
       } catch (err) {
         showMessage(messageEl, err.message);
       }
@@ -626,17 +623,17 @@
       const target = swapTarget();
       if (!target) return;
       if (!slot.pack && !target.pack) {
-        showMessage($('swapMessage'), 'Both slots are empty, so there is nothing to move.');
+        showMessage($('swapMessage'), 'Both slots are empty.');
         return;
       }
       const verb = slot.pack && target.pack ? 'Swap' : 'Move';
-      if (!confirm(`${verb} box ${box} slot ${slotNumber} with box ${target.box} slot ${target.slot}? Packs and slot prices trade places.`)) return;
+      if (!confirm(`${verb} box ${box} slot ${slotNumber} with box ${target.box} slot ${target.slot}?`)) return;
       $('swapMessage').className = 'message';
       try {
         await whileBusy($('swapForm').querySelector('button[type="submit"]'), 'Swapping…', () =>
           api('swapSlots', { box, slot: slotNumber, toBox: target.box, toSlot: target.slot }));
         await loadSlots();
-        const done = `Done. Here now: ${describeSlot(slot)}. Box ${target.box}, slot ${target.slot} now: ${describeSlot(swapTarget())}.`;
+        const done = `${verb === 'Swap' ? 'Swapped' : 'Moved'} with box ${target.box} slot ${target.slot}.`;
         showMessage($('swapMessage'), done, 'ok');
         settingSaved('swapDialog', done);
       } catch (err) {
@@ -696,7 +693,7 @@
         const result = await api('setSlotOrder', { box, slot: slotNumber, order });
         slot.slotOrder = result.slotOrder;
         render();
-        showMessage($('orderMessage'), `Saved. The next pack in this slot is sold ${orderWords(result.slotOrder)}.`, 'ok');
+        showMessage($('orderMessage'), `Saved. The next pack sells ${orderWords(result.slotOrder)}.`, 'ok');
         settingSaved('orderDialog', $('orderMessage').textContent);
       } catch (err) {
         render();
@@ -754,9 +751,8 @@
         const result = await whileBusy($('activateBtn'), 'Activating…', () => api('activatePack', req));
         const lines = [];
         if (result.oldPack) lines.push(describeEnded(result.oldPack));
-        lines.push(`Pack ${result.packKey} is live in box ${result.box}, slot ${result.slot}.`);
-        lines.push(`${result.packsInBack} pack${result.packsInBack === 1 ? '' : 's'} of game ${newTicket.gameNumber} left in the back.`);
-        if (result.backWasEmpty) lines.push('(Back stock already showed none of this game, so it stayed at 0. Check that the shipment was entered.)');
+        lines.push(`Pack ${result.packKey} is live.`);
+        lines.push(result.backWasEmpty ? 'Back stock had none of this game. Check that the shipment was received.' : `${result.packsInBack} left in the back.`);
         finished = true;
         scanWarn = null;
         showMessage(messageEl, lines.join(' '), 'ok');
@@ -773,14 +769,14 @@
             // Straight back to the scanner, where the oldest pack shows.
             newTicket = null;
             render();
-            showMessage(messageEl, 'Not activated. Scan the oldest pack instead.');
+            showMessage(messageEl, 'Not activated. Scan the oldest pack.');
           }
         } else if (err.code === 'price_mismatch' && canLoad && !overridePrice) {
           if (confirm(err.message)) {
             overridePrice = true;
             activate();
           } else {
-            showMessage(messageEl, 'Not activated. The slot price was left as it is.');
+            showMessage(messageEl, 'Not activated.');
           }
         } else {
           showMessage(messageEl, err.message);
@@ -790,8 +786,8 @@
 
     function describeEnded(ended) {
       return ended.reason === 'sold_out'
-        ? `Pack ${ended.packKey} marked sold out (${ended.ticketsSoldToday} tickets sold today).`
-        : `Pack ${ended.packKey} marked returned (${ended.ticketsSoldToday} sold today, ${ended.remainingReturned} going back).`;
+        ? `Pack ${ended.packKey} sold out: ${ended.ticketsSoldToday} sold today.`
+        : `Pack ${ended.packKey} returned: ${ended.ticketsSoldToday} sold today, ${ended.remainingReturned} going back.`;
     }
 
     async function loadSlots() {

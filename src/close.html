@@ -206,7 +206,7 @@
       const where = `Box ${slot.box} · Slot ${slot.slot}`;
       const what = entry.type === 'sold_out' ? `sold out (${entry.sold} sold${SHIFT_MODE ? ' this shift' : ''})`
         : `${entry.sold} sold`;
-      const large = entry.sold >= status.largeSaleTickets ? ' — that is a lot, double-check it' : '';
+      const large = entry.sold >= status.largeSaleTickets ? ' — a lot. Double-check it.' : '';
       currentKey = nextOpen(keyOf(slot));
       afterRelease(() => {
         flash(`${where}: ${what} ✓${note || ''}${large}`, large ? 'error' : 'ok');
@@ -239,8 +239,7 @@
       // A ticket already sold: above the last top ticket for a descending pack, below it for an ascending one.
       if (alreadySold(slot.pack.order, exposed, ticket.ticketNumber)) {
         haptic('error');
-        const last = SHIFT_MODE ? "the shift's start ticket" : 'the last top ticket';
-        afterRelease(() => flash(`Ticket ${pad3(ticket.ticketNumber)} is ${soldSide(slot.pack.order)} ${last} (${pad3(exposed)}) for box ${slot.box} · slot ${slot.slot}. Scan the ticket on top now. Not saved.`, 'error'));
+        afterRelease(() => flash(`Box ${slot.box} · slot ${slot.slot}: ticket ${pad3(ticket.ticketNumber)} is already sold. Scan the top ticket.`, 'error'));
         return;
       }
       const elsewhere = currentKey && keyOf(slot) !== currentKey ? ` (it belongs to box ${slot.box} · slot ${slot.slot})` : '';
@@ -433,7 +432,7 @@
     });
 
     $('cancelPendingBtn').addEventListener('click', () => {
-      if (!confirm("Stop sending this close? Your scans stay on this phone so you can change them and submit again. If it already reached the server, today is closed and only the owner can reopen it.")) return;
+      if (!confirm("Stop sending this close? Your scans stay on this phone.")) return;
       stopRetrying();
       clearPendingClose();
       location.reload();
@@ -445,8 +444,8 @@
 
     $('soldOutBtn').addEventListener('click', () => {
       const slot = current();
-      const after = SHIFT_MODE ? ' this shift. The pack stays in the slot until Close Day.' : ', and the slot goes out of stock.';
-      if (!confirm(`Box ${slot.box} · Slot ${slot.slot}: pack ${packKeyOf(slot)} is empty? All ${slot.pack.remaining} tickets left count as sold${after}`)) return;
+      const after = SHIFT_MODE ? ' this shift.' : '.';
+      if (!confirm(`Box ${slot.box} · Slot ${slot.slot}: pack ${packKeyOf(slot)} sold out? ${slot.pack.remaining} tickets count as sold${after}`)) return;
       record(slot, { type: 'sold_out', sold: slot.pack.remaining });
     });
     $('skipBtn').addEventListener('click', () => {
@@ -463,14 +462,14 @@
     // from nothing. Nothing was sent to the server yet, so there is nothing else to undo.
     $('clearBtn').addEventListener('click', () => {
       const done = Object.values(entries).filter((e) => e.type !== 'sold_out_earlier').length;
-      if (!confirm(`Clear all ${done} scans on this phone and start the ${SHIFT_MODE ? 'shift close' : 'close'} over? Every slot has to be scanned again. This can't be undone.`)) return;
+      if (!confirm(`Clear all ${done} scans on this phone and start the ${SHIFT_MODE ? 'shift close' : 'close'} over? This can't be undone.`)) return;
       entries = {};
       clearDraft();
       addEarlierSoldOuts();
       currentKey = nextOpen(null);
       $('submitMessage').className = 'message';
       $('submitMessage').textContent = '';
-      flash('All scans cleared. Start again from the first slot.', 'ok');
+      flash('All scans cleared.', 'ok');
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -571,16 +570,16 @@
         renderShiftDone(shift);
         window.scrollTo({ top: 0 });
       } catch (err) {
-        const why = err.code === 'network' ? "Couldn't reach the server. Your scans are kept on this phone; try Submit again."
-          : `The shift close wasn't saved: ${err.message}`;
+        const why = err.code === 'network' ? "Can't reach the server. Your scans are saved on this phone. Try again."
+          : `Not saved: ${err.message}`;
         showMessage($('submitMessage'), why);
       }
     }
 
     $('reopenBtn').addEventListener('click', async () => {
       const which = LATE_MODE ? "yesterday's" : "today's";
-      if (!confirm(`Reopen ${which} close? Every slot goes back to its top ticket from before the close, and the day has to be closed again.`
-        + (LATE_MODE ? ` Close it again before ${status.closeYesterday.until}, or its sales count in tonight's close.` : ''))) return;
+      if (!confirm(`Reopen ${which} close? The day must be closed again.`
+        + (LATE_MODE ? ` Close it before ${status.closeYesterday.until}.` : ''))) return;
       try {
         await whileBusy($('reopenBtn'), 'Reopening…', () => api('reopenClose', LATE_MODE ? { date: status.closeYesterday.date } : {}));
         location.reload();

@@ -85,7 +85,7 @@ function handle(body) {
   assert.equal(await open(), true); assert.equal(calls, sent); assert.equal(reserve('1801').packs_in_reserve, 2);
   await page.click('#removeReasons button[data-reason="returned"]');
   await page.waitForFunction(() => document.querySelector('#stockMessage').textContent !== '');
-  assert.match(await text('#stockMessage'), /Removed 2 packs of game 1801 \(returned\): 2 → 0 in the back/);
+  assert.match(await text('#stockMessage'), /^Removed 2 packs of game 1801\. 0 left in the back\.$/);
   assert.deepEqual([reserve('1801').packs_in_reserve, reserve('1801').tickets_in_reserve], [0, 0]);
   assert.deepEqual(S.ReserveAdjustments.rows[1].slice(0, 7), ['2026-09-27', '1801', 2, 100, 'returned', '', 'o']);
   // Now under None in the Back, which opens while it holds what's searched.

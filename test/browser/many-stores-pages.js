@@ -209,7 +209,7 @@ async function tap(page, sel) {
     });
     await tap(page, `.store-row[data-store="${B.storeId}"]`);
     await page.waitForFunction(() => document.getElementById('message').textContent);
-    assert.equal(await text(page, '#message'), 'A close on this phone is still waiting to be sent. Open Close Day to send it first, then switch.');
+    assert.equal(await text(page, '#message'), 'A close is still waiting to send. Send it from Close Day first.');
     assert.equal((await sessionOf(page)).storeId, A.storeId, 'still in the first store');
     assert.equal(await page.evaluate(() => localStorage.getItem('smartScanCloseDraft:boss')), '{}', 'a refused switch cleared nothing');
     await page.evaluate(() => localStorage.removeItem('smartScanPendingClose'));
@@ -308,7 +308,7 @@ async function tap(page, sel) {
     assert.deepEqual(await page.$$eval('#priceCells .wiz-cell', (els) => els.map((e) => e.textContent)), ['25·', '26·', '27·']);
     assert.equal(await text(page, '#pricedCount'), '0 of 3 Priced');
     await tap(page, '#addSave');
-    assert.equal(await text(page, '#addError'), '3 slots still need a price. Tap them, or use Fill the Rest.');
+    assert.equal(await text(page, '#addError'), 'Pick a price for 3 more slots.');
     assert.equal(calls.length, 0, 'nothing sent yet');
     // Tap one slot at $5, another at $10, fill the last with $30.
     await tap(page, '#priceChips button[data-price="5"]');
@@ -318,7 +318,7 @@ async function tap(page, sel) {
     await tap(page, '#priceCells .wiz-cell[data-index="1"]');
     assert.equal(await text(page, '#pricedCount'), '2 of 3 Priced');
     await tap(page, '#addSave');
-    assert.equal(await text(page, '#addError'), '1 slot still needs a price. Tap it, or use Fill the Rest.');
+    assert.equal(await text(page, '#addError'), 'Pick a price for 1 more slot.');
     await tap(page, '#priceChips button[data-price="30"]');
     assert.equal(await text(page, '#fillRest'), 'Fill the Rest With $30');
     await app.shot('layout-add');
@@ -396,12 +396,11 @@ async function tap(page, sel) {
     calls.length = 0;
     await add('lee', 'known@example.test');
     assert.equal(calls[0].fn, 'members.invite');
-    assert.equal(await text(page, '#listMessage'), 'Added lee. known@example.test already has a Smart Scan account, so they sign in as they do now and pick'
-      + ' Corner Market from their stores. An email telling them is on its way.');
+    assert.equal(await text(page, '#listMessage'), 'Added lee. They sign in with their current account.');
     await add('max', 'known-nomail@example.test');
-    assert.ok((await text(page, '#listMessage')).endsWith('The email telling them couldn\'t be sent, so let them know.'));
+    assert.ok((await text(page, '#listMessage')).endsWith("The email couldn't be sent. Tell them."));
     await add('new', 'fresh@example.test');
-    assert.ok((await text(page, '#listMessage')).startsWith('Added new. An invite is on its way to fresh@example.test.'));
+    assert.ok((await text(page, '#listMessage')).startsWith('Added new. Invite sent to fresh@example.test.'));
     // Reset Password: typed for someone only on this store; a reset email for someone on another store too.
     const reset = async (username) => {
       await page.evaluate((u) => {
@@ -419,9 +418,9 @@ async function tap(page, sel) {
     calls.length = 0; dialogs = [];
     await reset('kim');
     assert.deepEqual(calls.map((c) => c.fn), ['members.passwordHelp', 'members.sendReset']);
-    assert.ok(dialogs[0].startsWith('kim also uses Smart Scan at another store, so only they can choose their password.'), dialogs[0]);
+    assert.ok(dialogs[0].startsWith('kim uses Smart Scan at another store too.'), dialogs[0]);
     assert.ok(calls[1].body.redirectTo.endsWith('set-password.html'));
-    assert.equal(await text(page, '#listMessage'), 'A link to choose a new password is on its way to kim@example.test. It works once, for 24 hours.');
+    assert.equal(await text(page, '#listMessage'), 'Reset link sent to kim@example.test.');
 
     // ================= The phone's store went away (taken off, or the store was deleted) =================
     stores = [B];

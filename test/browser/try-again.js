@@ -31,7 +31,7 @@ const pages = [
   const { page, base } = app;
   const button = (sel) => page.$eval(sel, (m) => {
     const b = m.querySelector('button.try-again');
-    return b && { text: b.textContent, disabled: b.disabled, reason: m.textContent.includes('Could not reach the server') };
+    return b && { text: b.textContent, disabled: b.disabled, reason: m.textContent.includes('Can\'t reach the server') };
   });
   // The whole message and its button are on screen at the top, without scrolling.
   const onTop = (sel) => page.$eval(sel, (m) => window.scrollY === 0 && m.getBoundingClientRect().top < 260

@@ -43,7 +43,7 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (form.password.value !== form.confirm.value) {
-        showMessage(messageEl, "The two passwords don't match.");
+        showMessage(messageEl, "Passwords don't match.");
         return;
       }
       if (passwordProblem(form.password.value)) {

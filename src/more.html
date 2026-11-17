@@ -295,7 +295,7 @@
         await whileBusy($('retailerSave'), 'Saving…', () => api('setRetailerNumber', { retailerNumber: $('retailerInput').value }));
         $('retailerDialog').classList.add('hidden');
         $('retailerInput').value = '';
-        showMessage($('retailerResult'), 'Retailer number saved. It shows on the Theft Report.', 'ok');
+        showMessage($('retailerResult'), 'Retailer number saved.', 'ok');
       } catch (err) {
         showMessage($('retailerError'), err.message);
       }
@@ -324,8 +324,8 @@
         const result = await whileBusy($('orderSave'), 'Saving…', () => api('setAllSlotsOrder', { order: chosenOrder }));
         $('orderDialog').classList.add('hidden');
         const word = result.order === 'ascending' ? '↑ ascending' : '↓ descending';
-        showMessage($('orderResult'), `All ${result.slots} slots are set to ${word}. ${result.nowSlots} switched now`
-          + (result.waitingSlots ? `; ${result.waitingSlots} switch when their pack sells out or is returned.` : '.'), 'ok');
+        showMessage($('orderResult'), `All ${result.slots} slots set to ${word}.`
+          + (result.waitingSlots ? ` ${result.waitingSlots} switch with their next pack.` : ''), 'ok');
       } catch (err) {
         showMessage($('orderError'), err.message);
       }

@@ -41,7 +41,7 @@ function handle(body) {
   await page.click('#list .card button');
   await page.waitForFunction(() => document.querySelectorAll('#list .card').length === 1);
   assert.equal(packs('1111'), 1);
-  assert.match(await page.$eval('#message', (el) => el.textContent), /game 1111 has 1 pack in the back again/);
+  assert.match(await page.$eval('#message', (el) => el.textContent), /^Undone\. Pack 1111-\d{7} is back in the back\.$/);
   assert.equal(await page.$eval('#dollarCount', (el) => el.textContent), '$600');
 
   // After that day's close: no Undo.

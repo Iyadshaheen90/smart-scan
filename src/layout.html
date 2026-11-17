@@ -276,7 +276,7 @@
       if (!count) { showMessage($('addError'), 'Enter how many slots to add.'); $('addCount').focus(); return; }
       const left = count - priced();
       if (left) {
-        showMessage($('addError'), `${left} ${left === 1 ? 'slot still needs' : 'slots still need'} a price. Tap ${left === 1 ? 'it' : 'them'}, or use Fill the Rest.`);
+        showMessage($('addError'), `Pick a price for ${left} more slot${left === 1 ? '' : 's'}.`);
         return;
       }
       try {

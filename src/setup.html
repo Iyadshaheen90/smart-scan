@@ -294,7 +294,7 @@
       },
       prices() {
         const left = slotCount() - pricedCount();
-        if (left) return fail(`${left} ${left === 1 ? 'slot still needs' : 'slots still need'} a price. Tap ${left === 1 ? 'it' : 'them'}, or use Fill the Rest.`);
+        if (left) return fail(`Pick a price for ${left} more slot${left === 1 ? '' : 's'}.`);
         return true;
       },
       order() {
@@ -581,7 +581,7 @@
           return;
         }
       } else if (link.get('error')) {
-        showMessage($('pageMessage'), 'This link has expired or was already used. Sign in with your email and password.');
+        showMessage($('pageMessage'), 'This link no longer works. Sign in with your email.');
         $('signInLine').classList.remove('hidden');
         return;
       }

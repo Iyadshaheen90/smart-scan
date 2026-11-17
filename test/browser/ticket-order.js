@@ -84,7 +84,7 @@ const arrows = (page) => page.$$eval('#list .card', (cards) => cards.slice(0, 4)
   await page.waitForFunction(() => !document.getElementById('oldStep').classList.contains('hidden'));
   await page.click('#returnedBtn'); await sleep(100);
   await page.type('#typed', '1747-0000002-4-003'); await page.click('#typedForm button'); await sleep(150);
-  assert.match(await page.$eval('#message', (el) => el.textContent), /below the last recorded top ticket \(005\)/);
+  assert.match(await page.$eval('#message', (el) => el.textContent), /^Ticket 003 is already sold\. Scan the top ticket\.$/);
   await page.$eval('#typed', (el) => { el.value = ''; });
   await page.type('#typed', '1747-0000002-4-010'); await page.click('#typedForm button'); await sleep(150);
   assert.match(await page.$eval('#nextPrompt', (el) => el.textContent), /returned with top ticket 010: 5 sold today \(\$100\), 20 going back/);
@@ -103,7 +103,7 @@ const arrows = (page) => page.$$eval('#list .card', (cards) => cards.slice(0, 4)
   await page.click('#orderSave');
   await page.waitForFunction(() => /All 24 slots/.test(document.getElementById('orderResult').textContent));
   assert.equal(await page.$eval('#orderResult', (el) => el.textContent),
-    'All 24 slots are set to ↑ ascending. 23 switched now; 1 switch when their pack sells out or is returned.');
+    'All 24 slots set to ↑ ascending. 1 switch with their next pack.');
   assert.ok(ctx.listSlots().every((s) => s.slotOrder === 'ascending'));
   // Slot 1's descending pack keeps its ↓ until it ends; its slot page says what comes next.
   await page.goto(app.base + 'slots.html');

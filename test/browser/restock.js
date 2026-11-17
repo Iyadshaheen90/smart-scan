@@ -126,7 +126,7 @@ async function enter(page, printed) {
     assert.equal(await shown(page, '#scanWarn'), false);
     assert.equal(await text(page, '#activateBtn'), 'Activate Pack');
     await tap(page, '#activateBtn');
-    await page.waitForFunction(() => /is live in box 1, slot 1/.test(document.getElementById('message').textContent), { timeout: 15000 });
+    await page.waitForFunction(() => /Pack 1747-0000004 is live\./.test(document.getElementById('message').textContent), { timeout: 15000 });
     assert.equal(dialogs.length, 0, 'the oldest pack never asks');
 
     // 6. Sold Out on 1-2: the oldest pack of its game is offered, and shows while scanning.
@@ -155,7 +155,7 @@ async function enter(page, printed) {
     await page.waitForFunction(() => !document.getElementById('scanWarn').classList.contains('hidden'), { timeout: 15000 });
     assert.equal(await text(page, '#scanWarn'), 'Not the Oldest Pack Use an older pack of game 4444.');
     await tap(page, '#activateBtn');
-    await page.waitForFunction(() => /is live in box 1, slot 4/.test(document.getElementById('message').textContent), { timeout: 15000 });
+    await page.waitForFunction(() => /Pack 4444-0000009 is live\./.test(document.getElementById('message').textContent), { timeout: 15000 });
     assert.equal(dialogs.length, 0, 'Use This Pack Anyway never asks twice');
     await page.evaluate(() => localStorage.clear());
     console.log('RESTOCK CHECKS PASS (database)');

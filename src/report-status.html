@@ -126,7 +126,7 @@
       try {
         const r = await whileBusy($('saveBtn'), 'Saving…', () => support({ action: 'linkSetStatus', link, status: chosen, note: $('note').value }));
         showReport(r);
-        showMessage($('message'), `Saved: ${STATUS[r.status][0]}. They see it in My Reports now.`, 'ok');
+        showMessage($('message'), `Saved: ${STATUS[r.status][0]}.`, 'ok');
       } catch (err) {
         showMessage($('message'), err.message);
       }

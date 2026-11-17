@@ -77,7 +77,7 @@ const monthsPage = (dollars, canStart) => ({ status: { current: '2026-09', curre
 
   // No connection: the saved answer stays (dimmed, buttons off) with the reason at the top.
   hold = null;
-  app.setHandle(() => { throw { code: 'network', message: 'Could not reach the server.' }; });
+  app.setHandle(() => { throw { code: 'network', message: 'Can\'t reach the server.' }; });
   await page.goto(base + 'backstock.html'); await sleep(400);
   assert.ok(await saved());
   assert.match(await txt('#stock'), /7 Packs/);

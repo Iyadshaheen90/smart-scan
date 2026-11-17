@@ -162,7 +162,7 @@
       if (returning) {
         const pack = slotAt(returning.box, returning.slot).pack;
         if (alreadySold(pack.order, pack.exposedTicket, t.ticketNumber)) {
-          flash(`Ticket ${pad3(t.ticketNumber)} is ${soldSide(pack.order)} the last recorded top ticket (${pad3(pack.exposedTicket)}) of pack ${key}. Scan the ticket on top now.`);
+          flash(`Ticket ${pad3(t.ticketNumber)} of pack ${key} is already sold. Scan the top ticket.`);
           return;
         }
         returning.oldTop = t.ticketNumber;
@@ -439,7 +439,7 @@
         result.rows.forEach((answer, i) => { sent[i].status = answer; });
         checkedVersion = version;
         render();
-        flash('Nothing was saved. Fix the packs marked Needs a Fix, then try again.');
+        flash('Not saved. Fix the packs marked Needs a Fix.');
         return;
       }
       saved = { rows: sent, answers: result.rows };
@@ -479,7 +479,7 @@
     // Undo All: every pack comes back out (to back stock if it came from there), every old pack is put back, last first.
     $('undoAllBtn').addEventListener('click', async () => {
       const n = saved.answers.length;
-      if (!confirm(`Undo all ${n} activations? Each pack comes back out of its slot, and packs marked sold out or returned go back in.`)) return;
+      if (!confirm(`Undo all ${n} activations?`)) return;
       try {
         await whileBusy($('undoAllBtn'), 'Undoing…', () => api('undoActivateSeveral', {
           slots: saved.answers.map((a) => ({ box: a.box, slot: a.slot, oldPack: Boolean(a.oldPack) })) }));
@@ -493,12 +493,12 @@
       await reloadSlots();
       $('doneView').classList.add('hidden');
       $('scanView').classList.remove('hidden');
-      flash('Undone. Everything is back as it was, and the packs are on the list again.', 'ok');
+      flash('Undone. The packs are back on the list.', 'ok');
       changed();
     });
 
     $('clearBtn').addEventListener('click', () => {
-      if (!confirm(`Remove all ${rows.length} packs from the list? Nothing has been saved yet.`)) return;
+      if (!confirm(`Remove all ${rows.length} packs from the list?`)) return;
       rows = [];
       $('message').className = 'message';
       changed();

@@ -323,13 +323,11 @@
     startBtn.addEventListener('click', () => {
       const current = monthName(status.current);
       const next = monthName(status.next);
-      if (!confirm(`Start ${next}? ${current} will be archived, and from now on everything is recorded in ${next}'s spreadsheet.`)) return;
+      if (!confirm(`Start ${next}? ${current} will be archived.`)) return;
       whileBusy(startBtn, 'Starting… (this can take a minute)', async () => {
         try {
           const result = await api('startNewMonth', { label: status.next });
-          const moved = Object.values(result.moved).reduce((a, b) => a + b, 0);
-          showMessage(message, `${monthName(result.label)} started.` +
-            (moved ? ` ${moved} ${moved === 1 ? 'entry' : 'entries'} dated ${MONTHS[Number(result.label.slice(5)) - 1]} moved over from ${monthName(result.previous)}.` : ''), 'ok');
+          showMessage(message, `${monthName(result.label)} started.`, 'ok');
           await load();
         } catch (err) {
           showMessage(message, err.message);

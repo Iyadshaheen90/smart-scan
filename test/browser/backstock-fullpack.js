@@ -62,7 +62,7 @@ function handle(body) {
   await page.click('#sellSave');
   await page.waitForFunction(() => document.getElementById('sellDialog').classList.contains('hidden'));
   assert.equal(sells, 1); assert.equal(packs('1747'), 1);
-  assert.match(await text('#flash'), /Sold full pack 1747-1263622 for \$600\. Game 1747: 2 → 1 in the back\./);
+  assert.match(await text('#flash'), /Sold full pack 1747-1263622 for \$600\. 1 left in the back\./);
   assert.match(await text('#stock'), /1 Pack/);
   assert.equal(call(() => ctx.listFullPackSales()).count, 1);
 

@@ -114,7 +114,7 @@ function handle(body) {
   // 7. An ended game: receiving it brings it back.
   await showScan(page);
   await enter('1650-0000007-1-010');
-  assert.match(await text('#flash'), /marked ended; receiving it brings it back/);
+  assert.equal(await text('#flash'), 'Pack 1650-0000007 added.');
   await page.click('#receiveBtn');
   await page.waitForFunction(() => !document.getElementById('shipDone').classList.contains('hidden'));
   assert.equal(reserve('1650').ended_date, ''); assert.equal(reserve('1650').packs_in_reserve, 1);
@@ -130,7 +130,7 @@ function handle(body) {
   await enter('1747-1263622-4-075'); await enter('1747-1263700-4-075');
   await page.click('#receiveBtn');
   await page.waitForFunction(() => document.getElementById('shipMessage').textContent !== '');
-  assert.equal(await text('#shipMessage'), 'Pack 1747-1263622 is already in the back (received 2026-09-28). Tap the red pack to take it off, then Receive again.');
+  assert.equal(await text('#shipMessage'), 'Pack 1747-1263622 is already in the back (received 2026-09-28). Remove the red pack and try again.');
   assert.equal(await page.$eval('.ship-line[data-game="1747"]', (l) => l.classList.contains('refused')), true);
   await page.click('button.ship-pk.refused');
   assert.equal(await lineText('1747'), '1747 $20 · 30 per pack − 1 Pack 1263700');

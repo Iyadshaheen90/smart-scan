@@ -65,7 +65,7 @@
       const email = form.email.value.trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showMessage(messageEl, 'Enter your email address.'); return; }
       if (passwordProblem(form.password.value)) { showMessage(messageEl, passwordProblem(form.password.value)); return; }
-      if (form.password.value !== form.confirm.value) { showMessage(messageEl, "The two passwords don't match."); return; }
+      if (form.password.value !== form.confirm.value) { showMessage(messageEl, "Passwords don't match."); return; }
       try {
         await whileBusy(form.querySelector('button[type="submit"]'), 'Creating…', () => api('signUp', { email, password: form.password.value }));
         rememberEmail(email);

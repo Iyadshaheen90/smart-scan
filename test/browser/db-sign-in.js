@@ -78,7 +78,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     assert.equal(await visible(page, '#forgot'), true);
     assert.equal(await page.$eval('#setupLine', (e) => e.classList.contains('hidden')), true);
     await page.click('#forgot');
-    assert.equal(await text(page, '#message'), 'Type your email above first, then tap Forgot Password.');
+    assert.equal(await text(page, '#message'), 'Enter your email first.');
     await page.type('#username', ownerEmail);
     await page.click('#forgot');
     await page.waitForFunction(() => /is on its way/.test(document.querySelector('#message').textContent));
@@ -146,7 +146,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     const answer = await (await invited).json();
     assert.equal(answer.ok, true, JSON.stringify(answer));
     assert.ok(answer.testLink, 'a test store gets the invite link back');
-    await page.waitForFunction(() => /invite is on its way/.test(document.querySelector('#listMessage').textContent));
+    await page.waitForFunction(() => /Invite sent to/.test(document.querySelector('#listMessage').textContent));
     assert.equal(await visible(page, '#email'), false, 'the pop-up closes once added');
     const cards = await page.$$eval('#list .card', (cs) => cs.map((c) => c.textContent));
     assert.equal(cards.length, 2);
@@ -178,8 +178,8 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     const resentAnswer = await (await resent).json();
     assert.equal(resentAnswer.ok, true, JSON.stringify(resentAnswer));
     assert.ok(resentAnswer.testLink && resentAnswer.testLink !== answer.testLink, 'a new link');
-    await page.waitForFunction(() => /new invite is on its way/.test(document.querySelector('#listMessage').textContent));
-    assert.equal(await text(page, '#listMessage'), `A new invite is on its way to ${newbieEmail}. The old link no longer works.`);
+    await page.waitForFunction(() => /New invite sent/.test(document.querySelector('#listMessage').textContent));
+    assert.equal(await text(page, '#listMessage'), `New invite sent to ${newbieEmail}.`);
     assert.match(await (await cardOf('newbie')).evaluate((c) => c.textContent), /Employee · Invited/);
 
     // The owner set a password for someone invited: no new invite (they sign in with that password).
@@ -198,7 +198,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     // The first link no longer works.
     await page.goto(answer.testLink);
     await page.waitForFunction(() => location.pathname.endsWith('set-password.html') && document.querySelector('#message').textContent, { timeout: 20000 });
-    assert.match(await text(page, '#message'), /expired or was already used/);
+    assert.match(await text(page, '#message'), /no longer works/);
     answer.testLink = resentAnswer.testLink;
 
     // ---- The employee opens the invite link (on this phone: it replaces the owner's sign-in) ----
@@ -209,7 +209,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.type('#password', 'First-pass1!');
     await page.type('#confirm', 'first-pasz');
     await page.click('#form button[type="submit"]');
-    assert.equal(await text(page, '#message'), "The two passwords don't match.");
+    assert.equal(await text(page, '#message'), "Passwords don't match.");
     await page.$eval('#confirm', (e) => { e.value = ''; });
     await page.type('#confirm', 'First-pass1!');
     await page.click('#form button[type="submit"]');
@@ -224,7 +224,7 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     // An invite link used once doesn't work again.
     await page.goto(answer.testLink);
     await page.waitForFunction(() => location.pathname.endsWith('set-password.html') && document.querySelector('#message').textContent, { timeout: 20000 });
-    assert.match(await text(page, '#message'), /expired or was already used/);
+    assert.match(await text(page, '#message'), /no longer works/);
     assert.equal(await page.$eval('#form', (e) => e.classList.contains('hidden')), true);
 
     // ---- Change My Password ----

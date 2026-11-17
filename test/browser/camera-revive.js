@@ -32,7 +32,7 @@ const handle = (b) => {
   await typeTop(page, '1747-1263622-4-035');
   await page.$eval('#video', (v) => v.pause());
   await page.$eval('#clearBtn', (b) => b.click()); await sleep(100);
-  assert.equal(await page.$eval('#flash', (e) => e.textContent), 'All scans cleared. Start again from the first slot.');
+  assert.equal(await page.$eval('#flash', (e) => e.textContent), 'All scans cleared.');
   await waitPlaying();
   console.log('after Clear all + pause:', JSON.stringify(await camera()));
 

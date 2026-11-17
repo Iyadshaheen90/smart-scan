@@ -156,7 +156,7 @@ async function api(action, params = {}) {
     });
     body = await res.json();
   } catch (err) {
-    throw new ApiError('network', 'Could not reach the server. Check the internet connection and try again.');
+    throw new ApiError('network', 'Can\'t reach the server. Check the internet and try again.');
   }
   if (!body.ok) {
     if (body.code === 'unauthorized') {
@@ -205,7 +205,7 @@ const PHONE_ON_DATABASE = (() => {
 // be sent: it belongs to the backend it was made on.
 async function switchPhoneBackend(toDatabase) {
   if (getPendingClose()) {
-    throw new ApiError('pending_close', 'A close on this phone is still waiting to be sent. Open Close Day to send it first, then switch.');
+    throw new ApiError('pending_close', 'A close is still waiting to send. Send it from Close Day first.');
   }
   if (getSession()) {
     try { await api('logout'); } catch (e) {}
@@ -237,7 +237,7 @@ async function dbFetch(path, { method = 'POST', body, token } = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (err) {
-    throw new ApiError('network', 'Could not reach the server. Check the internet connection and try again.');
+    throw new ApiError('network', 'Can\'t reach the server. Check the internet and try again.');
   }
   const text = await res.text();
   let data = null;
@@ -340,7 +340,7 @@ function enterStore(store, storeCount) {
   const session = getSession();
   if (!session) throw signedOut();
   if (session.storeId && session.storeId !== store.storeId && getPendingClose()) {
-    throw new ApiError('pending_close', 'A close on this phone is still waiting to be sent. Open Close Day to send it first, then switch.');
+    throw new ApiError('pending_close', 'A close is still waiting to send. Send it from Close Day first.');
   }
   if (session.storeId !== store.storeId) clearStoreWork();
   saveSession({ ...session, ...storeFields(store), ...(storeCount == null ? {} : { storeCount }) });
@@ -374,9 +374,9 @@ async function leaveCurrentStore(stay = false) {
 
 async function dbSignIn(email, password) {
   const r = await dbFetch('/auth/v1/token?grant_type=password', { body: { email: String(email || '').trim(), password: String(password || '') } });
-  if (r.status === 429) throw new ApiError('too_many_attempts', 'Too many tries. Wait a few minutes and try again.');
+  if (r.status === 429) throw new ApiError('too_many_attempts', 'Too many tries. Wait a few minutes.');
   if (authErrorCode(r) === 'email_not_confirmed') {
-    throw new ApiError('bad_login', 'Open the invite email first and tap its link to choose a password.');
+    throw new ApiError('bad_login', 'Tap the link in your invite email first.');
   }
   if (r.status >= 300) throw new ApiError('bad_login', 'Wrong email or password.');
   return r.data;
@@ -453,9 +453,9 @@ const DB_ACTIONS = {
     checkNewPassword(password);
     const r = await dbFetch('/auth/v1/user', { method: 'PUT', body: { password }, token: tokens.access_token });
     if (r.status === 401 || r.status === 403) {
-      throw new ApiError('expired_link', 'This link has expired. Ask the owner for a new one, or use Forgot Password on the sign-in page.');
+      throw new ApiError('expired_link', 'This link has expired. Use Forgot Password on the sign-in page.');
     }
-    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess.');
     if (authErrorCode(r) === 'same_password') throw new ApiError('bad_password', SAME_PASSWORD_MESSAGE);
     if (r.status >= 300) throw serverError();
     return dbSessionFor({ ...tokens, user: r.data || tokens.user });
@@ -473,7 +473,7 @@ const DB_ACTIONS = {
     checkNewPassword(newPassword);
     const r = await dbFetch('/auth/v1/user', { method: 'PUT', body: { password: newPassword }, token: tokens.access_token });
     if (authErrorCode(r) === 'same_password') throw new ApiError('bad_password', SAME_PASSWORD_MESSAGE);
-    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess.');
     if (r.status >= 300) throw serverError();
     // A new password ends the person's other sign-ins, this phone's saved one too: keep the one just made.
     saveSession({ ...getSession(), accessToken: tokens.access_token, refreshToken: tokens.refresh_token,
@@ -502,8 +502,8 @@ const DB_ACTIONS = {
     checkNewPassword(password);
     const to = new URL('setup.html', location.href).href;
     const r = await dbFetch(`/auth/v1/signup?redirect_to=${encodeURIComponent(to)}`, { body: { email: String(email || '').trim(), password } });
-    if (r.status === 429) throw new ApiError('too_many_emails', 'Too many tries just now. Wait a few minutes and try again.');
-    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess. Try a different one.');
+    if (r.status === 429) throw new ApiError('too_many_emails', 'Too many tries. Wait a few minutes.');
+    if (authErrorCode(r) === 'weak_password') throw new ApiError('bad_password', 'That password is too easy to guess.');
     if (authErrorCode(r) === 'signup_disabled') throw new ApiError('sign_up_closed', 'Creating an account isn\'t open yet.');
     if (r.status === 400 || r.status === 422) throw new ApiError('bad_email', 'Enter your email address.');
     if (r.status >= 300) throw serverError();
@@ -512,14 +512,14 @@ const DB_ACTIONS = {
   // The sign-in a confirmation email's link carries (setup.html): returns the session, without a store yet.
   sessionFromLink: async ({ tokens }) => {
     const r = await dbFetch('/auth/v1/user', { method: 'GET', token: tokens.access_token });
-    if (r.status >= 300) throw new ApiError('expired_link', 'This link has expired or was already used. Sign in with your email and password.');
+    if (r.status >= 300) throw new ApiError('expired_link', 'This link no longer works. Sign in with your email.');
     return dbSessionFor({ ...tokens, user: r.data });
   },
   // The setup wizard's one call: makes the store with this account as its owner, and the session moves into it.
   createStore: async (params) => {
     // Checked before the store is made (enterStore would refuse after it): this phone moves into the new store.
     if (getSession().storeId && getPendingClose()) {
-      throw new ApiError('pending_close', 'A close on this phone is still waiting to be sent. Open Close Day to send it first, then set up the new store.');
+      throw new ApiError('pending_close', 'A close is still waiting to send. Send it from Close Day first.');
     }
     const store = await dbRpc('create_store', { req: params });
     enterStore(store, (Number(getSession().storeCount) || 0) + 1);

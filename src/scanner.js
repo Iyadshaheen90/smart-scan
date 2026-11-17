@@ -295,7 +295,7 @@ export async function startScanner({ video, viewport, holdBtn, onStatus, onScan,
     setInterval(keepCameraRunning, 1000);
     loop();
   } catch (err) {
-    onStatus('Camera not available (' + err + '). Type the ticket number instead.');
+    onStatus('Camera not available. Type the ticket number.');
   }
   return controller;
 }

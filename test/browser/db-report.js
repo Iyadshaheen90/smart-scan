@@ -213,7 +213,7 @@ const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.o
     await page.type('#note', 'Fixed in version 54.');
     await tap(page, '#saveBtn');
     await page.waitForFunction(() => document.getElementById('currentStatus').textContent === 'Fixed', { timeout: 15000 });
-    assert.equal(await text(page, '#message'), 'Saved: Fixed. They see it in My Reports now.');
+    assert.equal(await text(page, '#message'), 'Saved: Fixed.');
     assert.match(await text(page, '.problem-note'), /^Support, .+: Fixed in version 54\.$/);
     if (shots) await page.screenshot({ path: `${shots}/report-status-saved.png`, fullPage: true });
     // The link only reaches its own report: the employee's report is untouched.

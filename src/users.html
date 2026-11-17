@@ -112,7 +112,7 @@
         try {
           const users = await api('setUserPermissions', { username: user.username, permissions: wanted });
           render(users);
-          showMessage(listMessage, `${user.username}: ${changed}. It applies the next time their app loads a page.`, 'ok');
+          showMessage(listMessage, `${user.username}: ${changed}.`, 'ok');
         } catch (err) {
           render(lastUsers);
           showMessage(listMessage, err.message);
@@ -202,19 +202,19 @@
           actions.className = 'member-actions';
           actions.append(
             actionButton(user.active ? 'Deactivate' : 'Reactivate', () => {
-              if (user.active && !confirm(`Deactivate ${user.username}? They'll be signed out and can't sign in until reactivated.`)) return null;
+              if (user.active && !confirm(`Deactivate ${user.username}? They'll be signed out.`)) return null;
               return api('setUserActive', { username: user.username, active: !user.active });
             }),
             // Database: someone who hasn't used their invite yet can get a new one (the link works 24 hours).
             ...(user.active && user.signedIn === false ? [actionButton('Resend Invite', () => api('resendInvite', { username: user.username })
-              .then((users) => { showMessage(listMessage, `A new invite is on its way to ${user.email}. The old link no longer works.`, 'ok'); return users; }))] : []),
+              .then((users) => { showMessage(listMessage, `New invite sent to ${user.email}.`, 'ok'); return users; }))] : []),
             actionButton('Reset Password', async () => {
               // Database (owner 2026-11-12): you type a password only for someone whose only store is yours. Anyone
               // who also uses Smart Scan at another store gets an email with a link to choose their own.
               if (USE_DATABASE && (await api('passwordHelp', { username: user.username })).how === 'email') {
-                if (!confirm(`${user.username} also uses Smart Scan at another store, so only they can choose their password.\n\nEmail them a link to choose a new one?`)) return null;
+                if (!confirm(`${user.username} uses Smart Scan at another store too. Email them a reset link?`)) return null;
                 await api('sendPasswordReset', { username: user.username });
-                showMessage(listMessage, `A link to choose a new password is on its way to ${user.email || user.username}. It works once, for 24 hours.`, 'ok');
+                showMessage(listMessage, `Reset link sent to ${user.email || user.username}.`, 'ok');
                 return null;
               }
               const newPassword = prompt(`New password for ${user.username}.\n${PASSWORD_RULE}.`);
@@ -287,9 +287,9 @@
         const name = username.trim().toLowerCase();
         // An email that already has a Smart Scan account joins with the sign-in it has (no invite, no new password).
         showMessage(listMessage, !USE_DATABASE ? `Added ${name}.`
-          : added.existing ? `Added ${name}. ${email} already has a Smart Scan account, so they sign in as they do now and pick ${storeName()} from their stores.`
-            + (added.emailed ? ' An email telling them is on its way.' : ' The email telling them couldn\'t be sent, so let them know.')
-            : `Added ${name}. An invite is on its way to ${email}. If it doesn't arrive, tap Reset Password on their card to give them a password.`, 'ok');
+          : added.existing ? `Added ${name}. They sign in with their current account.`
+            + (added.emailed ? '' : " The email couldn't be sent. Tell them.")
+            : `Added ${name}. Invite sent to ${email}.`, 'ok');
       } catch (err) {
         showMessage(addMessage, err.message);
       }

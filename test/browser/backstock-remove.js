@@ -66,7 +66,7 @@ function handle(body) {
   // 3. Remove 1 pack (damaged) from the found row.
   await openRemove('1747'); await removeInDialog(page, 1, 'damaged'); await waitMsg('#stockMessage');
   assert.equal(await open(), false);
-  assert.match(await text('#stockMessage'), /Removed 1 pack of game 1747 \(damaged\)/);
+  assert.match(await text('#stockMessage'), /^Removed 1 pack of game 1747\. 2 left in the back\.$/);
   assert.deepEqual([reserve('1747').packs_in_reserve, reserve('1747').tickets_in_reserve], [2, 60]);
   assert.deepEqual(lastAdjustment().slice(0, 5), ['2026-09-26', '1747', 1, 30, 'damaged']); assert.equal(lastAdjustment()[6], 'o');
   assert.equal(await rowText(page, '1747'), '1747 2 Packs 1 Live $1,200');
@@ -106,7 +106,7 @@ function handle(body) {
   // 6. From the full list too, the message shows under the search box.
   await clearMsg('#stockMessage');
   await openRemove('1801'); await removeInDialog(page, 1, 'stolen'); await waitMsg('#stockMessage');
-  assert.match(await text('#stockMessage'), /Removed 1 pack of game 1801 \(stolen\)/); assert.equal(reserve('1801').packs_in_reserve, 0);
+  assert.match(await text('#stockMessage'), /^Removed 1 pack of game 1801\. 1 left in the back\.$/); assert.equal(reserve('1801').packs_in_reserve, 0);
   assert.equal(await text('#stock'), 'Nothing in the back now.');
   assert.equal(await text('#emptyTitle'), 'None in the Back (2)');
   console.log('MANAGE PACKS (REMOVE) CHECKS PASS'); await app.close();

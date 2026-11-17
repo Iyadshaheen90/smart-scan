@@ -175,7 +175,7 @@ async function slotPage() {
   await page.waitForFunction(() => document.getElementById('message').textContent.length > 0);
   assert.equal(await visible(page, '#undoEndBtn'), false, 'a sold out pack is put back with Load Packs only');
   assert.equal(await visible(page, '#scanStep'), false);
-  assert.match(await text(page, '#message'), /hasn't turned on loading packs/);
+  assert.match(await text(page, '#message'), /^You can't load packs\. Ask the owner\.$/);
   await app.close();
 }
 
@@ -222,7 +222,7 @@ async function backStock() {
   assert.equal(await text(page, '#sellValue'), '150 tickets');
   await noDollars(page, 'sell pop-up');
   await page.click('#sellSave'); await sleep(200);
-  assert.match(await text(page, '#flash'), /^Sold full pack 1747-1263699\. Game 1747: 2 → 1/);
+  assert.match(await text(page, '#flash'), /^Sold full pack 1747-1263699\. 1 left in the back\.$/);
   await app.close();
 
   // None of the three: Back stock sends them home.

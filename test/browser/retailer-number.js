@@ -81,7 +81,7 @@ const makeReport = async (page, base) => {
   await page.type('#retailerInput', '999-0001');
   await page.click('#retailerSave');
   await page.waitForFunction(() => document.getElementById('retailerResult').textContent);
-  assert.equal(await text(page, '#retailerResult'), 'Retailer number saved. It shows on the Theft Report.');
+  assert.equal(await text(page, '#retailerResult'), 'Retailer number saved.');
   assert.equal(await open(page), false);
   assert.equal(call(() => ctx.getRetailerNumber()).retailerNumber, '9990001');
   // Opened again: shows the saved number.

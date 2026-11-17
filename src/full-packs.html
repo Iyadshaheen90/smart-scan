@@ -91,11 +91,11 @@
 
     // Puts the pack back in the back and takes the sale off that day.
     async function undoSale(sale, button) {
-      if (!confirm(`Undo the full pack sale of game ${sale.gameNumber}, pack ${sale.packNumber} (${money(sale.dollars)})? The pack goes back into back stock.`)) return;
+      if (!confirm(`Undo the sale of pack ${sale.gameNumber}-${sale.packNumber}?`)) return;
       try {
         const result = await whileBusy(button, 'Undoing…', () => api('undoFullPackSale', { packKey: sale.packKey }));
         showSales(result.sales);
-        showMessage($('message'), `Undone: game ${sale.gameNumber} has ${result.after} pack${result.after === 1 ? '' : 's'} in the back again.`, 'ok');
+        showMessage($('message'), `Undone. Pack ${sale.gameNumber}-${sale.packNumber} is back in the back.`, 'ok');
       } catch (err) {
         showMessage($('message'), err.message);
       }

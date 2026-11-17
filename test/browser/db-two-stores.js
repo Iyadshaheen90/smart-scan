@@ -78,7 +78,7 @@ async function tap(page, sel) {
     await page.type('#username', 'pat');
     await page.type('#email', patEmail);
     await tap(page, '#addForm button[type="submit"]');
-    await page.waitForFunction(() => /already has a Smart Scan account/.test(document.querySelector('#listMessage').textContent), { timeout: 30000 });
+    await page.waitForFunction(() => /They sign in with their current account/.test(document.querySelector('#listMessage').textContent), { timeout: 30000 });
     assert.equal(await page.$$eval('#list .card', (c) => c.length), 2);
     // Adding the same email again is refused by name.
     await tap(page, '#addOpen');
@@ -92,8 +92,8 @@ async function tap(page, sel) {
     await page.click('#listMessage');
     await page.evaluate(() => [...document.querySelectorAll('.member-card')].find((c) => c.querySelector('strong').textContent === 'pat')
       .querySelectorAll('button').forEach((b) => { if (b.textContent === 'Reset Password') b.click(); }));
-    await page.waitForFunction(() => /A link to choose a new password is on its way/.test(document.querySelector('#listMessage').textContent), { timeout: 30000 });
-    assert.ok(dialogs.some((m) => m.startsWith('pat also uses Smart Scan at another store')), JSON.stringify(dialogs));
+    await page.waitForFunction(() => /Reset link sent to/.test(document.querySelector('#listMessage').textContent), { timeout: 30000 });
+    assert.ok(dialogs.some((m) => m.startsWith('pat uses Smart Scan at another store too')), JSON.stringify(dialogs));
     assert.equal(await page.evaluate(() => api('resetPassword', { username: 'pat', newPassword: 'Typed-by-0wner!' }).then(() => 'changed', (e) => e.code)),
       'shared_account', 'the function refuses a typed password for a shared account');
 

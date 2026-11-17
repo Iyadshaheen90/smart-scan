@@ -66,7 +66,7 @@ const dbSession = (role, username) => ({ backend: 'supabase', accessToken: 'a', 
   await tap(page, '#switchRow');
   await tap(page, '#switchGo');
   await sleep(300);
-  assert.match(await text(page, '#switchError'), /still waiting to be sent/);
+  assert.match(await text(page, '#switchError'), /still waiting to send/);
   assert.equal(await stored(page, KEY), null, 'not switched while a close waits');
   assert.ok(await stored(page, 'smartScanSession'), 'still signed in');
   await page.evaluate(() => localStorage.removeItem('smartScanPendingClose'));
@@ -139,8 +139,8 @@ const dbSession = (role, username) => ({ backend: 'supabase', accessToken: 'a', 
     const f = document.getElementById('form'); f.password.value = 'Abcdef1!'; f.confirm.value = 'Abcdef1!';
     f.querySelector('button[type="submit"]').click();
   });
-  await page.waitForFunction(() => /Password saved for sam/.test(document.getElementById('message').textContent), { timeout: 4000 });
-  assert.match(await text(page, '#message'), /Keep signing in to Smart Scan the way you do today/);
+  await page.waitForFunction(() => /Password saved\. Keep signing in/.test(document.getElementById('message').textContent), { timeout: 4000 });
+  assert.match(await text(page, '#message'), /Keep signing in as you do now until the owner says to switch/);
   assert.equal(await stored(page, 'smartScanSession'), sheetsSession, 'no database sign-in replaced the Sheets one');
   assert.ok(!(await visible(page, '#continue')), 'no Continue into the database');
   await go(page, `${base}login.html`);

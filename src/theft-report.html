@@ -390,9 +390,9 @@
       }
       try {
         await navigator.clipboard.writeText(text);
-        showMessage($('shareMessage'), 'Copied. Paste it into an email or a text.', 'ok');
+        showMessage($('shareMessage'), 'Copied.', 'ok');
       } catch (err) {
-        showMessage($('shareMessage'), 'Couldn\'t copy the report. Use Print / Save PDF instead.');
+        showMessage($('shareMessage'), 'Couldn\'t copy. Use Print / Save PDF.');
       }
     });
     // The iPhone home-screen app ignores window.print() (owner 2026-10-23), so the report goes to the share sheet as a

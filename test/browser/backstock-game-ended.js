@@ -47,7 +47,7 @@ function handle(body) {
   const totalsBefore = await text('#totals');
 
   // 1. End 1718 from its pop-up (found by search).
-  await search('1718'); await tapGameRow(page, '1718'); await page.click('#packEnd'); await msg(/marked ended/);
+  await search('1718'); await tapGameRow(page, '1718'); await page.click('#packEnd'); await msg(/ended\. Find it under Ended Games/);
   assert.equal(await page.$eval('#packDialog', (d) => d.classList.contains('hidden')), true);
   assert.equal(ended('1718'), '2026-09-26'); assert.ok(S.ReserveInventory.rows[0].includes('ended_date'));
   assert.equal(await text('#endedTitle'), 'Ended Games (1)');
@@ -64,10 +64,10 @@ function handle(body) {
   assert.equal(await page.$eval('#endedBox', (el) => el.classList.contains('hidden')), true);
 
   // 3. End it again, then a delivery of it (Scan) brings it back with its price remembered.
-  await tapGameRow(page, '1718'); await page.click('#packEnd'); await msg(/marked ended/);
+  await tapGameRow(page, '1718'); await page.click('#packEnd'); await msg(/ended\. Find it under Ended Games/);
   await showScan(page);
   await page.type('#typed', '1718'); await tapUseThisNumber(page);
-  assert.match(await text('#flash'), /marked ended; receiving it brings it back/);
+  assert.equal(await text('#flash'), 'Game 1718 added.');
   await page.$eval('#typed', (el) => { el.value = ''; }); await page.type('#typed', '1718'); await tapUseThisNumber(page);
   await page.click('#receiveBtn');
   await page.waitForFunction(() => !document.getElementById('shipDone').classList.contains('hidden'));
