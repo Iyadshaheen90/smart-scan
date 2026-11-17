@@ -79,6 +79,11 @@
       <div class="mono" id="newKey"></div>
       <div class="slot-detail" id="newDetail"></div>
     </div>
+    <!-- Restock from the back: the scan isn't the oldest pack of the slot's game (says so before Activate). -->
+    <div class="scan-warn hidden" id="scanWarn" role="alert">
+      <div class="scan-warn-title" id="scanWarnTitle"></div>
+      <div class="scan-warn-text" id="scanWarnText"></div>
+    </div>
     <div id="newGame" class="hidden">
       <p class="sub" style="margin-top: 12px;">First time this game has been seen. Enter its details once.</p>
       <label for="gamePrice">Price per Ticket ($)</label>
@@ -220,6 +225,7 @@
     let overridePrice = false;
     let notOldestOk = false;  // chose a newer pack than the oldest in the back anyway
     let restock = null;       // restockList for this slot: { gameNumber, packsInBack, oldest } (database, Load packs)
+    let scanWarn = null;      // the scanned pack isn't the one Restock suggests: { kind: 'game' | 'pack', title, text }
     let replacing = false;  // chose to put a new pack in after ending the old one
     let finished = false;
     let scannerStarted = false;
@@ -364,6 +370,20 @@
         $('newDetail').textContent = `Top ticket ${pad3(newTicket.ticketNumber)} · `
           + (slot.slotOrder === 'ascending' ? 'sold ↑ ascending' : `${newTicket.ticketNumber + 1} tickets`);
       }
+      // A warned scan: the warning sits under the pack, and the buttons say what each choice does.
+      show('scanWarn', Boolean(newTicket && scanWarn));
+      $('scanWarnTitle').textContent = scanWarn ? scanWarn.title : '';
+      $('scanWarnText').textContent = scanWarn ? scanWarn.text : '';
+      $('activateBtn').textContent = !newTicket || !scanWarn ? 'Activate Pack'
+        : scanWarn.kind === 'game' ? `Put Game ${newTicket.gameNumber} Here` : 'Use This Pack Anyway';
+      $('rescanBtn').textContent = !newTicket || !scanWarn ? 'Scan a Different Ticket'
+        : scanWarn.kind === 'game' ? `Scan Game ${restock.gameNumber} Instead` : 'Scan the Oldest Pack';
+      // Warned, the safe choice (scan again) leads as the main button; "anyway" goes under it.
+      const warned = Boolean(newTicket && scanWarn);
+      $('rescanBtn').classList.toggle('primary', warned);
+      $('activateBtn').classList.toggle('primary', !warned);
+      if (warned) $('activateBtn').before($('rescanBtn'));
+      else $('rescanBtn').before($('activateBtn'));
     }
 
     // Slot Settings: a row per form this person may use, with its current value; the group hides with none.
@@ -447,9 +467,38 @@
         newTicket = ticket;
         overridePrice = false;
         notOldestOk = false;
+        scanWarn = null;
         show('newGame', false);
+        checkRestockScan(ticket);
       }
       render();
+    }
+
+    // Restock from the back (owner 2026-11-17: a wrong pack warned only on Activate): when the slot has a pack to use
+    // from the back, a scan of another game, or of a newer pack of its game, says so right away. Another game is
+    // checked here; the oldest-pack rule is the database's own (activateSeveral check: nothing is saved).
+    async function checkRestockScan(ticket) {
+      if (!restock) return;
+      if (ticket.gameNumber !== restock.gameNumber) {
+        const words = oldestPackWords(restock);
+        scanWarn = {
+          kind: 'game',
+          title: `Not Game ${restock.gameNumber}`,
+          text: `This slot had game ${restock.gameNumber}, and ${restock.packsInBack} ${restock.packsInBack === 1 ? 'pack' : 'packs'} of it `
+            + `${restock.packsInBack === 1 ? 'is' : 'are'} in the back (oldest: ${words.name}). This ticket is game ${ticket.gameNumber}.`,
+        };
+        return;
+      }
+      try {
+        const result = await api('activateSeveral', { check: true, packs: [activateRequest()] });
+        const answer = result.rows[0];
+        // Only if this scan is still the one on screen and nothing was saved meanwhile.
+        if (newTicket !== ticket || finished || !answer || answer.code !== 'not_oldest') return;
+        scanWarn = { kind: 'pack', title: 'Not the Oldest Pack', text: answer.message.replace(/\s*Use (this|pack \S+) (one )?anyway\?$/, '') };
+        render();
+      } catch (err) {
+        // No answer: Activate still asks, as before.
+      }
     }
 
     $('soldOutBtn').addEventListener('click', () => { oldEnd = 'sold_out'; clearMessage(); render(); });
@@ -464,7 +513,7 @@
       render();
     });
     $('replaceBtn').addEventListener('click', () => { replacing = true; clearMessage(); render(); });
-    $('rescanBtn').addEventListener('click', () => { newTicket = null; clearMessage(); render(); });
+    $('rescanBtn').addEventListener('click', () => { newTicket = null; scanWarn = null; clearMessage(); render(); });
 
     $('typedForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -675,9 +724,9 @@
 
     $('activateBtn').addEventListener('click', activate);
 
-    async function activate() {
-      clearMessage();
-      const req = {
+    // What Activate sends (also the restock scan check, which saves nothing).
+    function activateRequest() {
+      return {
         box,
         slot: slotNumber,
         gameNumber: newTicket.gameNumber,
@@ -688,6 +737,13 @@
         overridePrice,
         notOldestOk: notOldestOk || undefined,
       };
+    }
+
+    async function activate() {
+      clearMessage();
+      // Use This Pack Anyway under the scan warning already answered the oldest-pack question.
+      if (scanWarn && scanWarn.kind === 'pack') notOldestOk = true;
+      const req = activateRequest();
       if (!$('newGame').classList.contains('hidden')) {
         req.gamePrice = $('gamePrice').value;
         req.ticketsPerPack = $('ticketsPerPack').value;
@@ -703,6 +759,7 @@
         lines.push(`${result.packsInBack} pack${result.packsInBack === 1 ? '' : 's'} of game ${newTicket.gameNumber} left in the back.`);
         if (result.backWasEmpty) lines.push('(Back stock already showed none of this game, so it stayed at 0. Check that the shipment was entered.)');
         finished = true;
+        scanWarn = null;
         showMessage(messageEl, lines.join(' '), 'ok');
         await loadSlots();
       } catch (err) {

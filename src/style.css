@@ -1068,3 +1068,7 @@ a.link-button { display: block; width: fit-content; margin: 18px auto 0; padding
 .restock-pick-name { margin: 4px 0 2px; font-size: 22px; font-weight: 800; }
 .restock-empty { display: flex; flex-direction: column; gap: 4px; }
 .restock-empty span { color: var(--muted); font-size: 14px; }
+/* Slot page: the scanned pack isn't the one Restock suggests (another game, or not the oldest). */
+.scan-warn { margin-top: 12px; padding: 14px 16px; border-radius: 16px; background: var(--warn-bg); border: 1px solid var(--amber); }
+.scan-warn-title { font-size: 16px; font-weight: 800; color: var(--amber); }
+.scan-warn-text { margin-top: 4px; font-size: 15px; line-height: 1.4; }
