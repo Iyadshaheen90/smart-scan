@@ -23,7 +23,8 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
   new slot), inviting an existing account, the Reset Password rule. Try the closed parts on dev with
   `node scripts/preview-wizard.js`. What's built and what's left: `docs/supabase.md` ("Many stores").
 - Ready to Restock (Pro, database only, migration 0031, live): `restock.html`, Home card, Slots row, the oldest pack
-  on the slot page, `not_oldest` ask on a newer pack (also in Activate Several). Pro features check `app.has_pro`,
+  on the slot page, a warning right at the scan for another game or a newer pack (`#scanWarn`; Activate Several
+  shows Use This Pack Anyway). Pro features check `app.has_pro`,
   which is true for every store until the subscriptions build. Details: `docs/supabase.md`, `docs/business-rules.md`.
 
 ## Details live in docs/ (read only the one the task needs)
@@ -58,6 +59,7 @@ that applies to almost every change belongs below.
   Decide hierarchy and grouping first; check a phone-size screenshot. Always dark; tokens in `style.css`.
 - **Alerts and error messages are short (owner 2026-11-17):** say what's wrong and what to do, nothing else
   ("Wrong Game" / "This slot is game 1747. Use pack 1747-0000004."). No background, counts or explanations.
+  Pages follow it (sw v79); the backend's own messages are shortened in the database after Sheets is retired.
 - **Numbers are never cut off:** `fit` on the box + `fitText`/`fitNumbers` (nav.js); grids use `minmax(0, 1fr)`.
 - **Wording:** Title Case for titles, buttons, labels, tabs, chips; sentences stay sentence case.
 - **Back pills only through the header** (`data-back` / `data-back-label`); the name pill always stays top right.
