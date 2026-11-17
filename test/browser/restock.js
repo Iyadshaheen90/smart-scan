@@ -41,7 +41,7 @@ const SEED = {
   ],
 };
 
-const text = (page, sel) => page.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').trim());
+const text = (page, sel) => page.$eval(sel, (e) => e.innerText.replace(/\s+/g, ' ').replace(/\u2011/g, '-').trim());
 const shown = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e.offsetParent !== null);
 const tap = async (page, sel) => { await page.$eval(sel, (e) => e.scrollIntoView({ block: 'center' })); await page.click(sel); };
 const shot = async (page, name) => { if (shots) await page.screenshot({ path: path.join(shots, name) }); };
@@ -109,14 +109,14 @@ async function enter(page, printed) {
     //    "Scan … Instead" goes back to the scanner. The oldest goes in with no warning and no question.
     await enter(page, '1747-0000003-4-029');
     await page.waitForFunction(() => !document.getElementById('scanWarn').classList.contains('hidden'), { timeout: 15000 });
-    assert.match(await text(page, '#scanWarn'), /^Not the Oldest Pack Pack 1747-0000003 isn't the oldest: pack 1747-0000004 came .+\.$/);
+    assert.equal(await text(page, '#scanWarn'), 'Not the Oldest Pack Use pack 1747-0000004.');
     assert.equal(await text(page, '#activateBtn'), 'Use This Pack Anyway');
     assert.equal(await text(page, '#rescanBtn'), 'Scan the Oldest Pack');
     await shot(page, 'restock-warn-pack.png');
     await tap(page, '#rescanBtn');
     assert.equal(await shown(page, '#restockPick'), true);
     await enter(page, '2222-0000005-4-049');
-    assert.equal(await text(page, '#scanWarn'), 'Not Game 1747 This slot had game 1747, and 2 packs of it are in the back (oldest: 1747-0000004). This ticket is game 2222.');
+    assert.equal(await text(page, '#scanWarn'), 'Wrong Game This slot is game 1747. Use pack 1747-0000004.');
     assert.equal(await text(page, '#activateBtn'), 'Put Game 2222 Here');
     assert.equal(await text(page, '#rescanBtn'), 'Scan Game 1747 Instead');
     await shot(page, 'restock-warn-game.png');
@@ -153,7 +153,7 @@ async function enter(page, printed) {
     await page.waitForFunction(() => !document.getElementById('restockPick').classList.contains('hidden'), { timeout: 15000 });
     await enter(page, '4444-0000009-1-079');
     await page.waitForFunction(() => !document.getElementById('scanWarn').classList.contains('hidden'), { timeout: 15000 });
-    assert.equal(await text(page, '#scanWarn'), 'Not the Oldest Pack Game 4444 has older packs in the back (from before pack numbers were kept).');
+    assert.equal(await text(page, '#scanWarn'), 'Not the Oldest Pack Use an older pack of game 4444.');
     await tap(page, '#activateBtn');
     await page.waitForFunction(() => /is live in box 1, slot 4/.test(document.getElementById('message').textContent), { timeout: 15000 });
     assert.equal(dialogs.length, 0, 'Use This Pack Anyway never asks twice');

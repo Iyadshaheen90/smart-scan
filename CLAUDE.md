@@ -56,6 +56,8 @@ that applies to almost every change belongs below.
 
 - **Design:** every UI change like a senior UI designer: clean, clutter free, modern, professional, user friendly.
   Decide hierarchy and grouping first; check a phone-size screenshot. Always dark; tokens in `style.css`.
+- **Alerts and error messages are short (owner 2026-11-17):** say what's wrong and what to do, nothing else
+  ("Wrong Game" / "This slot is game 1747. Use pack 1747-0000004."). No background, counts or explanations.
 - **Numbers are never cut off:** `fit` on the box + `fitText`/`fitNumbers` (nav.js); grids use `minmax(0, 1fr)`.
 - **Wording:** Title Case for titles, buttons, labels, tabs, chips; sentences stay sentence case.
 - **Back pills only through the header** (`data-back` / `data-back-label`); the name pill always stays top right.

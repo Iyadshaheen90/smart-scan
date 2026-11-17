@@ -477,16 +477,15 @@
     // Restock from the back (owner 2026-11-17: a wrong pack warned only on Activate): when the slot has a pack to use
     // from the back, a scan of another game, or of a newer pack of its game, says so right away. Another game is
     // checked here; the oldest-pack rule is the database's own (activateSeveral check: nothing is saved).
+    // Warnings stay short (owner 2026-11-17): what's wrong in the title, what to do in one line.
+    // restock.oldest is the same pack the database's oldest-pack rule names (app.oldest_in_back).
+    const useOldest = () => (restock.oldest && restock.oldest.unnumbered
+      ? `Use an older pack of game ${restock.gameNumber}.` : `Use pack ${oldestPackWords(restock).name.replace('-', '\u2011')}.`);   // \u2011: the pack number never wraps
+
     async function checkRestockScan(ticket) {
       if (!restock) return;
       if (ticket.gameNumber !== restock.gameNumber) {
-        const words = oldestPackWords(restock);
-        scanWarn = {
-          kind: 'game',
-          title: `Not Game ${restock.gameNumber}`,
-          text: `This slot had game ${restock.gameNumber}, and ${restock.packsInBack} ${restock.packsInBack === 1 ? 'pack' : 'packs'} of it `
-            + `${restock.packsInBack === 1 ? 'is' : 'are'} in the back (oldest: ${words.name}). This ticket is game ${ticket.gameNumber}.`,
-        };
+        scanWarn = { kind: 'game', title: 'Wrong Game', text: `This slot is game ${restock.gameNumber}. ${useOldest()}` };
         return;
       }
       try {
@@ -494,7 +493,7 @@
         const answer = result.rows[0];
         // Only if this scan is still the one on screen and nothing was saved meanwhile.
         if (newTicket !== ticket || finished || !answer || answer.code !== 'not_oldest') return;
-        scanWarn = { kind: 'pack', title: 'Not the Oldest Pack', text: answer.message.replace(/\s*Use (this|pack \S+) (one )?anyway\?$/, '') };
+        scanWarn = { kind: 'pack', title: 'Not the Oldest Pack', text: useOldest() };
         render();
       } catch (err) {
         // No answer: Activate still asks, as before.
