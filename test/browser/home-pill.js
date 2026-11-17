@@ -46,6 +46,8 @@ const pill = (page) => page.evaluate(() => {
   for (const file of fs.readdirSync(SRC).filter((f) => f.endsWith('.html')).sort()) {
     const html = fs.readFileSync(path.join(SRC, file), 'utf8');
     if (!/data-back=/.test(html)) continue;
+    // The setup wizard has no name pill (no store yet; setup-wizard.js checks that) and sends a store's owner Home.
+    if (file === 'setup.html') continue;
     if (file === 'activate.html') pillPages.push('activate.html?box=1&slot=1', 'activate.html?box=1&slot=1&from=settling');
     else pillPages.push(file);
     if (/backLabel:/.test(html)) pillPages.push(`${file}?date=2026-10-06`);
