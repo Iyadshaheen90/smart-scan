@@ -26,8 +26,16 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
   on the slot page, a warning right at the scan for another game or a newer pack (`#scanWarn`; Activate Several
   shows Use This Pack Anyway). Pro features check `app.has_pro` (prod: true for every store; dev: migration 0033's
   `store_access()`, subscriptions step 1). Details: `docs/supabase.md`, `docs/business-rules.md`.
-- **Subscriptions step 1 (0033, dev only until after Dec 1):** read-only is in `app.lock_store()`; a save a read-only
-  store must still allow calls `app.lock_store_any()` instead. See docs/supabase.md "Subscriptions step 1".
+- **Subscriptions:** step 1 (migration 0033, **dev only until the cutover settles**; never a blanket prod `db push`
+  before then): read-only is in `app.lock_store()`; a save a read-only store must still allow calls
+  `app.lock_store_any()` instead. Step 2 pages are live but show only when the session has `subscription`:
+  `plans.html`, `subscription.html`, the Upgrade to Pro pop-up (`showPlanPopup`), Home `#planBanner`; buying isn't
+  wired (steps 3-5 need RevenueCat / Stripe). See docs/supabase.md "Subscriptions step 1", docs/code-map.md.
+- **Sign in by username (live, migration 0032 + `signin` Edge Function):** one "Email or Username" box; the phone
+  remembers its store (`smartScanSignInStore`), a new phone asks for the Store ID; 5 wrong tries → 15 minutes.
+  Details: docs/supabase.md "Sign in by username".
+- **In-store demo** (owner 2026-11-20; build after Dec 1): `~/.claude/plans/smart-scan-demo-design.md`. Printable
+  made-up barcodes: `node scripts/demo-cards.js` (PDF to the Desktop; every barcode read back first).
 
 ## Details live in docs/ (read only the one the task needs)
 
