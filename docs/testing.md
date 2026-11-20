@@ -22,6 +22,7 @@ node test/browser/backstock-add-pack.js   # Manage packs, adding: + / −, Cance
 node test/browser/backstock-shipment.js   # Shipment Received list: a pack per scan, 2nd pack, same pack caught, typed = no number, −, new game price chips, Other ($50 typed + size, kept on reload, chip leaves it), Receive bar above tabs, draft, Receive (packNumbers sent, real backend), done card, ended game, refused pack red + tap off, Clear, waits for the lift
 node test/browser/backstock-game-ended.js # Game ended / Bring back (real backend code, fake sheet)
 node test/browser/slots-days.js           # Slots: days since activation + day-50 mark (owner), none for employees
+node test/browser/slots-find.js           # Slots: Find a Slot magnifier: game / pack / game+pack search, all boxes, empty slot by last game, Cancel/Escape, employee no links/no $, hidden with no slots
 node test/browser/home.js                 # home for both roles: one request, saved numbers first, tiles, chips, Start month, huge numbers fit
 node test/browser/saved-pages.js          # Slots, Settling, Back stock, Months: saved answer first (dimmed, locked), then fresh
 node test/browser/close-layout.js         # Close Day: button stays put and progress→button fit on screen through every kind of scan; buzzes

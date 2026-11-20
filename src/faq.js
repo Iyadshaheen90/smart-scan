@@ -317,6 +317,15 @@ const FAQ = [
         },
       },
       {
+        id: 'find-slot', who: 'everyone', go: 'slots.html',
+        q: { en: 'How do I find which slot a game is in?', es: '¿Cómo encuentro en qué casilla está un juego?', ar: 'كيف أجد الخانة التي فيها لعبة ما؟' },
+        a: {
+          en: 'On Slots, tap the round magnifier at the bottom right and type a game number (like 1747) or a pack number. You see every slot it\'s in, in all boxes, with the tickets left as of the last close. An empty slot whose last game matches shows too. Tap Cancel to go back.',
+          es: 'En Slots, toque la lupa redonda abajo a la derecha y escriba un número de juego (como 1747) o de paquete. Verá cada casilla donde está, en todas las cajas, con los boletos que quedaban en el último cierre. También aparece una casilla vacía cuyo último juego coincide. Toque Cancel para volver.',
+          ar: 'في Slots، اضغط العدسة المستديرة أسفل اليمين واكتب رقم لعبة (مثل 1747) أو رقم رزمة. ترى كل خانة هي فيها، في كل الصناديق، مع التذاكر المتبقية عند آخر إغلاق. وتظهر أيضاً الخانة الفارغة التي كانت فيها هذه اللعبة آخر مرة. اضغط Cancel للرجوع.',
+        },
+      },
+      {
         id: 'arrows', who: 'everyone',
         q: { en: 'What do the ↓ and ↑ arrows mean?', es: '¿Qué significan las flechas ↓ y ↑?', ar: 'ماذا يعني السهمان ↓ و↑؟' },
         a: {

@@ -1106,3 +1106,38 @@ a.link-button { display: block; width: fit-content; margin: 18px auto 0; padding
 .sub-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sub-plan { font-size: 22px; font-weight: 800; }
 .sub-line { color: var(--muted); margin-top: 6px; font-size: 15px; }
+
+/* Slots: Find a Slot (owner 2026-11-20). A quiet round magnifier floating above the tab bar (dark glass like the bar,
+   not a loud color), so the page stays clean; tapping it opens a full-screen search with the field at the top, where
+   the keyboard never covers the results. Searches the slots already loaded: by game or pack number, all boxes. */
+.find-fab {
+  position: fixed; z-index: 21;
+  right: max(16px, calc((100vw - 480px) / 2 + 16px));
+  bottom: calc(var(--tabbar-clear) + 12px);
+  width: 56px; height: 56px; margin: 0; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(31, 35, 35, 0.78); color: var(--accent-bright);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+}
+.find-fab svg { width: 24px; height: 24px; stroke-width: 2.4; }
+.find-fab:active { transform: scale(0.94); }
+.find-panel {
+  position: fixed; inset: 0; z-index: 30; overflow-y: auto;
+  background: var(--bg);
+  padding: max(16px, env(safe-area-inset-top)) 20px 32px;
+  animation: find-in 0.16s ease-out;
+}
+.find-panel-inner { max-width: 440px; margin: 0 auto; }
+@keyframes find-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .find-panel { animation: none; } }
+.find-bar { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.find-bar .search-field { flex: 1; min-width: 0; }
+.find-bar .search-field input { min-height: 48px; }
+.find-bar .find-cancel { width: auto; margin: 0; padding: 12px 2px; border: 0; background: transparent;
+  color: var(--accent-bright); font-size: 17px; font-weight: 600; }
+.find-sum { margin: 16px 4px 0; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.find-hint { margin: 28px 4px 0; text-align: center; font-size: 14px; color: var(--muted); }
+#findResults .card { display: block; color: var(--text); text-decoration: none; }
+#findResults a.card:active { background: var(--card-2); }

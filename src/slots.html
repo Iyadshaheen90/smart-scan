@@ -36,6 +36,22 @@
   <div id="summary" class="sub saved-dim"></div>
   <div id="list" class="saved-dim">Loading…</div>
 
+  <!-- Find a Slot (owner 2026-11-20): a quiet floating magnifier, shown once slots are on screen. It opens a full-screen
+       search (field at the top, Cancel to close) over the slots already loaded: a game or pack number → which box and
+       slot it's in and the tickets left as of the last close. -->
+  <button class="find-fab hidden" id="findFab" type="button" aria-label="Find a Slot" title="Find a Slot"><span data-icon="search"></span></button>
+  <div class="find-panel hidden" id="findPanel" role="dialog" aria-modal="true" aria-label="Find a Slot">
+    <div class="find-panel-inner">
+      <div class="find-bar">
+        <div class="search-field"><input id="findInput" type="search" inputmode="numeric" autocomplete="off" placeholder="Game or pack number" aria-label="Game or pack number"></div>
+        <button class="find-cancel" id="findCancel" type="button">Cancel</button>
+      </div>
+      <div class="find-sum" id="findSum"></div>
+      <div id="findResults"></div>
+      <p class="find-hint" id="findHint">Type a game number, like 1747, or a pack number.</p>
+    </div>
+  </div>
+
   <nav class="tabbar" data-active="slots"></nav>
 
   <script src="config.js"></script>
@@ -186,11 +202,98 @@
       }
     }
 
+    // ---- Find a Slot ----
+    const findPanel = document.getElementById('findPanel');
+    const findInput = document.getElementById('findInput');
+    const findResults = document.getElementById('findResults');
+    const findSum = document.getElementById('findSum');
+    const findHint = document.getElementById('findHint');
+
+    // The button shows only when there are slots to search; with it, the page leaves room so it never covers the last slot.
+    function showFindButton() {
+      const on = slots.length > 0;
+      document.getElementById('findFab').classList.toggle('hidden', !on);
+      document.body.classList.toggle('has-fab', on);
+    }
+
+    // Digits only, so "1747-0000004", "1747 0000004" and "17470000004" all work. Up to 4 digits: games starting with
+    // them, plus (from 3 digits) packs whose number has them. More: the game + pack written together, or a pack number.
+    // An empty slot counts when the game last in it matches (most likely what goes back in).
+    function findMatches(query) {
+      if (!query) return [];
+      const packHit = (game, pack) => (query.length > 4 ? `${game}${pack}`.includes(query) || pack.includes(query)
+        : query.length >= 3 && pack.includes(query));
+      return slots.filter((s) => (s.pack
+        ? s.pack.gameNumber.startsWith(query) || packHit(s.pack.gameNumber, s.pack.packNumber)
+        : Boolean(s.lastGame) && query.length <= 4 && s.lastGame.gameNumber.startsWith(query)));
+    }
+
+    function drawFind() {
+      const query = findInput.value.replace(/\D/g, '');
+      const found = findMatches(query);
+      const severalBoxes = new Set(slots.map((s) => s.box)).size > 1;
+      findResults.innerHTML = '';
+      const live = found.filter((s) => s.pack);
+      const left = live.reduce((sum, s) => sum + s.pack.remaining, 0);
+      findSum.textContent = found.length
+        ? `${found.length === 1 ? '1 Slot' : `${found.length} Slots`}${live.length ? ` · ${left} Left` : ''}` : '';
+      findHint.textContent = !query ? 'Type a game number, like 1747, or a pack number.'
+        : found.length ? '' : `No slot has ${query}.`;
+      for (const s of found) {
+        const card = document.createElement(canOpenSlot ? 'a' : 'div');
+        card.className = 'card';
+        if (canOpenSlot) card.href = `activate.html?box=${s.box}&slot=${s.slot}`;
+        const top = document.createElement('div');
+        top.className = 'row';
+        const name = document.createElement('span');
+        name.className = 'slot-num';
+        name.textContent = `${severalBoxes ? `Box ${s.box} · ` : ''}Slot ${s.slot}`;
+        const tag = document.createElement('span');
+        tag.className = s.pack ? 'tag live' : 'tag warn';
+        tag.textContent = s.pack ? `${s.pack.remaining} Left` : 'Out of Stock';
+        top.append(name, tag);
+        card.append(top);
+        const detail = document.createElement('div');
+        detail.className = 'slot-detail';
+        if (s.pack) {
+          detail.innerHTML = '<span class="mono"></span>';
+          detail.firstChild.textContent = `${s.pack.gameNumber}-${s.pack.packNumber}`;
+          detail.append(` · top ticket ${String(s.pack.exposedTicket).padStart(3, '0')}`);
+          const when = document.createElement('div');
+          when.className = 'slot-detail';
+          const day = planDay(s.pack.lastCloseDate);
+          when.textContent = `${day ? `As of the ${day} close` : 'Since it was put in'} · ${s.pack.packsInBack} in back`;
+          card.append(detail, when);
+        } else {
+          detail.textContent = `Last game here: ${s.lastGame.gameNumber} · ${s.lastGame.packsInBack} in back`;
+          card.append(detail);
+        }
+        findResults.append(card);
+      }
+    }
+
+    function openFind() {
+      findPanel.classList.remove('hidden');
+      document.documentElement.style.overflow = 'hidden';
+      findInput.value = '';
+      drawFind();
+      findInput.focus();
+    }
+    function closeFind() {
+      findPanel.classList.add('hidden');
+      document.documentElement.style.overflow = '';
+      findInput.blur();
+    }
+    document.getElementById('findFab').addEventListener('click', openFind);
+    document.getElementById('findCancel').addEventListener('click', closeFind);
+    findInput.addEventListener('input', drawFind);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !findPanel.classList.contains('hidden')) closeFind(); });
+
     // Last load first (dimmed), then the fresh one. A tapped slot's page loads its own fresh data.
     // A failed load keeps the saved slots on screen (dimmed) above the reason and a Try again button.
     async function load() {
       try {
-        await loadSaved('slots', () => api('listSlots'), (data) => { slots = data; render(); });
+        await loadSaved('slots', () => api('listSlots'), (data) => { slots = data; render(); showFindButton(); if (!findPanel.classList.contains('hidden')) drawFind(); });
         return true;
       } catch (err) {
         if (!slots.length) listEl.textContent = '';
