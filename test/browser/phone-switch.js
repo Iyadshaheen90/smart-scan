@@ -82,7 +82,7 @@ const dbSession = (role, username) => ({ backend: 'supabase', accessToken: 'a', 
   assert.equal(await stored(page, 'smartScanSaved:o:listSlots'), null, 'saved answers cleared');
   assert.equal(await stored(page, 'smartScanOwnerHome:o'), null, 'saved home cleared');
   assert.ok(await stored(page, 'smartScanCloseDraft:o'), 'close draft kept');
-  assert.equal(await text(page, 'label[for="username"]'), 'Email');
+  assert.equal(await text(page, 'label[for="username"]'), 'Email or Username');
   assert.ok(await visible(page, '#switchLine'), 'Sign In shows the way back');
   assert.ok(await visible(page, '#forgotLine'), 'Forgot Password on the database');
   await page.screenshot({ path: '/tmp/phone-switch-login.png', fullPage: true });

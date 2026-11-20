@@ -73,12 +73,11 @@ const visible = (page, sel) => page.$eval(sel, (e) => !e.closest('.hidden') && e
     await page.evaluate(() => localStorage.removeItem('smartScanLastEmail'));
     await page.goto(base + 'login.html');
     assert.equal(await page.$eval('#username', (e) => e.value), '', 'no email filled in before anyone signed in');
-    assert.equal(await text(page, 'label[for="username"]'), 'Email');
-    assert.equal(await page.$eval('#username', (e) => e.type), 'email');
+    assert.equal(await text(page, 'label[for="username"]'), 'Email or Username');
     assert.equal(await visible(page, '#forgot'), true);
     assert.equal(await page.$eval('#setupLine', (e) => e.classList.contains('hidden')), true);
     await page.click('#forgot');
-    assert.equal(await text(page, '#message'), 'Enter your email first.');
+    assert.equal(await text(page, '#message'), 'Type your email to get a reset link.');
     await page.type('#username', ownerEmail);
     await page.click('#forgot');
     await page.waitForFunction(() => /is on its way/.test(document.querySelector('#message').textContent));

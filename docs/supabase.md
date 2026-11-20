@@ -138,8 +138,22 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   **Migration 0030 (2026-11-14, owner: a price per new slot, like the wizard):** `add_slots { box, prices: [price…] }`
   (one per new slot, in slot order; `bad_price` "Every new slot needs a price."); the older `{ box, count, price }` still
   works. Edit Layout sends `prices`. Test: in `many_stores_test.sql`.
-  Not built: sign-in by username (design), the subscription row and the "cancel the subscription first" block on
+  Not built: the subscription row and the "cancel the subscription first" block on
   Delete Store (subscriptions build), auth settings for sign-up (needs our own email domain).
+- **Sign in by username (owner 2026-11-20; migration 0032, `supabase/functions/signin`):** Sign In has one box, "Email or
+  Username" (an @ = email → Supabase Auth as before). A username goes to the **signin** Edge Function with the store
+  the phone remembers (`smartScanSignInStore` in api.js, saved by `saveSession` for any database session with a store,
+  forgotten by `leaveCurrentStore`) or a Store ID typed in (the box shows when no store is remembered, or after
+  **Change** under the title). The function asks `service_sign_in_check` (postgres-owned, reads auth.users like
+  `service_is_current_password`): it checks the password against the bcrypt hash, so **wrong passwords never reach
+  Supabase Auth** (its sign-in limit is per IP and every function call shares one; `sign_in_sign_ups = 30`/5 min: raise
+  it in config.toml as stores grow, since right passwords still go through it). Only a right password gets the email,
+  then the function signs in with it and hands back the tokens + storeId. 5 wrong tries for a username at a store
+  (`app.sign_in_tries`, keyed by store id either way of naming the store) → "Too many tries. Wait 15 minutes." One
+  answer for every wrong part ("Wrong username or password." / "Wrong Store ID, username or password."). Invited and
+  never set a password → "Tap the link in your invite email first." Forgot Password needs the email. Database only
+  (Sheets already signs in by username). Deploy: `functions deploy signin --use-api`. Tests: `sign_in_by_username`
+  (db), `test/browser/sign-in-username.js` (page, faked), `db-sign-in-username.js` (dev, real).
 - **Owner's rule (2026-10-23): every feature added during the move goes into the Supabase version too.** Pages and buttons
   carry over unchanged; a new or changed backend action, field, permission or rule must be ported (with a parity test) or
   added to the migration plan's "Added during the move" checklist — and say so in the summary to the owner.

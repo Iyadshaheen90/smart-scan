@@ -38,6 +38,12 @@
   <form id="form" class="auth-card">
     <label for="username">Username</label>
     <input id="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <!-- Database only (owner 2026-11-20): a username needs its store. Shown when this phone doesn't know one (or
+         Change was tapped) and what's typed above isn't an email. -->
+    <div id="storeNumberBox" class="hidden">
+      <label for="storeNumber">Store ID</label>
+      <input id="storeNumber" inputmode="numeric" autocomplete="off" pattern="[0-9]*">
+    </div>
     <label for="password">Password</label>
     <input id="password" type="password" autocomplete="current-password" required>
     <p id="forgotLine" class="forgot-line hidden"><a href="#" id="forgot">Forgot Password?</a></p>
@@ -64,20 +70,43 @@
     const form = document.getElementById('form');
     const messageEl = document.getElementById('message');
 
-    // The database signs everyone in by email (and can email a new password link); the owner's first account is
-    // made with the store, so there's no owner setup link.
+    // The database signs in by email or by username (owner 2026-11-20: one box); a username goes with the store this
+    // phone remembers (its name shows under the title; Change asks for another) or a Store ID typed in. It can email
+    // a new password link; the owner's first account is made with the store, so there's no owner setup link.
+    const storeBox = document.getElementById('storeNumberBox');
+    let askStore = false;
+    const isEmail = () => form.username.value.includes('@');
+    function showStoreBox() {
+      const show = USE_DATABASE && (askStore || !signInStore()) && form.username.value.trim() !== '' && !isEmail();
+      storeBox.classList.toggle('hidden', !show);
+      form.storeNumber.required = show;
+    }
     if (USE_DATABASE) {
-      document.querySelector('label[for="username"]').textContent = 'Email';
-      form.username.type = 'email';
-      form.username.setAttribute('inputmode', 'email');
+      document.querySelector('label[for="username"]').textContent = 'Email or Username';
       document.getElementById('forgotLine').classList.remove('hidden');
       document.getElementById('setupLine').classList.add('hidden');
       document.getElementById('signUpLine').classList.toggle('hidden', !SIGN_UP_IS_OPEN);
-      // The last email used on this phone is filled in, so only the password is needed.
+      const store = signInStore();
+      if (store) {
+        const sub = document.querySelector('.auth-brand .sub');
+        sub.textContent = `${store.storeName} · `;
+        const change = Object.assign(document.createElement('a'), { href: '#', id: 'changeStore', textContent: 'Change' });
+        change.addEventListener('click', (e) => {
+          e.preventDefault();
+          askStore = true;
+          sub.textContent = 'Sign in to continue.';
+          showStoreBox();
+          (form.username.value ? form.storeNumber : form.username).focus();
+        });
+        sub.append(change);
+      }
+      // The last email or username used on this phone is filled in, so only the password is needed.
       if (lastEmail()) {
         form.username.value = lastEmail();
-        form.password.focus();
+        showStoreBox();
+        (storeBox.classList.contains('hidden') ? form.password : form.storeNumber).focus();
       }
+      form.username.addEventListener('input', showStoreBox);
     }
 
     if (PHONE_ON_DATABASE) {
@@ -95,8 +124,8 @@
     document.getElementById('forgot').addEventListener('click', async (e) => {
       e.preventDefault();
       const email = form.username.value.trim();
-      if (!email) {
-        showMessage(messageEl, 'Enter your email first.');
+      if (!email.includes('@')) {
+        showMessage(messageEl, 'Type your email to get a reset link.');
         return;
       }
       try {
@@ -113,10 +142,10 @@
       messageEl.textContent = '';
       try {
         const session = await whileBusy(form.querySelector('button[type="submit"]'), 'Signing in…', () => api('login', USE_DATABASE
-          ? { email: form.username.value, password: form.password.value }
+          ? { login: form.username.value, password: form.password.value, storeNumber: storeBox.classList.contains('hidden') ? '' : form.storeNumber.value }
           : { username: form.username.value, password: form.password.value }));
         saveSession(session);
-        if (USE_DATABASE) rememberEmail(session.email || form.username.value);
+        if (USE_DATABASE) rememberEmail(isEmail() ? session.email || form.username.value : form.username.value);
         location.replace(startPage(session));
       } catch (err) {
         showMessage(messageEl, err.message);

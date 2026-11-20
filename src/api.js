@@ -83,6 +83,11 @@ function getSession() {
 
 function saveSession(session) {
   try { localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session)); } catch (e) {}
+  if (session && session.backend === 'supabase' && session.storeId) {
+    try {
+      localStorage.setItem(SIGN_IN_STORE_KEY, JSON.stringify({ storeId: session.storeId, storeName: session.storeName, storeNumber: session.storeNumber }));
+    } catch (e) {}
+  }
 }
 
 function clearSession() {
@@ -113,14 +118,25 @@ function storeToday() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-// The email of the last person who signed in on this phone (owner 2026-11-12), so after the 12-hour sign-out Sign In
-// only needs the password. Kept when signing out on purpose; Sign In can be typed over for someone else.
+// The email or username the last person signed in with on this phone (owner 2026-11-12), so after the 12-hour
+// sign-out Sign In only needs the password. Kept when signing out on purpose; Sign In can be typed over for someone else.
 const LAST_EMAIL_KEY = 'smartScanLastEmail';
 function rememberEmail(email) {
   try { if (email) localStorage.setItem(LAST_EMAIL_KEY, String(email).trim().toLowerCase()); } catch (e) {}
 }
 function lastEmail() {
   try { return localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch (e) { return ''; }
+}
+
+// The store this phone signs in to (owner 2026-11-20): a username is unique only inside a store, so Sign In shows this
+// store's name and sends it with a username. Saved with every database session that has a store (so switching stores
+// moves it too); kept when signing out. { storeId, storeName, storeNumber } or null.
+const SIGN_IN_STORE_KEY = 'smartScanSignInStore';
+function signInStore() {
+  try { const s = JSON.parse(localStorage.getItem(SIGN_IN_STORE_KEY) || 'null'); return s && s.storeId ? s : null; } catch (e) { return null; }
+}
+function forgetSignInStore() {
+  try { localStorage.removeItem(SIGN_IN_STORE_KEY); } catch (e) {}
 }
 
 // Each backend request takes about 2 seconds, so a page first shows its last answer saved on this phone,
@@ -353,6 +369,8 @@ function enterStore(store, storeCount) {
 // account too. Returns the page to open.
 async function leaveCurrentStore(stay = false) {
   const session = getSession();
+  // Sign In stops offering the store they lost (the next store they enter takes its place).
+  if (signInStore() && signInStore().storeId === session.storeId) forgetSignInStore();
   clearStoreWork();
   clearPendingClose();
   rememberStore(session.email, '');
@@ -433,8 +451,24 @@ function setPasswordUrl() {
 
 // The actions that aren't a database function of the same name.
 const DB_ACTIONS = {
-  // Returns the session to save, like the Apps Script login.
-  login: async ({ email, password }) => dbSessionFor(await dbSignIn(email, password)),
+  // Returns the session to save, like the Apps Script login. One box (owner 2026-11-20): with an @ it's an email;
+  // otherwise a username at the Store ID typed in, or at the store this phone remembers (the signin Edge Function).
+  login: async ({ login, email, password, storeNumber }) => {
+    const name = String(login ?? email ?? '').trim();
+    if (name.includes('@')) return dbSessionFor(await dbSignIn(name, password));
+    const store = String(storeNumber || '').trim() ? null : signInStore();
+    if (!store && !String(storeNumber || '').trim()) throw new ApiError('need_store', 'Type your Store ID.');
+    const r = await dbFetch('/functions/v1/signin', { body: { storeId: store ? store.storeId : '', storeNumber: String(storeNumber || '').trim(),
+      username: name, password: String(password || '') } });
+    if (!(r.data && r.data.ok)) {
+      if (r.data && r.data.code) throw new ApiError(r.data.code, r.data.error);
+      throw serverError();
+    }
+    const { tokens, storeId } = r.data.data;
+    // Open the store they signed in to, even when the account is on several.
+    rememberStore(tokens.user && tokens.user.email, storeId);
+    return dbSessionFor(tokens);
+  },
   // Signs out this phone only (other phones of the same person stay signed in, as before).
   logout: async () => {
     const session = getSession();
@@ -550,7 +584,9 @@ const DB_ACTIONS = {
     clearStoreWork();
     clearPendingClose();
     rememberStore(session.email, '');
-    try { if (lastEmail() === String(session.email || '').toLowerCase()) localStorage.removeItem(LAST_EMAIL_KEY); } catch (e) {}
+    try {
+      if ([String(session.email || '').toLowerCase(), String(session.username || '').toLowerCase()].includes(lastEmail())) localStorage.removeItem(LAST_EMAIL_KEY);
+    } catch (e) {}
     clearSession();
     return {};
   },

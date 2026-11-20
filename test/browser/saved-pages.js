@@ -81,7 +81,7 @@ const monthsPage = (dollars, canStart) => ({ status: { current: '2026-09', curre
   await page.goto(base + 'backstock.html'); await sleep(400);
   assert.ok(await saved());
   assert.match(await txt('#stock'), /7 Packs/);
-  assert.match(await txt('#loadMessage'), /Could not reach/);
+  assert.match(await txt('#loadMessage'), /Can't reach the server/);
 
   console.log('SAVED PAGES CHECKS PASS');
   await app.close();

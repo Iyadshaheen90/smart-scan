@@ -45,9 +45,9 @@ const FAQ = [
         id: 'sign-in', who: 'everyone', backend: 'supabase',
         q: { en: 'How do I sign in?', es: '¿Cómo inicio sesión?', ar: 'كيف أسجّل الدخول؟' },
         a: {
-          en: 'Type your email and password on Sign In. The owner adds you first, and you get an email to choose your password. After the first time, your phone fills in your email, so you only type the password. Tap Save Password when your phone offers it, and next time Face ID or one tap signs you in.',
-          es: 'Escribe tu correo y tu contraseña en Sign In. Primero el dueño te agrega y recibes un correo para elegir tu contraseña. Después de la primera vez, tu teléfono llena tu correo y solo escribes la contraseña. Toca Guardar contraseña cuando tu teléfono lo ofrezca, y la próxima vez entras con Face ID o un toque.',
-          ar: 'اكتب بريدك الإلكتروني وكلمة المرور في صفحة Sign In. يضيفك المالك أولاً، ثم تصلك رسالة لاختيار كلمة المرور. بعد المرة الأولى يملأ هاتفك بريدك تلقائياً، فتكتب كلمة المرور فقط. اضغط حفظ كلمة المرور عندما يعرض هاتفك ذلك، وفي المرة القادمة تدخل بـ Face ID أو بلمسة واحدة.',
+          en: 'Type your email or your username, and your password, on Sign In. The owner adds you first, and you get an email to choose your password. With a username, a new phone also asks for the Store ID (the owner has it under More → Store Info); after that, Sign In shows your store\'s name and fills in what you typed, so you only type the password. Tap Save Password when your phone offers it, and next time Face ID or one tap signs you in.',
+          es: 'En Sign In escribe tu correo o tu nombre de usuario, y tu contraseña. Primero el dueño te agrega y recibes un correo para elegir tu contraseña. Con nombre de usuario, un teléfono nuevo también pide el Store ID (el dueño lo tiene en More → Store Info); después, Sign In muestra el nombre de tu tienda y llena lo que escribiste, así que solo escribes la contraseña. Toca Guardar contraseña cuando tu teléfono lo ofrezca, y la próxima vez entras con Face ID o un toque.',
+          ar: 'اكتب بريدك الإلكتروني أو اسم المستخدم، وكلمة المرور، في صفحة Sign In. يضيفك المالك أولاً، ثم تصلك رسالة لاختيار كلمة المرور. مع اسم المستخدم يطلب الهاتف الجديد أيضاً Store ID (يجده المالك في More ← Store Info)؛ بعد ذلك تُظهر صفحة Sign In اسم متجرك وتملأ ما كتبته، فتكتب كلمة المرور فقط. اضغط حفظ كلمة المرور عندما يعرض هاتفك ذلك، وفي المرة القادمة تدخل بـ Face ID أو بلمسة واحدة.',
         },
       },
       {
@@ -72,9 +72,9 @@ const FAQ = [
         id: 'forgot', who: 'everyone', backend: 'supabase',
         q: { en: 'I forgot my password.', es: 'Olvidé mi contraseña.', ar: 'نسيت كلمة المرور.' },
         a: {
-          en: 'Type your email on Sign In, then tap Forgot Password?. You\'ll get an email to choose a new one (check Spam). The link works once, for 24 hours.',
-          es: 'Escribe tu correo en Sign In y toca Forgot Password?. Recibirás un correo para elegir una nueva (revisa Spam). El enlace funciona una sola vez, durante 24 horas.',
-          ar: 'اكتب بريدك الإلكتروني في صفحة Sign In ثم اضغط Forgot Password?. ستصلك رسالة لاختيار كلمة مرور جديدة (تحقّق من Spam). يعمل الرابط مرة واحدة فقط لمدة 24 ساعة.',
+          en: 'Type your email (not your username) on Sign In, then tap Forgot Password?. You\'ll get an email to choose a new one (check Spam). The link works once, for 24 hours. Or ask the owner to reset it.',
+          es: 'Escribe tu correo (no tu nombre de usuario) en Sign In y toca Forgot Password?. Recibirás un correo para elegir una nueva (revisa Spam). El enlace funciona una sola vez, durante 24 horas. O pide al dueño que la restablezca.',
+          ar: 'اكتب بريدك الإلكتروني (وليس اسم المستخدم) في صفحة Sign In ثم اضغط Forgot Password?. ستصلك رسالة لاختيار كلمة مرور جديدة (تحقّق من Spam). يعمل الرابط مرة واحدة فقط لمدة 24 ساعة. أو اطلب من المالك إعادة تعيينها.',
         },
       },
       {
@@ -130,9 +130,9 @@ const FAQ = [
         id: 'signed-out', who: 'everyone',
         q: { en: 'Why was I signed out?', es: '¿Por qué se cerró mi sesión?', ar: 'لماذا تم تسجيل خروجي؟' },
         a: {
-          en: 'You stay signed in for 12 hours, then sign in again. You\'re also signed out if the owner turns your account off. On the database your email is already filled in, so only the password is needed.',
-          es: 'La sesión dura 12 horas; después vuelves a iniciar sesión. También se cierra si el dueño desactiva tu cuenta. Con la base de datos tu correo ya aparece escrito, así que solo necesitas la contraseña.',
-          ar: 'يبقى تسجيل الدخول 12 ساعة، ثم تسجّل الدخول من جديد. ويتم تسجيل خروجك أيضاً إذا أوقف المالك حسابك. مع قاعدة البيانات يكون بريدك مكتوباً مسبقاً، فتحتاج كلمة المرور فقط.',
+          en: 'You stay signed in for 12 hours, then sign in again. You\'re also signed out if the owner turns your account off. On the database your email or username is already filled in, so only the password is needed.',
+          es: 'La sesión dura 12 horas; después vuelves a iniciar sesión. También se cierra si el dueño desactiva tu cuenta. Con la base de datos tu correo o nombre de usuario ya aparece escrito, así que solo necesitas la contraseña.',
+          ar: 'يبقى تسجيل الدخول 12 ساعة، ثم تسجّل الدخول من جديد. ويتم تسجيل خروجك أيضاً إذا أوقف المالك حسابك. مع قاعدة البيانات يكون بريدك أو اسم المستخدم مكتوباً مسبقاً، فتحتاج كلمة المرور فقط.',
         },
       },
     ],
