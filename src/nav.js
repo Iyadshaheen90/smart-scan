@@ -133,6 +133,74 @@ function addPasswordEyes() {
   });
 }
 
+// ---- Subscriptions: the Upgrade to Pro pop-up and the plan banner (design: smart-scan-subscriptions-design.md) ----
+
+// 'YYYY-MM-DD' → 'Dec 20'.
+function planDay(ymd) {
+  const [y, m, d] = String(ymd || '').split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// A Pro-only feature (needs_pro) or the plan ended (subscription_ended): why, what Pro adds, and what to do.
+// The owner gets See Plans; an employee is told to ask the owner (employees never see prices).
+function showPlanPopup(code, message) {
+  const session = getSession();
+  const owner = Boolean(session && session.role === 'owner');
+  const old = document.getElementById('planPopup');
+  if (old) old.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'planPopup';
+  wrap.className = 'overlay';
+  wrap.setAttribute('role', 'dialog');
+  wrap.setAttribute('aria-modal', 'true');
+  const pro = code === 'needs_pro';
+  const list = pro ? `<ul class="plan-list">${PRO_FEATURES.map((f) => `<li>${icon('check')}<span>${navEscape(f)}</span></li>`).join('')}</ul>` : '';
+  const ask = owner ? '' : `<p class="plan-ask">${pro ? 'Ask the owner about Pro.' : ''}</p>`;
+  wrap.innerHTML = `<div class="dialog plan-dialog">
+      <div class="dialog-title">${pro ? 'Upgrade to Pro' : 'Subscription Ended'}</div>
+      <p class="plan-why"></p>${list}${ask}
+      <div class="dialog-buttons">${owner
+        ? '<button type="button" data-close>Not Now</button><button type="button" class="save" data-plans>See Plans</button>'
+        : '<button type="button" class="save" data-close>OK</button>'}</div>
+    </div>`;
+  wrap.querySelector('.plan-why').textContent = message || '';
+  wrap.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => wrap.remove()));
+  const plans = wrap.querySelector('[data-plans]');
+  if (plans) plans.addEventListener('click', () => { location.href = 'plans.html'; });
+  wrap.addEventListener('click', (e) => { if (e.target === wrap) wrap.remove(); });
+  document.body.append(wrap);
+}
+
+// One line about the plan when something needs attention, or null. The owner's lines lead to Plans or Subscription.
+function planBanner(sub, owner) {
+  if (!sub || sub.status === 'comp') return null;
+  if (sub.access === 'read_only') {
+    return owner ? { text: 'Your subscription has ended. Saving is off.', action: 'See Plans', href: 'plans.html', kind: 'red' }
+      : { text: 'Your store\'s subscription has ended. Ask the owner.', kind: 'red' };
+  }
+  if (!owner) return null;
+  if (sub.status === 'billing_issue') return { text: 'Payment problem. Update your payment.', action: 'Fix', href: 'subscription.html', kind: 'amber' };
+  if (sub.status === 'trialing' && sub.trialEndsOn) {
+    const days = Math.round((new Date(`${sub.trialEndsOn}T12:00:00`) - new Date()) / 86400000);
+    if (days <= 3) return { text: `Free trial ends ${planDay(sub.trialEndsOn)}.`, action: 'Plans', href: 'plans.html', kind: 'amber' };
+  }
+  if (sub.status === 'active' && !sub.willRenew && sub.renewsOn) {
+    return { text: `Subscription ends ${planDay(sub.renewsOn)}.`, action: 'Renew', href: 'plans.html', kind: 'amber' };
+  }
+  return null;
+}
+function drawPlanBanner(el, sub) {
+  const session = getSession();
+  const b = planBanner(sub || storePlan(), Boolean(session && session.role === 'owner'));
+  el.classList.toggle('hidden', !b);
+  if (!b) return;
+  el.className = `plan-banner ${b.kind}`;
+  el.innerHTML = '<span class="plan-banner-text"></span>' + (b.href ? `<a class="plan-banner-action" href="${b.href}"></a>` : '');
+  el.querySelector('.plan-banner-text').textContent = b.text;
+  if (b.href) el.querySelector('.plan-banner-action').textContent = b.action;
+}
+
 (function renderNav() {
   const session = getSession();
   document.querySelectorAll('header.app-header').forEach((el) => renderHeader(el, session));

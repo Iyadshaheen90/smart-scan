@@ -154,6 +154,15 @@ Frontend (`src/`, plain HTML + JS, no build):
   floating `.bulk-bar` Activate All is enabled only when the latest check is all Ready. Saved → done view (per slot,
   old pack ended, left in the back) with **Undo All** (`undoActivateSeveral`; the packs go back on the list). Same
   pack twice or a pack already live is refused at scan. Test: test/browser/activate-several.js (dev project).
+- `plans.html` Plans + `subscription.html` More → Subscription (subscriptions step 2, 2026-11-20; owner only, database
+  only, only once the session has `subscription`): Monthly / Yearly, Basic and Pro (`PLAN_PRICES`, `PRO_FEATURES` in
+  api.js), the trial line (status none), comp = no buttons; Subscription shows plan, state chip, dates, source, Change
+  Plan / Manage / Restore. **Buying isn't wired** ("Buying isn't open yet.") until steps 3-5. The session keeps the
+  plan (`storeFields` from my_stores; `noteSubscription` from any answer that has it); `storePlan()` reads it.
+  One place shows `needs_pro` / `subscription_ended`: `dbApi`'s catch calls `showPlanPopup` (nav.js; owner: See
+  Plans; employee: ask the owner) and empties the error's message so the page's own `.message` stays hidden.
+  Home's `#planBanner` (`drawPlanBanner`): trial ending (≤ 3 days), payment problem, ending, ended (employees: ended
+  only). More's `#subRow`. FAQ section `plans` (`plans: true` = only with a plan). Test: `test/browser/plans-pages.js`.
 - `restock.html` Ready to Restock (Pro; database only; owner + Load packs; owner 2026-11-16): `restockList` rows
   (`[data-slot="b-s"]`) = empty slots whose last game has packs in the back, with the oldest (`oldestPackWords` in
   api.js) and "N in Back"; a row opens `activate.html?from=restock`. Shown from Home `#restockCard` and Slots

@@ -64,6 +64,9 @@
     </div>
   </div>
 
+  <!-- The plan, only when it needs attention (subscriptions): trial ending, payment problem, ending, ended. -->
+  <div id="planBanner" class="plan-banner hidden"></div>
+
   <!-- Today's status. The owner also sees the last close's totals (sales are only counted at the close). -->
   <div class="status-card" id="statusCard">
     <div class="status-top">
@@ -261,12 +264,14 @@
 
     // Everything on the owner's home comes in one request (each one costs about 2 seconds).
     async function loadStatus() {
+      drawPlanBanner($('planBanner'));
       if (isOwner) {
         const saved = savedHome();
         if (saved) showOwnerHome(saved, false);
         try {
           const home = await api('ownerHome');
           try { localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(home)); } catch (e) {}
+          drawPlanBanner($('planBanner'), home.subscription);
           showOwnerHome(home, true);
         } catch (err) {
           if (saved) return;
@@ -276,6 +281,7 @@
       } else {
         try {
           const status = await api('closeStatus');
+          drawPlanBanner($('planBanner'), status.subscription);
           showCloseYesterday(status.closeYesterday);
           updateSessionPermissions(status.permissions);
           showExtraActions(getSession());

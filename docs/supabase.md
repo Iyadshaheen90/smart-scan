@@ -155,6 +155,7 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   `set_user_active` on) `needs_pro`; Pro: beyond 10 `employee_limit`. `store_members.paused` (set in step 3) →
   `unauthorized` in `enter_store`. `subscription { access, status, plan, trialEndsOn, renewsOn, willRenew, source,
   canBuy }` in my_stores (per store), me, close_status, owner_home (those two moved to `app.*_body` + a wrapper).
+  Pages (step 2, 2026-11-20): docs/code-map.md `plans.html`; Choose Who Stays waits for step 3 (pausing).
   The functions were changed by patching their live text (`pg_temp.patch` in the migration). Parity tests drop
   `subscription` (Sheets has none). Not yet: `subscription_events`, `trial_claims` (step 3), pages (step 2).
   `scripts/preview-wizard.js` stores are read-only now (set one comp with service_set_subscription to try more).

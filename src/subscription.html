@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Subscription</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Subscription" data-back="more.html" data-back-label="More"></header>
+  <!-- More → Subscription (subscriptions step 2; owner only, database only): the store's plan, its state and dates,
+       Change Plan, Manage Subscription (Apple / Google / the website, by where it was bought) and Restore Purchases.
+       Manage and Restore are wired in steps 3-5. -->
+  <div id="subPage" class="hidden">
+    <div class="sub-card">
+      <div class="sub-card-head"><span class="sub-plan" id="planName"></span><span class="chip" id="planChip"></span></div>
+      <div class="sub-line" id="planLine"></div>
+      <div class="sub-line hidden" id="planSource"></div>
+    </div>
+    <a class="button primary hidden" href="plans.html" id="changePlan">Change Plan</a>
+    <button type="button" class="hidden" id="manage">Manage Subscription</button>
+    <div id="buyMessage" class="message"></div>
+    <div class="plan-links"><a href="#" id="restore">Restore Purchases</a></div>
+  </div>
+  <div id="message" class="message"></div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin();
+    const $ = (id) => document.getElementById(id);
+    const PLAN_NAME = { basic: 'Basic', pro: 'Pro' };
+    const SOURCE = { app_store: 'Paid through the App Store', play_store: 'Paid through Google Play', stripe: 'Paid on the website' };
+
+    // name, chip [text, color], line for each state.
+    function describe(s) {
+      const plan = PLAN_NAME[s.plan] || 'Pro';
+      if (s.status === 'comp') return [plan, ['Free', 'green'], 'Free for this store, with every Pro feature.'];
+      if (s.access === 'read_only') return [s.plan ? plan : 'No Plan', ['Ended', 'red'], 'Saving is off. Reports and downloads still work.'];
+      if (s.status === 'trialing') return [plan, ['Free Trial', 'green'], `Free trial ends ${planDay(s.trialEndsOn)}, then ${plan}.`];
+      if (s.status === 'billing_issue') return [plan, ['Payment Problem', 'amber'], 'Update your payment to keep your plan.'];
+      if (!s.willRenew) return [plan, ['Ending', 'amber'], s.renewsOn ? `Ends ${planDay(s.renewsOn)}.` : 'Doesn\'t renew.'];
+      return [plan, ['Active', 'green'], s.renewsOn ? `Renews ${planDay(s.renewsOn)}.` : 'Renews automatically.'];
+    }
+
+    function draw(s) {
+      const [name, [chip, color], line] = describe(s);
+      $('planName').textContent = name;
+      $('planChip').textContent = chip;
+      $('planChip').className = `chip ${color}`;
+      $('planLine').textContent = line;
+      $('planSource').textContent = SOURCE[s.source] || '';
+      $('planSource').classList.toggle('hidden', !SOURCE[s.source]);
+      const comp = s.status === 'comp';
+      $('changePlan').classList.toggle('hidden', comp);
+      $('changePlan').textContent = s.access === 'read_only' ? 'See Plans' : 'Change Plan';
+      $('manage').classList.toggle('hidden', comp || !SOURCE[s.source]);
+      document.querySelector('.plan-links').classList.toggle('hidden', comp);
+    }
+
+    // Managing and restoring come with steps 3-5 (the billing function, the website checkout, the store apps).
+    function notOpen(e) {
+      if (e) e.preventDefault();
+      showMessage($('buyMessage'), 'Buying isn\'t open yet.');
+    }
+
+    if (session && session.role !== 'owner') {
+      showMessage($('message'), 'Only the owner can see the subscription.');
+    } else if (session && !storePlan()) {
+      showMessage($('message'), 'Subscriptions aren\'t open yet.', 'ok');
+    } else if (session) {
+      $('subPage').classList.remove('hidden');
+      $('manage').addEventListener('click', notOpen);
+      $('restore').addEventListener('click', notOpen);
+      draw(storePlan());
+      api('me').then(() => draw(storePlan())).catch(() => {});
+    }
+  </script>
+</body>
+</html>

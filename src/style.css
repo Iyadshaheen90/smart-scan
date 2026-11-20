@@ -1073,3 +1073,36 @@ a.link-button { display: block; width: fit-content; margin: 18px auto 0; padding
 .scan-warn { margin-top: 12px; padding: 14px 16px; border-radius: 16px; background: var(--warn-bg); border: 1px solid var(--amber); }
 .scan-warn-title { font-size: 16px; font-weight: 800; color: var(--amber); }
 .scan-warn-text { margin-top: 4px; font-size: 15px; line-height: 1.4; }
+
+/* Subscriptions (step 2): the Upgrade to Pro pop-up, the plan banner, Plans and Subscription. */
+.plan-dialog .plan-why { color: var(--muted); margin: 8px 0 0; line-height: 1.4; }
+.plan-list { list-style: none; padding: 0; margin: 14px 0 0; text-align: left; display: grid; gap: 8px; }
+.plan-list li { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.plan-list svg { width: 18px; height: 18px; flex: none; color: var(--accent-bright); }
+.plan-list li.off { color: var(--muted); }
+.plan-list li.off svg { color: var(--muted); }
+.plan-ask { margin: 12px 0 0; font-weight: 600; }
+.plan-ask:empty { display: none; }
+.plan-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin-bottom: 12px;
+  border-radius: 14px; font-size: 15px; font-weight: 600; line-height: 1.35; }
+.plan-banner.amber { background: var(--amber-bg); color: var(--amber); }
+.plan-banner.red { background: var(--error-bg); color: var(--danger); }
+.plan-banner-action { flex: none; color: inherit; text-decoration: none; font-weight: 800; padding: 6px 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08); }
+.plan-cards { display: grid; gap: 12px; margin-top: 12px; }
+.plan-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 18px 16px 16px; }
+.plan-card.pro { border: 2px solid var(--accent); }
+.plan-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.plan-card-name { font-size: 20px; font-weight: 800; }
+.plan-price { margin-top: 8px; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.plan-price small { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.plan-save { font-size: 14px; color: var(--muted); margin-top: 2px; min-height: 1.4em; }
+.plan-card .plan-list { margin-top: 14px; }
+.plan-card button { margin-top: 16px; }
+.plan-note { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 16px 2px 0; }
+.plan-note a, .plan-links a { color: var(--accent-bright); text-decoration: none; font-weight: 600; }
+.plan-links { display: flex; justify-content: center; gap: 18px; margin-top: 14px; font-size: 14px; }
+.sub-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 18px 16px; }
+.sub-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sub-plan { font-size: 22px; font-weight: 800; }
+.sub-line { color: var(--muted); margin-top: 6px; font-size: 15px; }

@@ -7,6 +7,7 @@
 //        tagged 'everyone' or 'employee' or one of the permissions the owner turned on for them; the owner sees all.
 //   backend: 'sheets' | 'supabase' — only on that backend (sign-in, passwords and months work differently).
 //   signUp: true — only while self sign-up is open (config.js SIGN_UP_OPEN): what it describes is hidden until then.
+//   plans: true — only once the store has a plan (session.subscription; subscriptions, migration 0033).
 //   go: the page the Go There button opens.
 // Answers: one paragraph per line; lines starting "1. " make a numbered list, lines starting "- " a bullet list.
 // Rules (test/browser/help.js): no dollar sign in anything an employee can see (except the password rule's signs),
@@ -790,6 +791,40 @@ const FAQ = [
     ],
   },
   {
+    // Subscriptions (2026-11-20, step 2): shown once the store has a plan (plans: true). No prices here: employees read it.
+    id: 'plans',
+    title: { en: 'Your Plan', es: 'Tu plan', ar: 'خطتك' },
+    items: [
+      {
+        id: 'plans', who: 'owner', backend: 'supabase', plans: true, go: 'plans.html',
+        q: { en: 'What do Basic and Pro include?', es: '¿Qué incluyen Basic y Pro?', ar: 'ماذا تشمل خطتا Basic وPro؟' },
+        a: {
+          en: 'More → Subscription → Change Plan shows both, with prices.\n- Basic: scanning, closes, inventory and reports, 1 shift close a day and 2 employees.\n- Pro: everything in Basic, plus unlimited shift closes, up to 10 employees, Settling, Theft Report and Ready to Restock.\nA new store with its Retailer Number can start with 7 days free, with everything in Pro.',
+          es: 'More → Subscription → Change Plan muestra los dos, con precios.\n- Basic: escaneo, cierres, inventario y reportes, 1 cierre de turno al día y 2 empleados.\n- Pro: todo lo de Basic, más cierres de turno sin límite, hasta 10 empleados, Settling, Theft Report y Ready to Restock.\nUna tienda nueva con su Retailer Number puede empezar con 7 días gratis, con todo lo de Pro.',
+          ar: 'More ← Subscription ← Change Plan تعرض الخطتين مع الأسعار.\n- Basic: المسح والإغلاقات والمخزون والتقارير، وإغلاق وردية واحد في اليوم، وموظفان.\n- Pro: كل ما في Basic، بالإضافة إلى إغلاقات ورديات بلا حد، وحتى 10 موظفين، وSettling وTheft Report وReady to Restock.\nيمكن للمتجر الجديد الذي أدخل Retailer Number أن يبدأ بـ 7 أيام مجاناً مع كل ما في Pro.',
+        },
+      },
+      {
+        id: 'upgrade-pro', who: 'everyone', backend: 'supabase', plans: true,
+        q: { en: 'Why does it say Upgrade to Pro?', es: '¿Por qué dice Upgrade to Pro?', ar: 'لماذا تظهر رسالة Upgrade to Pro؟' },
+        a: {
+          en: 'That feature comes with Pro, and your store is on Basic. The owner can change the plan under More → Subscription. Employees: ask the owner.',
+          es: 'Esa función viene con Pro, y tu tienda tiene Basic. El dueño puede cambiar el plan en More → Subscription. Empleados: pregunten al dueño.',
+          ar: 'هذه الميزة متوفرة في Pro، ومتجرك على خطة Basic. يمكن للمالك تغيير الخطة من More ← Subscription. أيها الموظفون: اسألوا المالك.',
+        },
+      },
+      {
+        id: 'plan-ended', who: 'everyone', backend: 'supabase', plans: true,
+        q: { en: 'What happens when the subscription ends?', es: '¿Qué pasa cuando termina la suscripción?', ar: 'ماذا يحدث عندما ينتهي الاشتراك؟' },
+        a: {
+          en: 'Saving stops: no closes, scans or changes. Reports, downloads and Manage Employees still work, and nothing is deleted. The owner picks a plan under More → Subscription to turn saving back on.',
+          es: 'Se deja de guardar: no hay cierres, escaneos ni cambios. Los reportes, las descargas y Manage Employees siguen funcionando, y no se borra nada. El dueño elige un plan en More → Subscription para volver a guardar.',
+          ar: 'يتوقف الحفظ: لا إغلاقات ولا مسح ولا تغييرات. تبقى التقارير والتنزيلات وManage Employees تعمل، ولا يُحذف شيء. يختار المالك خطة من More ← Subscription لتشغيل الحفظ من جديد.',
+        },
+      },
+    ],
+  },
+  {
     id: 'problems',
     title: { en: 'Fixing Problems', es: 'Solución de problemas', ar: 'حل المشكلات' },
     items: [
@@ -917,6 +952,7 @@ function faqVisible(item, session, backend) {
   if (item.backend && item.backend !== backend) return false;
   if (item.signUp && !(typeof SIGN_UP_IS_OPEN !== 'undefined' && SIGN_UP_IS_OPEN)) return false;
   if (!session) return false;
+  if (item.plans && !session.subscription) return false;
   if (session.role === 'owner') return true;
   const who = [].concat(item.who);
   const permissions = session.permissions || [];

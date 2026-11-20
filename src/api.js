@@ -293,7 +293,7 @@ async function dbSessionFor(tokens) {
 
 // What the session keeps about the person's store (a my_stores row, or create_store's answer); no store: none of it.
 function storeFields(store) {
-  if (!store) return { storeId: null, storeName: null, storeNumber: null, timeZone: null, dayEndHour: null, username: null, role: null, permissions: [] };
+  if (!store) return { storeId: null, storeName: null, storeNumber: null, timeZone: null, dayEndHour: null, username: null, role: null, permissions: [], subscription: null };
   return {
     storeId: store.storeId,
     storeName: store.storeName,
@@ -303,6 +303,7 @@ function storeFields(store) {
     username: store.username,
     role: store.role,
     permissions: store.permissions,
+    subscription: store.subscription || null,
   };
 }
 
@@ -529,7 +530,7 @@ const DB_ACTIONS = {
   sendPasswordReset: ({ username }) => dbMembers('sendReset', { username, redirectTo: setPasswordUrl() }),
   // A new invite email for someone who hasn't signed in yet (database only; the sheets have no emails).
   resendInvite: ({ username }) => dbMembers('resendInvite', { username, redirectTo: setPasswordUrl() }),
-  me: () => dbRpc('me', { p_store: getSession().storeId }),
+  me: async () => { const answer = await dbRpc('me', { p_store: getSession().storeId }); noteSubscription(answer); return answer; },
   // Create Account (self sign-up): Supabase Auth emails a link to confirm the address; it opens setup.html signed in.
   // Says the same for an email that already has an account (the server doesn't tell which).
   signUp: async ({ email, password }) => {
@@ -602,7 +603,9 @@ async function dbApi(action, params) {
     if (!session || !session.storeId) throw signedOut();
     const fn = action.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
     try {
-      return await dbRpc(fn, { p_store: session.storeId, req: params });
+      const answer = await dbRpc(fn, { p_store: session.storeId, req: params });
+      noteSubscription(answer);
+      return answer;
     } catch (err) {
       // Refused: maybe this person isn't on the store any more (taken off, or the store was deleted). Then the phone
       // moves to a store they still have, or signs out, instead of staying on pages that can't load.
@@ -614,8 +617,32 @@ async function dbApi(action, params) {
       clearSession();
       location.href = 'login.html';
     }
+    // Pro only, or the plan ended (subscriptions): one pop-up says why and what to do, so the page's own message
+    // stays empty (an empty .message doesn't show).
+    if (PLAN_CODES.includes(err.code) && typeof showPlanPopup === 'function') {
+      showPlanPopup(err.code, err.message);
+      err.message = '';
+    }
     throw err;
   }
+}
+
+// ---- Subscriptions (database, migration 0033; design: ~/.claude/plans/smart-scan-subscriptions-design.md) ----
+// The store's plan comes with my_stores (sign-in) and with me / closeStatus / ownerHome; the session keeps the latest.
+// No plan in the answer (Sheets, or the database before 0033): none of the plan screens show.
+const PLAN_CODES = ['needs_pro', 'subscription_ended'];
+// Shown on Plans (owner only; employees never see prices). From the stores' own prices once buying is wired (step 5).
+const PLAN_PRICES = { basic: { month: 19.99, year: 199.99 }, pro: { month: 24.99, year: 249.99 } };
+// What Pro adds to Basic (owner 2026-10-30, 2026-11-16): the Upgrade to Pro pop-up and Plans list these.
+const PRO_FEATURES = ['Unlimited shift closes', 'Up to 10 employees', 'Settling', 'Theft Report', 'Ready to Restock'];
+function noteSubscription(answer) {
+  if (!answer || typeof answer !== 'object' || !answer.subscription) return;
+  const session = getSession();
+  if (session && session.backend === 'supabase' && session.storeId) saveSession({ ...session, subscription: answer.subscription });
+}
+function storePlan() {
+  const session = getSession();
+  return (session && session.backend === 'supabase' && session.subscription) || null;
 }
 
 // Is the signed-in person still on this store? (True when it can't be checked, so a hiccup changes nothing.)

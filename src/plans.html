@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1010">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Smart Scan">
+<title>Smart Scan — Plans</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" data-title="Plans" data-back="more.html" data-back-label="More"></header>
+  <!-- Plans (subscriptions step 2; owner only, database only; design: smart-scan-subscriptions-design.md): Monthly /
+       Yearly, Basic and Pro with what each has, the trial line for a store that never had a plan, the renewal words
+       the stores require. Buying is wired in steps 3-5; until then Choose says so. Employees never see prices. -->
+  <div id="plansPage" class="hidden">
+    <div class="segmented" role="tablist">
+      <button type="button" class="active" data-period="month">Monthly</button>
+      <button type="button" data-period="year">Yearly</button>
+    </div>
+    <p class="sub hidden" id="trialLine">Start with 7 days free, with everything in Pro. Needs your Retailer Number.</p>
+    <p class="sub hidden" id="compLine">Your store has Pro for free.</p>
+    <div class="plan-cards" id="cards"></div>
+    <div id="buyMessage" class="message"></div>
+    <p class="plan-note">Plans renew automatically until you cancel. Cancel anytime before the renewal date, in your App Store, Google Play or website account. One plan per store.</p>
+    <div class="plan-links"><a href="#" id="restore">Restore Purchases</a></div>
+  </div>
+  <div id="message" class="message"></div>
+
+  <nav class="tabbar" data-active="more"></nav>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="icons.js"></script>
+  <script src="nav.js"></script>
+  <script>
+    const session = requireLogin();
+    const $ = (id) => document.getElementById(id);
+    const BASIC = [['Scanning, closes, inventory and reports', true], ['1 shift close a day', true], ['2 employees', true],
+      ['Settling', false], ['Theft Report', false], ['Ready to Restock', false]];
+    let period = 'month';
+    let sub = storePlan();
+
+    const money = (n) => `$${n.toFixed(2)}`;
+    const listHtml = (items) => `<ul class="plan-list">${items.map(([text, on]) =>
+      `<li class="${on ? '' : 'off'}">${icon(on ? 'check' : 'x')}<span>${navEscape(text)}</span></li>`).join('')}</ul>`;
+
+    function draw() {
+      const current = sub && ['active', 'trialing', 'billing_issue'].includes(sub.status) ? sub.plan : null;
+      const comp = Boolean(sub && sub.status === 'comp');
+      $('trialLine').classList.toggle('hidden', !(sub && sub.status === 'none'));
+      $('compLine').classList.toggle('hidden', !comp);
+      $('cards').innerHTML = ['basic', 'pro'].map((plan) => {
+        const price = PLAN_PRICES[plan][period];
+        const saving = PLAN_PRICES[plan].month * 12 - PLAN_PRICES[plan].year;
+        const items = plan === 'pro' ? [['Everything in Basic', true], ...PRO_FEATURES.map((f) => [f, true])] : BASIC;
+        const mine = comp ? plan === 'pro' : current === plan;
+        const name = plan === 'pro' ? 'Pro' : 'Basic';
+        const button = comp ? '' : `<button type="button" class="${plan === 'pro' ? 'primary' : ''}" data-plan="${plan}" ${mine ? 'disabled' : ''}>${mine ? 'Your Plan' : `Choose ${name}`}</button>`;
+        return `<div class="plan-card ${plan}">
+          <div class="plan-card-head"><span class="plan-card-name">${name}</span>${mine ? '<span class="chip green">Current</span>' : ''}</div>
+          <div class="plan-price">${money(price)} <small>/ ${period}</small></div>
+          <div class="plan-save">${period === 'year' ? `Save ${money(saving)} a year` : `or ${money(PLAN_PRICES[plan].year)} / year`}</div>
+          ${listHtml(items)}
+          ${button}
+        </div>`;
+      }).join('');
+      $('cards').querySelectorAll('[data-plan]').forEach((b) => b.addEventListener('click', notOpen));
+    }
+
+    // Buying comes with steps 3-5 (the billing function, the website checkout, the store apps).
+    function notOpen(e) {
+      if (e) e.preventDefault();
+      showMessage($('buyMessage'), 'Buying isn\'t open yet.');
+    }
+
+    if (session && session.role !== 'owner') {
+      showMessage($('message'), 'Only the owner can see plans.');
+    } else if (session && !sub) {
+      showMessage($('message'), 'Plans aren\'t open yet.', 'ok');
+    } else if (session) {
+      $('plansPage').classList.remove('hidden');
+      document.querySelectorAll('[data-period]').forEach((b) => b.addEventListener('click', () => {
+        period = b.dataset.period;
+        document.querySelectorAll('[data-period]').forEach((x) => x.classList.toggle('active', x === b));
+        draw();
+      }));
+      $('restore').addEventListener('click', notOpen);
+      draw();
+      // The latest plan (the session's may be from sign-in).
+      api('me').then(() => { sub = storePlan(); draw(); }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

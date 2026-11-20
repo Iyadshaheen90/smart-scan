@@ -35,6 +35,11 @@
         <span class="row-icon accent" data-icon="swap"></span>
         <span class="row-text"><span class="row-main"><span class="row-title" id="storesTitle">Switch Store</span><span class="row-sub" id="storesSub"></span></span><span class="row-chev" data-icon="chevronRight"></span></span>
       </a>
+      <!-- Owner only, database only, once the store has a plan (subscriptions): plan, renewal, Change Plan. -->
+      <a class="group-row hidden" href="subscription.html" id="subRow">
+        <span class="row-icon accent" data-icon="dollar"></span>
+        <span class="row-text"><span class="row-main"><span class="row-title">Subscription</span><span class="row-sub" id="subSub">Your plan</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
+      </a>
       <a class="group-row owner-only hidden" href="users.html">
         <span class="row-icon accent" data-icon="users"></span>
         <span class="row-text"><span class="row-main"><span class="row-title">Manage Employees</span><span class="row-sub">People, invites and permissions</span></span><span class="row-chev" data-icon="chevronRight"></span></span>
@@ -204,6 +209,17 @@
       document.querySelectorAll('.db-only').forEach((el) => {
         el.classList.toggle('hidden', !USE_DATABASE || (el.classList.contains('owner-only') && session.role !== 'owner'));
       });
+      // Subscription: the owner, once the store has a plan (the database from migration 0033).
+      const showPlanRow = () => {
+        const plan = storePlan();
+        const row = document.getElementById('subRow');
+        row.classList.toggle('hidden', !(plan && session.role === 'owner'));
+        if (plan) {
+          const name = plan.status === 'comp' ? 'Pro · Free' : plan.access === 'read_only' ? 'Ended' : `${plan.plan === 'basic' ? 'Basic' : 'Pro'}${plan.status === 'trialing' ? ' · Free Trial' : ''}`;
+          document.getElementById('subSub').textContent = name;
+        }
+      };
+      showPlanRow();
       // Switch Store: on several stores, or (sign-up open) an owner who may set up another. The phone asks again how
       // many stores there are, so someone just added to a second store sees it without signing in again.
       const showStores = () => {
