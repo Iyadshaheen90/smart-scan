@@ -196,6 +196,11 @@ async function parity({ today, time = '12:00:00' }) {
       steps += 1;
       const expected = sheets.call(who, action, req);
       const actual = await db.call(who, action, req);
+      // The plan (subscriptions, migration 0033) is only on the database: Sheets has none.
+      if (actual && actual.data && typeof actual.data === 'object' && 'subscription' in actual.data) {
+        assert.equal(actual.data.subscription.access, 'pro', 'a test store is comp (Pro)');
+        delete actual.data.subscription;
+      }
       assert.deepEqual(normalize(actual), normalize(expected), `step ${steps}: ${who} ${action} ${JSON.stringify(req)}`);
       if (!expected.ok) return expected;
       return expected.data;

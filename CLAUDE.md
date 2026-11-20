@@ -24,8 +24,10 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
   `node scripts/preview-wizard.js`. What's built and what's left: `docs/supabase.md` ("Many stores").
 - Ready to Restock (Pro, database only, migration 0031, live): `restock.html`, Home card, Slots row, the oldest pack
   on the slot page, a warning right at the scan for another game or a newer pack (`#scanWarn`; Activate Several
-  shows Use This Pack Anyway). Pro features check `app.has_pro`,
-  which is true for every store until the subscriptions build. Details: `docs/supabase.md`, `docs/business-rules.md`.
+  shows Use This Pack Anyway). Pro features check `app.has_pro` (prod: true for every store; dev: migration 0033's
+  `store_access()`, subscriptions step 1). Details: `docs/supabase.md`, `docs/business-rules.md`.
+- **Subscriptions step 1 (0033, dev only until after Dec 1):** read-only is in `app.lock_store()`; a save a read-only
+  store must still allow calls `app.lock_store_any()` instead. See docs/supabase.md "Subscriptions step 1".
 
 ## Details live in docs/ (read only the one the task needs)
 

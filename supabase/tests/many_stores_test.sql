@@ -131,6 +131,13 @@ begin
   end;
 end $$;
 
+-- A store an owner sets up starts with no subscription (read-only, migration 0033); these get one (Pro) to go on.
+reset role;
+update app.store_subscriptions set status = 'active', plan = 'pro', period_end = now() + interval '30 days'
+  where store_id in (current_setting('test.a')::uuid, current_setting('test.b')::uuid, current_setting('test.c')::uuid);
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-0000000000c1", "role": "authenticated", "email": "New-Owner@test.invalid"}';
+
 -- ---- Activate Several's cap, Store Settings, layout (store A) ----
 do $$
 declare

@@ -42,6 +42,7 @@ node test/db/run.js                       # database: store separation, sign-in 
 for t in test/parity/*.js; do [ $t = test/parity/harness.js ] || node $t; done   # Sheets vs Supabase: identical answers (dev project)
 node test/browser/retailer-number.js     # More → Retailer Number (owner only, pop-up, refusals) and the number on the Theft Report (screen, text, PDF; owner + employee)
 node test/browser/db-sign-in.js           # pages on BACKEND 'supabase' against a dev test store: email sign-in, Forgot Password, invite → Resend Invite → set password, change password, token renewal, owner sets password / turns off
+# supabase/tests/subscriptions_test.sql (node test/db/run.js subscriptions): store_access + margins, Basic / Pro limits, read-only, paused, first answers, new stores
 node test/browser/db-sign-in-username.js  # dev, real: email once, username at the remembered store, username + Store ID, 5 wrong → locked 15 min
 node test/browser/sign-in-username.js     # Sign In page (faked database): one box, Store ID box, remembered store + Change, email path, wrong / locked, Forgot
 node test/browser/phone-switch.js         # one phone on the database before the cutover: More Try the Database / Use Sheets Again, Database chip, Sign In way back, pending close refused, cutover forgets it, invite link in a Sheets browser

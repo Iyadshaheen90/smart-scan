@@ -140,6 +140,24 @@ the dev project. The CLI is `npx --yes supabase@2.122.0` (signed in via the owne
   works. Edit Layout sends `prices`. Test: in `many_stores_test.sql`.
   Not built: the subscription row and the "cancel the subscription first" block on
   Delete Store (subscriptions build), auth settings for sign-up (needs our own email domain).
+- **Subscriptions step 1 (migration 0033; DEV ONLY until after the Dec 1 cutover settles; design:
+  `~/.claude/plans/smart-scan-subscriptions-design.md`):** `app.store_subscriptions` (one row per store, set only with
+  the service key: `service_set_subscription`), `app.store_access(store)` = pro | basic | read_only (comp = Pro;
+  trial = Pro; 48 h margin after `period_end` / `trial_end`; billing_issue keeps the plan; expired / none / no row =
+  read_only). `app.has_pro` = store_access() = 'pro'. Every store that existed got **comp** (Route 66 Liquor); a new
+  store is comp too unless an owner set it up (`create_store` sets `app.new_store_status` = none → read-only until it
+  pays: steps 2-3). **Read-only lives in `app.lock_store()`**: every save is refused (`subscription_ended`, owner /
+  employee words) except functions that call **`app.lock_store_any()`** instead: report_problem, set_user_active,
+  set_user_permissions, service_add_member, set_retailer_number, set_store_settings, leave_store, delete_store.
+  **A new saving function uses `lock_store()`; one a read-only store must still do uses `lock_store_any()`.**
+  Basic: `slot_json` leaves out activationDate / daysActive (no Settling, no 50-day badge), theft_report `needs_pro`,
+  a 2nd `submit_shift_close` of the business day `needs_pro`, employees beyond 2 (`member_admin_check` invite,
+  `set_user_active` on) `needs_pro`; Pro: beyond 10 `employee_limit`. `store_members.paused` (set in step 3) →
+  `unauthorized` in `enter_store`. `subscription { access, status, plan, trialEndsOn, renewsOn, willRenew, source,
+  canBuy }` in my_stores (per store), me, close_status, owner_home (those two moved to `app.*_body` + a wrapper).
+  The functions were changed by patching their live text (`pg_temp.patch` in the migration). Parity tests drop
+  `subscription` (Sheets has none). Not yet: `subscription_events`, `trial_claims` (step 3), pages (step 2).
+  `scripts/preview-wizard.js` stores are read-only now (set one comp with service_set_subscription to try more).
 - **Sign in by username (owner 2026-11-20; migration 0032, `supabase/functions/signin`):** Sign In has one box, "Email or
   Username" (an @ = email → Supabase Auth as before). A username goes to the **signin** Edge Function with the store
   the phone remembers (`smartScanSignInStore` in api.js, saved by `saveSession` for any database session with a store,

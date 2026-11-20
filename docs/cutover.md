@@ -30,7 +30,7 @@ this before any cutover work. The review behind it: `docs/db-review-2026-11.md`.
 - [x] Sheets "moved" lock (backend @42 + pages sw v68) and migration 0027 (dev + prod) deployed 2026-11-12.
 - [x] Owner ran `node scripts/db-audit.js --prod` 2026-11-12: 27 migrations, 1 real store, "Nothing out of place".
       Run it again after any new migration on prod.
-- [ ] Prod matches dev: same migrations, `members` + `support` + `signin` functions deployed, the 3 function secrets and the
+- [ ] Prod matches dev: same migrations (**except 0033 subscriptions step 1: prod only after the cutover settles; push prod migrations by name, not a blanket `db push`, until then**), `members` + `support` + `signin` functions deployed, the 3 function secrets and the
       status-link secret set, auth settings pushed (`docs/supabase.md`).
 - [ ] Nov 27–29 (needs pages sw v70 or newer, so opening the invite doesn't move a phone to the database):
       `node scripts/import-sheets.js invite --all` (owner types `send`). Each employee adds the store's
