@@ -15,8 +15,8 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
   `smart-scan-subscriptions-design.md` (plans, trial, read-only) and `smart-scan-multi-store-design.md` (setup wizard,
   several stores, sign-in by username, other states' tickets). All owner decisions in both are made.
   `smart-scan-startup-readiness.md`: running it as a business, with a checklist per stage (read when planning one).
-  `smart-scan-notifications-design.md`: push notifications + the in-app notification center (all decided; center
-  after Dec 1, push with the store apps).
+  `smart-scan-notifications-design.md`: push notifications + the in-app notification center (all decided, screens
+  approved 2026-11-20 incl. bell, list, settings, More row, Quiet Hours on; center after Dec 1, push with the store apps).
 - Many stores, build steps 1-5 are live (migrations 0028-0030). Closed behind `SIGN_UP_OPEN = false` in `config.js`:
   `signup.html`, `setup.html` (setup wizard), Set Up Another Store, Leave / Delete (`delete.html`). Open on the
   database: Your Stores / switching (`stores.html`, only shows on 2+ stores), Store Settings, Edit Layout (a price per
@@ -31,6 +31,8 @@ The production database (`smart-scan-prod`) is set up and holds an imported copy
   `app.lock_store_any()` instead. Step 2 pages are live but show only when the session has `subscription`:
   `plans.html`, `subscription.html`, the Upgrade to Pro pop-up (`showPlanPopup`), Home `#planBanner`; buying isn't
   wired (steps 3-5 need RevenueCat / Stripe). See docs/supabase.md "Subscriptions step 1", docs/code-map.md.
+- **Find a Slot (live, pages only):** a quiet floating magnifier on Slots opens a full-screen search of the loaded
+  slots by game or pack number (every box, tickets left as of the last close). docs/code-map.md `slots.html`.
 - **Sign in by username (live, migration 0032 + `signin` Edge Function):** one "Email or Username" box; the phone
   remembers its store (`smartScanSignInStore`), a new phone asks for the Store ID; 5 wrong tries → 15 minutes.
   Details: docs/supabase.md "Sign in by username".
